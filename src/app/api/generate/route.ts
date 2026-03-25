@@ -532,7 +532,7 @@ async function callLLM(prompt: string): Promise<string> {
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'doubao-pro-32k',
+      model: 'hunyuan-lite',
       messages: [
         {
           role: 'system',
@@ -559,7 +559,7 @@ async function callLLM(prompt: string): Promise<string> {
 // 调用LLM（流式）
 async function* callLLMStream(prompt: string): AsyncGenerator<string> {
   const apiKey = process.env.CONTENT_API_KEY;
-  const baseUrl = process.env.CONTENT_API_BASE_URL || 'https://api.z.ai/api/paas/v4';
+  const baseUrl = process.env.CONTENT_API_BASE_URL || 'https://api.hunyuan.cloud.tencent.com/v1';
   
   if (!apiKey) {
     throw new Error('API key not configured');
@@ -572,7 +572,7 @@ async function* callLLMStream(prompt: string): AsyncGenerator<string> {
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'doubao-pro-32k',
+      model: 'hunyuan-lite',
       messages: [
         {
           role: 'system',
