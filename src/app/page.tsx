@@ -79,6 +79,11 @@ export default function Home() {
   const [isLoadingHotTopics, setIsLoadingHotTopics] = useState(false);
   const [showHotTopicsPanel, setShowHotTopicsPanel] = useState(false);
 
+  // 自定义图片prompt状态
+  const [customImagePrompt, setCustomImagePrompt] = useState('');
+  const [isRegeneratingImages, setIsRegeneratingImages] = useState(false);
+  const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
+
   // 检查选项兼容性
   const isTopicCompatible = USER_TAG_TOPIC_COMPATIBILITY[userTag].includes(topicType);
   const isHotTopicSupported = HOT_TOPIC_SUPPORTED.includes(topicType);
@@ -205,6 +210,42 @@ export default function Home() {
       setIsGenerating(false);
     }
   }, [topicType, userTag, contentType, keywords, useHotTopic, isTopicCompatible, isHotTopicSupported]);
+
+  // 重新生成配图
+  const handleRegenerateImages = useCallback(async (prompt?: string) => {
+    const usePrompt = prompt || customImagePrompt;
+    
+    if (!usePrompt || usePrompt.trim().length === 0) {
+      toast.error('请输入图片描述');
+      return;
+    }
+
+    setIsRegeneratingImages(true);
+    setSelectedImageIndex(0);
+
+    try {
+      const response = await fetch('/api/regenerate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: usePrompt, count: 4 }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.imageUrls.length > 0) {
+        setImageUrls(data.imageUrls);
+        toast.success(`已生成 ${data.imageUrls.length} 张新配图`);
+        setCustomImagePrompt('');
+      } else {
+        toast.error(data.error || '图片生成失败');
+      }
+    } catch (error) {
+      console.error('Regenerate images error:', error);
+      toast.error('图片生成失败，请重试');
+    } finally {
+      setIsRegeneratingImages(false);
+    }
+  }, [customImagePrompt]);
 
   // 复制内容
   const handleCopy = (text: string) => {
@@ -626,10 +667,65 @@ export default function Home() {
                   {/* 配图选择 - 多图展示 */}
                   {imageUrls.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                        <ImageIcon className="h-3.5 w-3.5 text-violet-500" />
-                        AI配图（点击选择）
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                          <ImageIcon className="h-3.5 w-3.5 text-violet-500" />
+                          AI配图（点击选择）
+                        </Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowCustomPromptInput(!showCustomPromptInput)}
+                          className="text-xs text-violet-600 hover:text-violet-700 h-6 px-2"
+                        >
+                          <PenTool className="h-3 w-3 mr-1" />
+                          自定义描述
+                        </Button>
+                      </div>
+                      
+                      {/* 自定义prompt输入框 */}
+                      {showCustomPromptInput && (
+                        <div className="space-y-2 p-3 bg-violet-50 rounded-lg border border-violet-100">
+                          <div className="text-xs text-violet-600 font-medium">
+                            💡 描述你想要的配图风格（不会生成文字）：
+                          </div>
+                          <Textarea
+                            placeholder="例如：一个温馨的咖啡馆场景，木质桌椅，阳光透过窗户洒进来，桌上放着笔记本电脑和一杯拿铁..."
+                            value={customImagePrompt}
+                            onChange={(e) => setCustomImagePrompt(e.target.value)}
+                            className="min-h-[60px] text-xs border-violet-200 focus:border-violet-300 focus:ring-violet-200"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleRegenerateImages()}
+                              disabled={isRegeneratingImages || !customImagePrompt.trim()}
+                              className="flex-1 bg-violet-500 hover:bg-violet-600 text-white h-7 text-xs"
+                            >
+                              {isRegeneratingImages ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  生成中...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  重新生成
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowCustomPromptInput(false)}
+                              className="h-7 text-xs border-violet-200 text-violet-600"
+                            >
+                              取消
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="grid grid-cols-2 gap-2">
                         {imageUrls.map((url, index) => (
                           <div
@@ -657,6 +753,22 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+                      
+                      {/* 快捷重新生成按钮 */}
+                      {!showCustomPromptInput && (
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRegenerateImages('简约清新的投资理财插画，粉色和金色配色，温馨治愈的氛围，扁平化设计风格')}
+                            disabled={isRegeneratingImages}
+                            className="text-xs border-gray-200 text-gray-600 h-7"
+                          >
+                            {isRegeneratingImages ? <Loader2 className="h-3 w-3 animate-spin" /> : '🔄 换一批'}
+                          </Button>
+                        </div>
+                      )}
+                      
                       {imageUrls.length > 1 && (
                         <p className="text-xs text-gray-400 text-center">已选择第 {selectedImageIndex + 1} 张配图</p>
                       )}
