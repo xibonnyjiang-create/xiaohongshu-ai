@@ -23,6 +23,14 @@ const CONTENT_TYPE_PROMPTS: Record<ContentType, string> = {
   video_script: '短视频脚本',
 };
 
+// 小红书风格的图片描述模板
+const XIAOHONGSHU_IMAGE_STYLES = [
+  '简约清新的扁平插画风格，柔和的马卡龙配色，粉色和米色为主色调',
+  '温暖的ins风格照片，自然光线，木质纹理背景，生活化场景',
+  '现代简约的信息图风格，干净的几何图形，渐变色彩，高级感',
+  '温馨治愈系手绘插画，柔和线条，淡雅配色，可爱元素',
+];
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -65,11 +73,11 @@ export async function POST(request: NextRequest) {
           const tags = await generateTags(topicType, keywords);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`));
 
-          // 4. 生成配图
+          // 4. 生成多张配图供选择
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图...' })}\n\n`));
-          const imageUrl = await generateImage(title, customHeaders);
-          if (imageUrl) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'image', data: imageUrl })}\n\n`));
+          const imageUrls = await generateImages(title, customHeaders);
+          if (imageUrls.length > 0) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`));
           }
 
           // 5. 合规审查
@@ -113,10 +121,10 @@ async function searchHotTopics(
 
     // 根据选题类型构建搜索查询
     const searchQueries: Record<TopicType, string> = {
-      market_hot: `A股市场最新热点 2024年 投资机会`,
-      beginner_guide: `投资理财入门知识 新手指南 2024`,
-      advanced_invest: `价值投资策略 股票分析技巧 最新`,
-      professional_analysis: `宏观经济分析 行业研究报告 最新`,
+      market_hot: `A股市场最新热点 今日财经新闻 投资机会`,
+      beginner_guide: `投资理财入门知识 新手指南 今日`,
+      advanced_invest: `价值投资策略 股票分析 最新市场动态`,
+      professional_analysis: `宏观经济分析 行业研究报告 今日财经`,
     };
 
     let query = searchQueries[topicType];
@@ -124,17 +132,19 @@ async function searchHotTopics(
       query = `${keywords} ${query}`;
     }
 
-    // 执行搜索
-    const response = await client.webSearch(query, 5, true);
+    // 执行搜索，限制最近一天的内容
+    const response = await client.advancedSearch(query, {
+      count: 5,
+      needSummary: true,
+      timeRange: '1d', // 最近一天
+    });
 
     if (response.web_items && response.web_items.length > 0) {
-      // 提取搜索结果的关键信息
       const hotInfo = response.web_items
         .slice(0, 3)
         .map(item => `【${item.title}】${item.snippet?.substring(0, 100) || ''}`)
         .join('\n');
       
-      // 如果有AI摘要，也包含进去
       if (response.summary) {
         return `${hotInfo}\n\n热点摘要：${response.summary}`;
       }
@@ -252,37 +262,56 @@ ${keywords ? `关键词：${keywords}` : ''}
   return response.split(/[,，、\n]/).map((tag) => tag.trim().replace(/^#/, '')).filter((tag) => tag.length > 0);
 }
 
-// 生成配图
-async function generateImage(title: string, customHeaders?: Record<string, string>): Promise<string | null> {
+// 生成多张配图供用户选择
+async function generateImages(title: string, customHeaders?: Record<string, string>): Promise<string[]> {
   try {
     const config = new Config();
     const client = new ImageGenerationClient(config, customHeaders);
 
-    // 构建图片描述
-    const imagePrompt = `小红书封面图，主题：${title}，风格要求：
-- 简约现代，有质感
-- 适合社交媒体传播
-- 色彩明亮温暖，有吸引力
-- 可以包含简单的金融元素（如图表、上升箭头、金币等抽象元素）
-- 文字简洁，突出重点`;
+    // 提取标题关键词用于图片生成
+    const cleanTitle = title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').trim();
+    
+    // 小红书风格的图片提示词（不含文字要求）
+    const imagePrompts = [
+      // 风格1：简约清新插画
+      `A clean, minimalist illustration about investment and finance, soft pastel colors with pink and cream tones, flat design style, geometric shapes representing growth and prosperity, warm and inviting atmosphere, NO TEXT, NO WORDS, NO LETTERS, modern aesthetic, suitable for social media cover`,
+      
+      // 风格2：温暖ins风
+      `A cozy lifestyle photo about financial planning, natural sunlight, wooden desk with plants and notebook, warm tones, aesthetic composition, Instagram style, NO TEXT, NO WORDS, NO LETTERS, clean and organized, professional yet approachable`,
+      
+      // 风格3：现代渐变风
+      `Abstract modern design with gradient colors, soft curves flowing upward representing growth, pink to orange gradient, clean minimalist composition, NO TEXT, NO WORDS, NO LETTERS, professional business aesthetic, suitable for social media`,
+      
+      // 风格4：治愈系手绘
+      `Cute hand-drawn illustration about saving money, soft watercolor style, pastel colors, gentle brushstrokes, warm and healing atmosphere, NO TEXT, NO WORDS, NO LETTERS, kawaii elements, suitable for lifestyle blog`,
+    ];
 
-    const response = await client.generate({
-      prompt: imagePrompt,
-      size: '2K',
-      watermark: false,
+    // 并行生成4张不同风格的图片
+    const imagePromises = imagePrompts.map(async (prompt, index) => {
+      try {
+        const response = await client.generate({
+          prompt,
+          size: '2K',
+          watermark: false,
+        });
+
+        const helper = client.getResponseHelper(response);
+        if (helper.success && helper.imageUrls.length > 0) {
+          return helper.imageUrls[0];
+        }
+        return null;
+      } catch (error) {
+        console.error(`Image ${index + 1} generation error:`, error);
+        return null;
+      }
     });
 
-    const helper = client.getResponseHelper(response);
-    
-    if (helper.success && helper.imageUrls.length > 0) {
-      return helper.imageUrls[0];
-    }
-    
-    console.log('Image generation result:', helper.errorMessages);
-    return null;
+    const results = await Promise.all(imagePromises);
+    // 过滤掉失败的图片
+    return results.filter((url): url is string => url !== null);
   } catch (error) {
     console.error('Image generation error:', error);
-    return null;
+    return [];
   }
 }
 
