@@ -126,18 +126,17 @@ export default function Home() {
               try {
                 const data = JSON.parse(line.slice(6));
                 
-                if (data.type === 'title') {
+                if (data.type === 'status') {
+                  setCurrentStep(data.data);
+                } else if (data.type === 'title') {
                   accumulatedResult.title = data.data;
-                  setCurrentStep('正在生成正文...');
                 } else if (data.type === 'content') {
                   accumulatedResult.content += data.data;
                   setStreamingContent(accumulatedResult.content);
                 } else if (data.type === 'tags') {
                   accumulatedResult.tags = data.data;
-                  setCurrentStep('正在生成配图...');
                 } else if (data.type === 'image') {
                   accumulatedResult.imageUrl = data.data;
-                  setCurrentStep('正在进行合规审查...');
                 } else if (data.type === 'compliance') {
                   accumulatedResult.complianceCheck = data.data;
                   setCurrentStep('');
