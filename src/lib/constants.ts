@@ -5,7 +5,7 @@ export const TOPIC_TYPE_OPTIONS: { value: TopicType; label: string; description:
   {
     value: 'market_hot',
     label: '市场热点',
-    description: '追踪最新市场动态和热点事件',
+    description: '追踪AI、机器人、新能源等热门行业动态',
   },
   {
     value: 'beginner_guide',
@@ -15,12 +15,12 @@ export const TOPIC_TYPE_OPTIONS: { value: TopicType; label: string; description:
   {
     value: 'advanced_invest',
     label: '进阶投资',
-    description: '进阶投资策略和技巧',
+    description: '券商研报解读与机构评级分析',
   },
   {
     value: 'professional_analysis',
     label: '专业分析',
-    description: '深度行业分析和专业见解',
+    description: '财报分析与期货市场深度解读',
   },
 ];
 
@@ -59,9 +59,9 @@ export const CONTENT_TYPE_OPTIONS: { value: ContentType; label: string; descript
 
 // 视频时长选项
 export const VIDEO_DURATION_OPTIONS: { value: VideoDuration; label: string; description: string }[] = [
-  { value: '30s', label: '30秒', description: '快节奏短视频' },
-  { value: '60s', label: '1分钟', description: '标准短视频' },
-  { value: '3min', label: '3分钟', description: '深度内容视频' },
+  { value: '30s', label: '30秒', description: '快节奏短视频，约80-100字' },
+  { value: '60s', label: '1分钟', description: '标准短视频，约180-220字' },
+  { value: '3min', label: '3分钟', description: '深度内容视频，约500-600字' },
 ];
 
 // 视频风格选项
@@ -79,7 +79,7 @@ export const TITLE_STYLE_OPTIONS: { value: TitleStyle; label: string; descriptio
     value: 'suspense', 
     label: '悬念式', 
     description: '设置悬念引发好奇',
-    example: '这个信号出现，我果断清仓了...」'
+    example: '「这个信号出现，我果断清仓了...」'
   },
   { 
     value: 'data_driven', 
@@ -126,28 +126,28 @@ export const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot', 'advanced_invest'
 
 // 博主人设预设
 export const PERSONA_PRESETS = [
-  { label: '硬核财经大叔', keywords: '专业、理性、数据说话、深度分析' },
-  { label: '甜妹理财科普', keywords: '可爱、亲切、通俗易懂、闺蜜感' },
-  { label: '实战派老股民', keywords: '经验丰富、接地气、实战案例、避坑指南' },
-  { label: '金融学霸人设', keywords: '专业术语、逻辑清晰、学术派、数据支撑' },
-  { label: '吐槽型财经博主', keywords: '幽默、犀利、一针见血、敢说真话' },
+  { label: '硬核财经大叔', keywords: '专业、理性、数据说话、深度分析、犀利点评' },
+  { label: '甜妹理财科普', keywords: '可爱、亲切、通俗易懂、闺蜜感、温暖治愈' },
+  { label: '实战派老股民', keywords: '经验丰富、接地气、实战案例、避坑指南、真诚分享' },
+  { label: '金融学霸人设', keywords: '专业术语、逻辑清晰、学术派、数据支撑、严谨分析' },
+  { label: '吐槽型财经博主', keywords: '幽默、犀利、一针见血、敢说真话、接地气' },
 ];
 
 // 视频脚本结构模板
-export const VIDEO_SCRIPT_STRUCTURE = {
-  hook: {
-    label: '开场钩子',
-    duration: { '30s': '3-5秒', '60s': '5-8秒', '3min': '10-15秒' },
-    tips: '用悬念、痛点或数据吸引注意力',
+export const VIDEO_SCRIPT_STRUCTURE: Record<VideoDuration, {hook: string; main: string; cta: string}> = {
+  '30s': {
+    hook: '0-5秒',
+    main: '5-25秒',
+    cta: '25-30秒',
   },
-  main: {
-    label: '核心内容',
-    duration: { '30s': '15-20秒', '60s': '35-45秒', '3min': '2-2.5分钟' },
-    tips: '分点阐述，每个要点简洁有力',
+  '60s': {
+    hook: '0-8秒',
+    main: '8-50秒',
+    cta: '50-60秒',
   },
-  cta: {
-    label: '结尾互动',
-    duration: { '30s': '3-5秒', '60s': '5-10秒', '3min': '15-20秒' },
-    tips: '引导关注、点赞或评论互动',
+  '3min': {
+    hook: '0-15秒',
+    main: '15-150秒',
+    cta: '150-180秒',
   },
 };

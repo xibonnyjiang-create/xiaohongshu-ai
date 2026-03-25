@@ -230,6 +230,7 @@ export default function Home() {
     setResult(null);
     setImageUrls([]);
     setSelectedImageIndex(0);
+    setHotTopicsData([]);
     setCurrentStep('准备中...');
 
     try {
@@ -450,14 +451,10 @@ export default function Home() {
     }
   }, [result, topicType, keywords]);
 
-  // 重新生成配图
+  // 重新生成配图 - 支持基于内容自动生成或自定义prompt
   const handleRegenerateImages = useCallback(async (prompt?: string) => {
     const usePrompt = prompt || customImagePrompt;
-    
-    if (!usePrompt || usePrompt.trim().length === 0) {
-      toast.error('请输入图片描述');
-      return;
-    }
+    const hasCustomPrompt = usePrompt && usePrompt.trim().length > 0;
 
     setIsRegeneratingImages(true);
     setSelectedImageIndex(0);
@@ -466,7 +463,12 @@ export default function Home() {
       const response = await fetch('/api/regenerate-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: usePrompt, count: 4 }),
+        body: JSON.stringify({ 
+          prompt: hasCustomPrompt ? usePrompt : '', // 空字符串会让API自动生成
+          count: 4,
+          title: result?.title,
+          content: result?.content,
+        }),
       });
 
       const data = await response.json();
@@ -474,7 +476,9 @@ export default function Home() {
       if (data.success && data.imageUrls.length > 0) {
         setImageUrls(data.imageUrls);
         toast.success(`已生成 ${data.imageUrls.length} 张新配图`);
-        setCustomImagePrompt('');
+        if (hasCustomPrompt) {
+          setCustomImagePrompt('');
+        }
       } else {
         toast.error(data.error || '图片生成失败');
       }
@@ -484,7 +488,7 @@ export default function Home() {
     } finally {
       setIsRegeneratingImages(false);
     }
-  }, [customImagePrompt]);
+  }, [customImagePrompt, result?.title, result?.content]);
 
   // 复制内容
   const handleCopy = (text: string) => {
@@ -1377,7 +1381,7 @@ ${result.complianceCheck.warnings.length > 0 ? `\n⚠️ 合规提醒：\n${resu
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleRegenerateImages('简约清新的投资理财插画，粉色和金色配色，温馨治愈的氛围，扁平化设计风格')}
+                            onClick={() => handleRegenerateImages('')} // 空字符串触发基于内容自动生成
                             disabled={isRegeneratingImages}
                             className="text-xs border-gray-200 text-gray-600 h-7"
                           >
