@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { TopicType, UserTag, ContentType } from '@/lib/types';
+import { TopicType, UserTag, ContentType, VideoDuration, VideoStyle, TitleStyle, HotTopicTimeRange } from '@/lib/types';
 import { SearchClient, ImageGenerationClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
+import { callLLM, callLLMStream } from '@/lib/llm';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -23,23 +24,62 @@ const CONTENT_TYPE_PROMPTS: Record<ContentType, string> = {
   video_script: '短视频脚本',
 };
 
-// 小红书风格的图片描述模板
-const XIAOHONGSHU_IMAGE_STYLES = [
-  '简约清新的扁平插画风格，柔和的马卡龙配色，粉色和米色为主色调',
-  '温暖的ins风格照片，自然光线，木质纹理背景，生活化场景',
-  '现代简约的信息图风格，干净的几何图形，渐变色彩，高级感',
-  '温馨治愈系手绘插画，柔和线条，淡雅配色，可爱元素',
-];
+// 标题风格映射
+const TITLE_STYLE_PROMPTS: Record<TitleStyle, string> = {
+  suspense: '悬念式标题：设置悬念，引发读者好奇心',
+  data_driven: '数据式标题：用数据说话，有理有据',
+  emotional: '情感式标题：触动情感共鸣',
+  practical: '实用式标题：强调实用价值',
+  contrast: '反差式标题：制造反差吸引眼球',
+};
+
+// 视频风格映射
+const VIDEO_STYLE_PROMPTS: Record<VideoStyle, string> = {
+  popular_science: '科普风格：知识点密集，干货满满',
+  roast: '吐槽风格：幽默风趣，犀利点评',
+  suspense: '悬疑风格：设置悬念，引人入胜',
+  storytelling: '故事风格：案例为主，娓娓道来',
+  educational: '教学风格：步骤清晰，手把手教',
+};
+
+// 人设风格适配
+function getPersonaPrompt(personaKeywords?: string): string {
+  if (!personaKeywords) return '';
+  return `博主风格人设：${personaKeywords}。语气、称呼、表达方式都要贴合这个人设。`;
+}
+
+// 时间范围映射
+const TIME_RANGE_MAP: Record<HotTopicTimeRange, string> = {
+  '24h': '1d',
+  '7d': '7d',
+  '30d': '30d',
+};
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topicType, userTag, contentType, keywords, useHotTopic } = body as {
+    const { 
+      topicType, 
+      userTag, 
+      contentType, 
+      keywords, 
+      useHotTopic,
+      videoDuration = '60s',
+      videoStyle = 'popular_science',
+      titleStyle,
+      personaKeywords,
+      hotTopicTimeRange = '24h',
+    } = body as {
       topicType: TopicType;
       userTag: UserTag;
       contentType: ContentType;
       keywords?: string;
       useHotTopic?: boolean;
+      videoDuration?: VideoDuration;
+      videoStyle?: VideoStyle;
+      titleStyle?: TitleStyle;
+      personaKeywords?: string;
+      hotTopicTimeRange?: HotTopicTimeRange;
     };
 
     // 提取请求头用于SDK
@@ -52,19 +92,31 @@ export async function POST(request: NextRequest) {
         try {
           // 0. 如果启用了热点推荐，先搜索实时热点
           let hotTopicInfo = '';
+          let hotTopicsWithScore: Array<{title: string; score: number; snippet: string}> = [];
+          
           if (useHotTopic) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在搜索实时热点...' })}\n\n`));
-            hotTopicInfo = await searchHotTopics(topicType, keywords, customHeaders);
+            const result = await searchHotTopics(topicType, keywords, hotTopicTimeRange, customHeaders);
+            hotTopicInfo = result.info;
+            hotTopicsWithScore = result.topics;
+            
+            // 发送热点数据（带热度值）
+            if (hotTopicsWithScore.length > 0) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'hot_topics_data', data: hotTopicsWithScore })}\n\n`));
+            }
           }
 
           // 1. 生成标题
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`));
-          const title = await generateTitle(topicType, userTag, keywords, hotTopicInfo);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'title', data: title })}\n\n`));
+          const title = await generateTitle(topicType, userTag, contentType, keywords, hotTopicInfo, titleStyle, personaKeywords);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'title', data: title, titleStyle })}\n\n`));
 
           // 2. 生成正文（流式）
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成正文...' })}\n\n`));
-          const contentStream = await generateContent(topicType, userTag, contentType, keywords, hotTopicInfo);
+          const contentStream = await generateContent(
+            topicType, userTag, contentType, keywords, hotTopicInfo, title,
+            videoDuration, videoStyle, personaKeywords
+          );
           for await (const chunk of contentStream) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`));
           }
@@ -109,12 +161,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 搜索实时热点
+// 搜索实时热点（返回带热度值的数据）
 async function searchHotTopics(
   topicType: TopicType, 
   keywords?: string,
+  hotTopicTimeRange: HotTopicTimeRange = '24h',
   customHeaders?: Record<string, string>
-): Promise<string> {
+): Promise<{ info: string; topics: Array<{title: string; score: number; snippet: string}> }> {
   try {
     const config = new Config();
     const client = new SearchClient(config, customHeaders);
@@ -132,29 +185,39 @@ async function searchHotTopics(
       query = `${keywords} ${query}`;
     }
 
-    // 执行搜索，限制最近一天的内容
+    // 执行搜索
     const response = await client.advancedSearch(query, {
       count: 5,
       needSummary: true,
-      timeRange: '1d', // 最近一天
+      timeRange: TIME_RANGE_MAP[hotTopicTimeRange],
     });
 
+    const topics: Array<{title: string; score: number; snippet: string}> = [];
+    
     if (response.web_items && response.web_items.length > 0) {
+      response.web_items.slice(0, 5).forEach((item, index) => {
+        // 模拟热度值（基于排序位置）
+        const score = Math.max(100 - index * 15, 50);
+        topics.push({
+          title: item.title,
+          score,
+          snippet: item.snippet?.substring(0, 100) || '',
+        });
+      });
+
       const hotInfo = response.web_items
         .slice(0, 3)
         .map(item => `【${item.title}】${item.snippet?.substring(0, 100) || ''}`)
         .join('\n');
       
-      if (response.summary) {
-        return `${hotInfo}\n\n热点摘要：${response.summary}`;
-      }
-      return hotInfo;
+      const summary = response.summary ? `\n\n热点摘要：${response.summary}` : '';
+      return { info: hotInfo + summary, topics };
     }
 
-    return '';
+    return { info: '', topics: [] };
   } catch (error) {
     console.error('Search hot topics error:', error);
-    return '';
+    return { info: '', topics: [] };
   }
 }
 
@@ -162,15 +225,26 @@ async function searchHotTopics(
 async function generateTitle(
   topicType: TopicType,
   userTag: UserTag,
+  contentType: ContentType,
   keywords?: string,
-  hotTopicInfo?: string
+  hotTopicInfo?: string,
+  titleStyle?: TitleStyle,
+  personaKeywords?: string
 ): Promise<string> {
+  const titleStylePrompt = titleStyle 
+    ? TITLE_STYLE_PROMPTS[titleStyle] 
+    : '选择最适合的标题风格';
+
   const prompt = `你是一个小红书爆款内容专家，请为以下场景生成一个吸引人的标题：
 
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
 目标用户：${USER_TAG_PROMPTS[userTag]}
+内容类型：${contentType === 'article' ? '图文笔记' : '视频脚本'}
 ${keywords ? `关键词：${keywords}` : ''}
 ${hotTopicInfo ? `实时热点信息：\n${hotTopicInfo}` : ''}
+
+标题风格要求：${titleStylePrompt}
+${getPersonaPrompt(personaKeywords)}
 
 要求：
 1. 标题要有吸引力，使用emoji表情增加视觉冲击力
@@ -192,34 +266,51 @@ async function* generateContent(
   userTag: UserTag,
   contentType: ContentType,
   keywords?: string,
-  hotTopicInfo?: string
+  hotTopicInfo?: string,
+  title?: string,
+  videoDuration?: VideoDuration,
+  videoStyle?: VideoStyle,
+  personaKeywords?: string
 ): AsyncGenerator<string> {
-  const prompt = `你是一个资深的投资理财博主，在知乎、小红书有百万粉丝。请为以下场景生成一篇高质量的${CONTENT_TYPE_PROMPTS[contentType]}：
+  const isVideo = contentType === 'video_script';
+  
+  const videoPrompt = isVideo ? `
+【视频脚本结构要求】
+时长：${videoDuration || '60s'}
+风格：${videoStyle ? VIDEO_STYLE_PROMPTS[videoStyle] : '科普风格'}
 
+脚本需要包含以下部分：
+【开场钩子】- 用悬念、痛点或数据吸引注意力
+【核心内容】- 分点阐述，提供具体数据或案例
+【结尾互动】- 总结+引导关注互动` : '';
+
+  const prompt = `你是一个资深的投资理财博主，在知乎、小红书有百万粉丝。请为以下场景生成一篇高质量的${isVideo ? '视频脚本' : '图文内容'}：
+
+${title ? `标题：${title}` : ''}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
 目标用户：${USER_TAG_PROMPTS[userTag]}
 ${keywords ? `关键词：${keywords}` : ''}
 ${hotTopicInfo ? `实时热点信息（必须融入内容中）：\n${hotTopicInfo}` : ''}
+${getPersonaPrompt(personaKeywords)}
+${videoPrompt}
 
 【核心要求】：
 1. 内容深度要求：
    - 不要浮于表面，要有独到见解和深度分析
    - 提供具体的操作方法、数据支撑或案例说明
    - 解释"为什么"而不只是"是什么"
+   - 关联相关的背景知识或同类案例
 
 2. 专业性要求：
    - 使用准确的专业术语，但要通俗解释
    - 引用具体的市场数据或趋势分析
    - 提供可操作的建议，而非空泛的口号
 
-3. 内容结构：
-   ${contentType === 'article' ? `
+${!isVideo ? `
+3. 图文内容结构：
    - 开头：用数据/现象/痛点吸引眼球
-   - 中间：分3-5个要点深度解析，每个要点有理有据
-   - 结尾：总结+行动建议+互动引导` : `
-   - 开场：简短有力，抛出核心观点
-   - 正文：口语化表达，像在和朋友聊天
-   - 结尾：金句总结，引导关注`}
+   - 中间：分3-5个要点深度解析
+   - 结尾：总结+行动建议+互动引导` : ''}
 
 4. 语言风格：
    - 真诚、接地气，像资深朋友在分享经验
@@ -231,9 +322,7 @@ ${hotTopicInfo ? `实时热点信息（必须融入内容中）：\n${hotTopicIn
    - 不要过度承诺投资回报
    - 要有风险提示意识
 
-6. 内容长度：500-800字，确保信息密度高、干货多
-
-${hotTopicInfo ? '【重要】必须将上述实时热点信息自然融入内容中，让读者感受到时效性！' : ''}
+${hotTopicInfo ? '【重要】必须将上述实时热点信息自然融入内容中！' : ''}
 
 请直接输出正文内容，不要其他说明：`;
 
@@ -267,22 +356,12 @@ async function generateImages(title: string, customHeaders?: Record<string, stri
   try {
     const config = new Config();
     const client = new ImageGenerationClient(config, customHeaders);
-
-    // 提取标题关键词用于图片生成
-    const cleanTitle = title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').trim();
     
     // 小红书风格的图片提示词（不含文字要求）
     const imagePrompts = [
-      // 风格1：简约清新插画
       `A clean, minimalist illustration about investment and finance, soft pastel colors with pink and cream tones, flat design style, geometric shapes representing growth and prosperity, warm and inviting atmosphere, NO TEXT, NO WORDS, NO LETTERS, modern aesthetic, suitable for social media cover`,
-      
-      // 风格2：温暖ins风
       `A cozy lifestyle photo about financial planning, natural sunlight, wooden desk with plants and notebook, warm tones, aesthetic composition, Instagram style, NO TEXT, NO WORDS, NO LETTERS, clean and organized, professional yet approachable`,
-      
-      // 风格3：现代渐变风
       `Abstract modern design with gradient colors, soft curves flowing upward representing growth, pink to orange gradient, clean minimalist composition, NO TEXT, NO WORDS, NO LETTERS, professional business aesthetic, suitable for social media`,
-      
-      // 风格4：治愈系手绘
       `Cute hand-drawn illustration about saving money, soft watercolor style, pastel colors, gentle brushstrokes, warm and healing atmosphere, NO TEXT, NO WORDS, NO LETTERS, kawaii elements, suitable for lifestyle blog`,
     ];
 
@@ -307,7 +386,6 @@ async function generateImages(title: string, customHeaders?: Record<string, stri
     });
 
     const results = await Promise.all(imagePromises);
-    // 过滤掉失败的图片
     return results.filter((url): url is string => url !== null);
   } catch (error) {
     console.error('Image generation error:', error);
@@ -368,112 +446,4 @@ async function checkCompliance(title: string, tags: string): Promise<{
     warnings: [],
     suggestions: [],
   };
-}
-
-// 调用LLM（非流式）
-async function callLLM(prompt: string): Promise<string> {
-  const apiKey = process.env.CONTENT_API_KEY;
-  const baseUrl = process.env.CONTENT_API_BASE_URL || 'https://api.hunyuan.cloud.tencent.com/v1';
-  
-  if (!apiKey) {
-    throw new Error('API key not configured');
-  }
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'hunyuan-lite',
-      messages: [
-        {
-          role: 'system',
-          content: '你是一位资深的投资理财内容专家，在小红书、知乎等平台拥有百万粉丝。你的内容专业、深入、有洞见，同时又通俗易懂、接地气。你擅长将复杂的金融知识用生动的案例和通俗的语言讲清楚，深受用户信赖。',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.85,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`LLM API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
-}
-
-// 调用LLM（流式）
-async function* callLLMStream(prompt: string): AsyncGenerator<string> {
-  const apiKey = process.env.CONTENT_API_KEY;
-  const baseUrl = process.env.CONTENT_API_BASE_URL || 'https://api.hunyuan.cloud.tencent.com/v1';
-  
-  if (!apiKey) {
-    throw new Error('API key not configured');
-  }
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'hunyuan-lite',
-      messages: [
-        {
-          role: 'system',
-          content: '你是一位资深的投资理财内容专家，在小红书、知乎等平台拥有百万粉丝。你的内容专业、深入、有洞见，同时又通俗易懂、接地气。你擅长将复杂的金融知识用生动的案例和通俗的语言讲清楚，深受用户信赖。',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.85,
-      max_tokens: 2000,
-      stream: true,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`LLM Stream API error: ${response.status}`);
-  }
-
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-
-  if (reader) {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              yield content;
-            }
-          } catch (e) {
-            // 忽略解析错误
-          }
-        }
-      }
-    }
-  }
 }
