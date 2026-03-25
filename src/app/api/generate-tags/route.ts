@@ -4,10 +4,10 @@ import { callLLM } from '@/lib/llm';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
-  market_hot: '市场热点追踪，最新动态和热点事件',
-  beginner_guide: '小白科普，基础投资知识和入门指南',
-  advanced_invest: '进阶投资，进阶投资策略和技巧',
-  professional_analysis: '专业分析，深度行业分析和专业见解',
+  market_hot: '市场热点追踪，关注AI、机器人、新能源等热门行业的技术更新，以及国家宏观政策对市场的影响',
+  beginner_guide: '小白科普，基础投资知识和入门指南，帮助新手理解市场运作',
+  advanced_invest: '进阶投资，分享国内外知名券商机构的研报评级，提供专业的投资策略',
+  professional_analysis: '专业分析，基于公司财报分析股价变化，解读黄金石油外汇等期货价格变动原因',
 };
 
 export async function POST(request: NextRequest) {

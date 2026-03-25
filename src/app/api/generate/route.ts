@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { TopicType, UserTag, ContentType, VideoDuration, VideoStyle, TitleStyle, HotTopicTimeRange } from '@/lib/types';
 import { SearchClient, ImageGenerationClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
-import { callLLM, callLLMStream } from '@/lib/llm';
+import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
 
 // 选题类型映射 - 增强版
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -476,62 +476,11 @@ async function generateImages(title: string, content: string, customHeaders?: Re
   }
 }
 
-// 合规审查 - 增强
+// 合规审查 - 使用DeepSeek
 async function checkCompliance(title: string, content: string, tags: string): Promise<{
   isCompliant: boolean;
   warnings: string[];
   suggestions: string[];
 }> {
-  const prompt = `你是一个金融内容合规审查专家，请严格审查以下小红书内容是否合规：
-
-标题：${title}
-正文：${content.substring(0, 500)}
-标签：${tags}
-
-【审查重点】：
-1. 违规承诺类：
-   - 是否包含"保证收益"、"稳赚不赔"、"100%收益"、"躺赚"等承诺性表述
-   - 是否暗示内幕消息或庄家操作
-
-2. 荐股违规类：
-   - 是否有具体的股票代码推荐
-   - 是否有"买入XX股票"的明确建议
-   - 是否暗示有内幕消息来源
-
-3. 夸大宣传类：
-   - 是否有"暴富"、"翻倍"等夸大表述
-   - 是否有虚假或误导性信息
-
-4. 敏感词汇：
-   - "内幕消息"、"庄家"、"黑马"、"妖股"等
-   - "荐股"、"代客理财"等可能涉及牌照问题
-
-5. 风险提示：
-   - 是否有适当的风险提示声明
-   - 是否声明"不构成投资建议"
-
-请以JSON格式输出审查结果：
-{
-  "isCompliant": true或false,
-  "warnings": ["具体警告信息1", "具体警告信息2"],
-  "suggestions": ["具体修改建议1", "具体修改建议2"]
-}
-
-如果没有问题，warnings为空数组，isCompliant为true。`;
-
-  try {
-    const response = await callLLM(prompt);
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-  } catch (error) {
-    console.error('Compliance check error:', error);
-  }
-
-  return {
-    isCompliant: true,
-    warnings: [],
-    suggestions: [],
-  };
+  return callComplianceCheck(title, content, tags);
 }
