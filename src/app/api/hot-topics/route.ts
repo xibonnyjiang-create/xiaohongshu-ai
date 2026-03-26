@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchWeb } from '@/lib/web-search';
+import { searchWeb, extractHeaders } from '@/lib/web-search';
 
 // 热点板块配置
 const HOT_CATEGORIES = [
@@ -17,11 +17,15 @@ export async function GET(request: NextRequest) {
     // 找到对应的板块配置
     const categoryConfig = HOT_CATEGORIES.find(c => c.id === category) || HOT_CATEGORIES[0];
 
+    // 提取请求头用于SDK
+    const customHeaders = extractHeaders(request.headers);
+
     try {
       // 使用通用搜索服务
       const searchResults = await searchWeb(categoryConfig.keywords, {
         count: 10,
         timeRange: 'day',
+        headers: customHeaders,
       });
 
       // 格式化热点数据

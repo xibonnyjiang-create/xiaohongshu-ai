@@ -1,24 +1,10 @@
 /**
- * 通用网络搜索服务
- * 支持多种搜索引擎后端
+ * 网络搜索服务
+ * 优先使用 coze-coding-dev-sdk（沙箱环境）
+ * 备用使用外部搜索API
  */
 
-// 搜索配置
-const SEARCH_CONFIG = {
-  // SerpAPI配置（推荐）
-  serpApi: {
-    apiKey: process.env.SERP_API_KEY || '',
-  },
-  // Bing搜索配置
-  bing: {
-    apiKey: process.env.BING_API_KEY || '',
-  },
-  // Google自定义搜索配置
-  google: {
-    apiKey: process.env.GOOGLE_API_KEY || '',
-    searchEngineId: process.env.GOOGLE_SEARCH_ENGINE_ID || '',
-  }
-};
+import { SearchClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 
 export interface SearchResult {
   title: string;
@@ -28,16 +14,34 @@ export interface SearchResult {
   publishTime?: string;
 }
 
+// 搜索配置（备用外部API）
+const SEARCH_CONFIG = {
+  serpApi: {
+    apiKey: process.env.SERP_API_KEY || '',
+  },
+  bing: {
+    apiKey: process.env.BING_API_KEY || '',
+  },
+};
+
 /**
  * 执行网络搜索
  */
 export async function searchWeb(query: string, options?: {
   count?: number;
   timeRange?: 'day' | 'week' | 'month';
+  headers?: Record<string, string>;
 }): Promise<SearchResult[]> {
-  const { count = 10, timeRange = 'day' } = options || {};
+  const { count = 10, timeRange = 'day', headers } = options || {};
   
-  // 优先使用SerpAPI
+  // 优先使用 coze-coding-dev-sdk（沙箱环境内置）
+  try {
+    return await searchWithSDK(query, count, timeRange, headers);
+  } catch (error) {
+    console.warn('SDK搜索失败，尝试备用方案:', error);
+  }
+  
+  // 备用：SerpAPI
   if (SEARCH_CONFIG.serpApi.apiKey) {
     return searchWithSerpApi(query, count, timeRange);
   }
@@ -47,18 +51,51 @@ export async function searchWeb(query: string, options?: {
     return searchWithBing(query, count);
   }
   
-  // 备用：Google
-  if (SEARCH_CONFIG.google.apiKey && SEARCH_CONFIG.google.searchEngineId) {
-    return searchWithGoogle(query, count);
-  }
-  
-  // 无API配置时返回模拟数据
+  // 最终备用：模拟数据
   console.warn('未配置搜索API，返回模拟数据');
   return getMockSearchResults(query);
 }
 
 /**
- * SerpAPI搜索 - 使用Google News引擎获取实时新闻
+ * 使用 coze-coding-dev-sdk 搜索（沙箱环境）
+ */
+async function searchWithSDK(
+  query: string, 
+  count: number, 
+  timeRange: string,
+  customHeaders?: Record<string, string>
+): Promise<SearchResult[]> {
+  const config = new Config();
+  const client = new SearchClient(config, customHeaders);
+  
+  const timeRangeMap: Record<string, string> = {
+    'day': '1d',
+    'week': '1w',
+    'month': '1m',
+  };
+  
+  const response = await client.advancedSearch(query, {
+    searchType: 'web',
+    count: count,
+    timeRange: timeRangeMap[timeRange] || '1d',
+    needSummary: false,
+  });
+  
+  if (response.web_items && response.web_items.length > 0) {
+    return response.web_items.map((item) => ({
+      title: item.title,
+      link: item.url || '',
+      snippet: item.snippet || '',
+      source: item.site_name || '',
+      publishTime: item.publish_time,
+    }));
+  }
+  
+  return [];
+}
+
+/**
+ * SerpAPI搜索（备用）
  */
 async function searchWithSerpApi(
   query: string, 
@@ -68,31 +105,28 @@ async function searchWithSerpApi(
   const { apiKey } = SEARCH_CONFIG.serpApi;
   
   try {
-    // 使用 Google News 引擎，更适合获取实时热点新闻
     const params = new URLSearchParams({
       engine: 'google_news',
       q: query,
       api_key: apiKey,
-      gl: 'cn',  // 地区设置为中国
-      hl: 'zh-cn',  // 语言设置为中文
+      gl: 'cn',
+      hl: 'zh-cn',
     });
     
     const response = await fetch(`https://serpapi.com/search?${params}`);
     
     if (!response.ok) {
-      console.error('SerpAPI请求失败:', response.status, response.statusText);
+      console.error('SerpAPI请求失败:', response.status);
       return [];
     }
     
     const data = await response.json();
     
-    // 检查API错误
     if (data.error) {
       console.error('SerpAPI错误:', data.error);
       return [];
     }
     
-    // Google News 返回的是 news_results
     if (data.news_results) {
       return data.news_results.slice(0, count).map((r: any) => ({
         title: r.title,
@@ -103,7 +137,6 @@ async function searchWithSerpApi(
       }));
     }
     
-    // 备用：使用普通搜索结果
     if (data.organic_results) {
       return data.organic_results.slice(0, count).map((r: any) => ({
         title: r.title,
@@ -122,65 +155,42 @@ async function searchWithSerpApi(
 }
 
 /**
- * Bing搜索
+ * Bing搜索（备用）
  */
 async function searchWithBing(query: string, count: number): Promise<SearchResult[]> {
   const { apiKey } = SEARCH_CONFIG.bing;
   
-  const response = await fetch(
-    `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&count=${count}`,
-    {
-      headers: {
-        'Ocp-Apim-Subscription-Key': apiKey,
-      },
+  try {
+    const response = await fetch(
+      `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&count=${count}`,
+      {
+        headers: {
+          'Ocp-Apim-Subscription-Key': apiKey,
+        },
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (data.webPages?.value) {
+      return data.webPages.value.map((r: any) => ({
+        title: r.name,
+        link: r.url,
+        snippet: r.snippet,
+        source: new URL(r.url).hostname,
+        publishTime: r.dateLastCrawled,
+      }));
     }
-  );
-  
-  const data = await response.json();
-  
-  if (data.webPages?.value) {
-    return data.webPages.value.map((r: any) => ({
-      title: r.name,
-      link: r.url,
-      snippet: r.snippet,
-      source: new URL(r.url).hostname,
-      publishTime: r.dateLastCrawled,
-    }));
+    
+    return [];
+  } catch (error) {
+    console.error('Bing搜索异常:', error);
+    return [];
   }
-  
-  return [];
 }
 
 /**
- * Google自定义搜索
- */
-async function searchWithGoogle(query: string, count: number): Promise<SearchResult[]> {
-  const { apiKey, searchEngineId } = SEARCH_CONFIG.google;
-  
-  const params = new URLSearchParams({
-    q: query,
-    key: apiKey,
-    cx: searchEngineId,
-    num: count.toString(),
-  });
-  
-  const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params}`);
-  const data = await response.json();
-  
-  if (data.items) {
-    return data.items.map((r: any) => ({
-      title: r.title,
-      link: r.link,
-      snippet: r.snippet,
-      source: r.displayLink,
-    }));
-  }
-  
-  return [];
-}
-
-/**
- * 模拟搜索结果（用于测试）
+ * 模拟搜索结果（最终备用）
  */
 function getMockSearchResults(query: string): SearchResult[] {
   return [
@@ -197,4 +207,11 @@ function getMockSearchResults(query: string): SearchResult[] {
       source: 'example.com',
     },
   ];
+}
+
+/**
+ * 提取请求头用于SDK（用于API路由）
+ */
+export function extractHeaders(headers: Headers): Record<string, string> {
+  return HeaderUtils.extractForwardHeaders(headers);
 }
