@@ -118,12 +118,32 @@ export default function Home() {
     }
   }, [showHotTopics, hotTopicTimeRange]);
 
+  // 加载历史记录（从数据库）
   useEffect(() => {
-    const saved = localStorage.getItem('contentHistory');
-    if (saved) {
-      setHistoryRecords(JSON.parse(saved));
-    }
+    loadHistoryFromDB();
   }, []);
+
+  const loadHistoryFromDB = async () => {
+    try {
+      const response = await fetch('/api/history');
+      const data = await response.json();
+      if (data.records) {
+        setHistoryRecords(data.records.map((r: any) => ({
+          id: r.id,
+          createdAt: r.created_at,
+          title: r.title,
+          content: r.content,
+          tags: r.tags || [],
+          imageUrl: r.selected_image_url,
+          imageUrls: r.image_urls || [],
+          engagementScore: r.engagement_score,
+          isFavorite: r.is_favorite,
+        })));
+      }
+    } catch (error) {
+      console.error('Load history error:', error);
+    }
+  };
 
   // 切换用户标签时，检查选题兼容性
   useEffect(() => {
@@ -337,23 +357,31 @@ export default function Home() {
   };
 
   // ==================== 保存到历史 ====================
-  const handleSave = () => {
-    const record: HistoryRecord = {
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      title: titles[selectedTitleIndex]?.title || '',
-      content: editableContent,
-      tags,
-      imageUrl: imageUrls[selectedImageIndex],
-      imageUrls,
-      engagementScore: engagementScore || undefined,
-      isFavorite: false,
-    };
-    
-    const newRecords = [record, ...historyRecords].slice(0, 50);
-    setHistoryRecords(newRecords);
-    localStorage.setItem('contentHistory', JSON.stringify(newRecords));
-    toast.success('已保存到历史记录');
+  const handleSave = async () => {
+    try {
+      const response = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: titles[selectedTitleIndex]?.title || '',
+          content: editableContent,
+          tags,
+          imageUrls,
+          imageUrl: imageUrls[selectedImageIndex],
+          engagementScore: engagementScore || undefined,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.record) {
+        // 刷新历史记录列表
+        await loadHistoryFromDB();
+        toast.success('已保存到云端');
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('保存失败');
+    }
   };
 
   // ==================== 复制与导出 ====================
@@ -400,11 +428,20 @@ export default function Home() {
     toast.success('已加载历史记录');
   };
 
-  const handleDeleteHistory = (id: string) => {
-    const newRecords = historyRecords.filter(r => r.id !== id);
-    setHistoryRecords(newRecords);
-    localStorage.setItem('contentHistory', JSON.stringify(newRecords));
-    toast.success('已删除');
+  const handleDeleteHistory = async (id: string) => {
+    try {
+      const response = await fetch(`/api/history?id=${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        await loadHistoryFromDB();
+        toast.success('已删除');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('删除失败');
+    }
   };
 
   // ==================== 内容编辑处理 ====================
