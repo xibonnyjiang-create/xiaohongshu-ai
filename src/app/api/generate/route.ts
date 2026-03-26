@@ -4,8 +4,8 @@ import {
   TitleStyle, AdditionalRequirement, PersonaType,
   TitleCandidate, AnalysisTarget, ContentDepth, FocusDirection, ContentSubType
 } from '@/lib/types';
-import { SearchClient, ImageGenerationClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
+import { generateImages as generateImagesService, getPlaceholderImages } from '@/lib/image-generation';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       hotTopicInfo,
     } = body;
 
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    // 不再需要提取请求头，使用通用API服务
     const isVideo = contentType === 'video_script';
     const isAnalysisType = topicType === 'market_hot' || topicType === 'professional_analysis';
 
@@ -449,37 +449,34 @@ ${keywords ? `关键词：${keywords}` : ''}
 // 生成配图
 async function generateImages(title: string, content: string, customHeaders?: Record<string, string>): Promise<string[]> {
   try {
-    const config = new Config();
-    const client = new ImageGenerationClient(config, customHeaders);
-
     const imagePrompts = [
-      `Professional financial infographic, clean data visualization, business growth, blue and white, modern minimalist, NO TEXT, NO WORDS`,
-      `Modern investment scene, laptop with charts, warm lighting, professional atmosphere, lifestyle photography, NO TEXT, NO WORDS`,
-      `Abstract growth visualization, geometric shapes, blue to green gradient, clean modern design, NO TEXT, NO WORDS`,
+      `Professional financial infographic, clean data visualization, business growth, blue and white, modern minimalist`,
+      `Modern investment scene, laptop with charts, warm lighting, professional atmosphere, lifestyle photography`,
+      `Abstract growth visualization, geometric shapes, blue to green gradient, clean modern design`,
     ];
 
-    const imageUrls: string[] = [];
-    
-    for (let i = 0; i < imagePrompts.length; i++) {
-      try {
-        if (i > 0) await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const response = await client.generate({
-          prompt: imagePrompts[i],
-          size: '2K',
-          watermark: false,
-        });
-
-        const helper = client.getResponseHelper(response);
-        if (helper.success && helper.imageUrls.length > 0) {
-          imageUrls.push(helper.imageUrls[0]);
+    // 尝试使用配置的图片生成API
+    try {
+      const imageUrls: string[] = [];
+      for (const prompt of imagePrompts) {
+        try {
+          const urls = await generateImagesService({ prompt, count: 1 });
+          if (urls.length > 0) {
+            imageUrls.push(urls[0]);
+          }
+        } catch (error) {
+          console.error('Image generation error:', error);
         }
-      } catch (error) {
-        console.error(`Image ${i + 1} error:`, error);
       }
+      if (imageUrls.length > 0) {
+        return imageUrls;
+      }
+    } catch (apiError) {
+      console.warn('图片生成API调用失败，使用占位图:', apiError);
     }
 
-    return imageUrls;
+    // 备用：返回占位图
+    return getPlaceholderImages(3);
   } catch (error) {
     console.error('Image generation error:', error);
     return [];
