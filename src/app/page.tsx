@@ -476,39 +476,39 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50">
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
         {/* 头部 */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-rose-500 to-pink-500 rounded-xl shadow-lg">
-              <TrendingUp className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2.5 bg-gradient-to-br from-rose-500 to-pink-500 rounded-lg sm:rounded-xl shadow-lg">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent">
                 小红书AI爆款内容生成器
               </h1>
-              <p className="text-gray-500 text-xs">智能生成专业、深度的财经内容</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs hidden sm:block">智能生成专业、深度的财经内容</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-2">
-            <History className="h-4 w-4" />
-            历史记录
+          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-1 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3">
+            <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">历史记录</span>
             {historyRecords.length > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs">{historyRecords.length}</Badge>
+              <Badge variant="secondary" className="ml-0 sm:ml-1 text-[10px]">{historyRecords.length}</Badge>
             )}
           </Button>
         </div>
 
-        <div className="grid grid-cols-12 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 md:gap-5">
           {/* ==================== 左侧：输入区域 ==================== */}
-          <div className="col-span-5 space-y-4">
+          <div className="lg:col-span-5 space-y-3 sm:space-y-4">
             
             {/* 基础设置 */}
             <Card className="border-0 shadow-lg bg-white/90">
-              <CardHeader className="pb-2 pt-4 px-5">
+              <CardHeader className="pb-2 pt-3 sm:pt-4 px-4 sm:px-5">
                 <CardTitle className="text-sm font-semibold text-gray-800">基础设置</CardTitle>
               </CardHeader>
-              <CardContent className="px-5 pb-4 space-y-4">
+              <CardContent className="px-4 sm:px-5 pb-4 space-y-4">
                 
                 {/* 目标用户 - 分段控件 */}
                 <div>
@@ -595,7 +595,7 @@ export default function Home() {
             {/* ==================== 热榜/推荐区域 ==================== */}
             {showHotTopics && (
               <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-3 px-5">
+                <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                       <Flame className="h-4 w-4 text-orange-500" />
@@ -617,7 +617,7 @@ export default function Home() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="px-5 pb-3 pt-0">
+                <CardContent className="px-4 sm:px-5 pb-3 pt-0">
                   {/* 板块Tab切换 */}
                   <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
                     {HOT_CATEGORIES.map((cat) => (
@@ -693,13 +693,13 @@ export default function Home() {
             {/* 推荐主题（非市场热点时显示） */}
             {!showHotTopics && topicRecommendations.length > 0 && (
               <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-3 px-5">
+                <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
                   <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                     <Lightbulb className="h-4 w-4 text-amber-500" />
                     推荐主题
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-5 pb-3 pt-0">
+                <CardContent className="px-4 sm:px-5 pb-3 pt-0">
                   <div className="space-y-1.5">
                     {topicRecommendations.map((item) => (
                       <button
@@ -725,13 +725,13 @@ export default function Home() {
             {/* ==================== 动态配置区域 ==================== */}
             {(topicType === 'market_hot' || topicType === 'professional_analysis') && (
               <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-3 px-5">
+                <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
                   <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                     <Target className="h-4 w-4 text-rose-500" />
                     分析配置
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-5 pb-4 space-y-3">
+                <CardContent className="px-4 sm:px-5 pb-4 space-y-3">
                   
                   {/* 分析对象 */}
                   <div>
@@ -811,13 +811,13 @@ export default function Home() {
 
             {(topicType === 'beginner_guide' || topicType === 'advanced_invest') && (
               <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-3 px-5">
+                <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
                   <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                     <Lightbulb className="h-4 w-4 text-amber-500" />
                     内容配置
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-5 pb-4 space-y-3">
+                <CardContent className="px-4 sm:px-5 pb-4 space-y-3">
                   
                   {/* 内容子类型 */}
                   <div>
@@ -880,13 +880,13 @@ export default function Home() {
 
             {/* ==================== 内容设置 ==================== */}
             <Card className="border-0 shadow-lg bg-white/90">
-              <CardHeader className="pb-2 pt-3 px-5">
+              <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                   <Layers className="h-4 w-4 text-rose-500" />
                   内容设置
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-5 pb-4 space-y-3">
+              <CardContent className="px-4 sm:px-5 pb-4 space-y-3">
                 
                 {isVideo ? (
                   <>
@@ -975,7 +975,7 @@ export default function Home() {
               </button>
               
               {showAdvanced && (
-                <CardContent className="px-5 pb-4 space-y-3">
+                <CardContent className="px-4 sm:px-5 pb-4 space-y-3">
                   
                   {/* 博主人设 */}
                   <div>
@@ -1092,9 +1092,10 @@ export default function Home() {
           </div>
 
           {/* ==================== 右侧：输出区域 ==================== */}
-          <div className="col-span-7">
-            <Card className="border-0 shadow-lg bg-white/90 sticky top-4">
-              <CardHeader className="pb-2 pt-4 px-5">
+          {/* ==================== 右侧：输出区域 ==================== */}
+          <div className="lg:col-span-7">
+            <Card className="border-0 shadow-lg bg-white/90 lg:sticky lg:top-4">
+              <CardHeader className="pb-2 pt-3 sm:pt-4 px-4 sm:px-5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-semibold text-gray-800">生成结果</CardTitle>
                   {titles.length > 0 && (
@@ -1121,7 +1122,7 @@ export default function Home() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="px-5 pb-4">
+              <CardContent className="px-4 sm:px-5 pb-4">
                 {titles.length === 0 && !content ? (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                     <FileText className="h-10 w-10 mb-2" />
@@ -1591,7 +1592,7 @@ export default function Home() {
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
-            <CardContent className="px-5 pb-4 space-y-3">
+            <CardContent className="px-4 sm:px-5 pb-4 space-y-3">
               <div>
                 <Label className="text-xs text-gray-500 mb-1.5 block">图片描述</Label>
                 <Textarea
