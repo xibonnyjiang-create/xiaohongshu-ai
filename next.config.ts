@@ -1,8 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // outputFileTracingRoot: path.resolve(__dirname, '../../'),  // Uncomment and add 'import path from "path"' if needed
-  /* config options here */
   allowedDevOrigins: ['*.dev.coze.site'],
   images: {
     remotePatterns: [
@@ -13,19 +11,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 在 Vercel 环境（无 COZE_PROJECT_ENV）使用 mock 模块
-  webpack: (config, { isServer }) => {
-    // 检测是否在沙箱环境
-    const isSandbox = process.env.COZE_PROJECT_ENV || process.env.COZE_WORKSPACE_PATH;
-    
-    if (!isSandbox && isServer) {
-      // Vercel 环境：使用 mock 模块替代 coze-coding-dev-sdk
-      config.resolve = config.resolve || {};
-      config.resolve.alias = config.resolve.alias || {};
-      config.resolve.alias['coze-coding-dev-sdk'] = require.resolve('./src/lib/coze-coding-dev-sdk.ts');
-    }
-    
-    return config;
+  // Turbopack 配置 - 在 Vercel 环境中使用 mock 模块
+  turbopack: {
+    resolveAlias: {
+      // 在构建时检测环境
+      'coze-coding-dev-sdk': 
+        process.env.COZE_PROJECT_ENV || process.env.COZE_WORKSPACE_PATH
+          ? 'coze-coding-dev-sdk'
+          : './src/lib/coze-coding-dev-sdk.ts',
+    },
   },
 };
 
