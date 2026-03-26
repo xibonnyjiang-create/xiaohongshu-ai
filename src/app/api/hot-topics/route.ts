@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     // 找到对应的板块配置
     const categoryConfig = HOT_CATEGORIES.find(c => c.id === category) || HOT_CATEGORIES[0];
 
-    // 提取请求头用于SDK
-    const customHeaders = extractHeaders(request.headers);
+    // 提取请求头（异步）
+    const customHeaders = await extractHeaders(request.headers);
 
     try {
       // 使用通用搜索服务
