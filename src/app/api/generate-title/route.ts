@@ -4,17 +4,17 @@ import { callLLM } from '@/lib/llm';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
-  market_hot: '市场热点追踪，关注AI、机器人、新能源等热门行业的技术更新，以及国家宏观政策对市场的影响',
-  beginner_guide: '小白科普，基础投资知识和入门指南，帮助新手理解市场运作',
-  advanced_invest: '进阶投资，分享国内外知名券商机构的研报评级，提供专业的投资策略',
-  professional_analysis: '专业分析，基于公司财报分析股价变化，解读黄金石油外汇等期货价格变动原因',
+  market_hot: '市场热点追踪',
+  beginner_guide: '小白科普',
+  advanced_invest: '进阶投资',
+  professional_analysis: '专业分析',
 };
 
-// 用户标签映射
+// 用户标签映射（根据微证券业务调整）
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
-  beginner: '小白投资者，刚入市的新手，需要通俗易懂的解释',
-  intermediate: '进阶投资者，有一定经验的投资者，需要实用的策略',
-  professional: '专业玩家，经验丰富的专业投资者，需要深度分析',
+  newbie: '新手投资者，刚开户的新手，需要通俗易懂的解释和生活化的比喻',
+  active_trader: '活跃交易者，经常交易，关注短期机会和风险，需要实用的交易策略',
+  long_term_investor: '长线投资者，关注基本面和价值投资，需要深度的研究分析',
 };
 
 // 标题风格映射
@@ -30,7 +30,7 @@ const TITLE_STYLE_PROMPTS: Record<TitleStyle, string> = {
 // 人设风格适配
 function getPersonaPrompt(personaKeywords?: string): string {
   if (!personaKeywords) return '';
-  return `博主风格人设：${personaKeywords}。标题语气和表达方式要贴合这个人设。`;
+  return `博主风格人设：${personaKeywords}。标题语气和表达方式要贴合这个人设，要有原生感，不要像官方账号。`;
 }
 
 export async function POST(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       hotTopicInfo,
       titleStyle,
       personaKeywords,
-      previousTitle, // 用于重新生成时避免重复
+      previousTitle,
     } = body as {
       topicType: TopicType;
       userTag: UserTag;
@@ -56,46 +56,40 @@ export async function POST(request: NextRequest) {
       previousTitle?: string;
     };
 
-    // 构建标题生成提示
-    const titleStylePrompt = titleStyle 
-      ? TITLE_STYLE_PROMPTS[titleStyle] 
-      : '选择最适合的标题风格';
+    const styleGuide = titleStyle ? TITLE_STYLE_PROMPTS[titleStyle] : '选择最适合的风格';
+    const personaPrompt = getPersonaPrompt(personaKeywords);
 
-    const prompt = `你是一个小红书爆款内容专家，请为以下场景生成${previousTitle ? '一个新的' : '一个'}吸引人的标题：
+    const prompt = `你是小红书爆款标题专家。请为以下场景生成一个吸引人的标题：
 
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
 目标用户：${USER_TAG_PROMPTS[userTag]}
-内容类型：${contentType === 'article' ? '图文笔记' : '视频脚本'}
+内容形式：${contentType === 'article' ? '图文内容' : '视频脚本'}
 ${keywords ? `关键词：${keywords}` : ''}
-${hotTopicInfo ? `实时热点信息：\n${hotTopicInfo}` : ''}
+${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 500)}` : ''}
 
-标题风格要求：${titleStylePrompt}
-${getPersonaPrompt(personaKeywords)}
+标题风格：${styleGuide}
+${personaPrompt}
+${previousTitle ? `避免与以下标题重复：${previousTitle}` : ''}
 
-${previousTitle ? `之前的标题是："${previousTitle}"，请生成一个完全不同风格的标题。` : ''}
+【标题要求】
+1. 使用1-2个emoji增加吸引力
+2. 标题长度20-30字
+3. 避免夸张虚假宣传，不要用"必看"、"震惊"等低质标题党
+4. 体现专业度和时效性
+5. 要有博主个人风格，不要像官方账号
 
-要求：
-1. 标题要有吸引力，使用emoji表情增加视觉冲击力（1-2个即可）
-2. 符合小红书风格，要有种草感、悬念感或价值感
-3. 避免使用夸张、虚假宣传词汇
-4. 标题长度控制在20-30个字
-5. 要有独特性，体现专业度和洞察力
-6. ${hotTopicInfo ? '必须结合提供的实时热点信息，让内容有时效性' : ''}
-
-请直接输出标题，不要其他说明。`;
+只输出标题文本，不要其他内容：`;
 
     const title = await callLLM(prompt);
     
-    return Response.json({ 
-      success: true, 
-      title: title.trim(),
-      titleStyle 
+    return new Response(JSON.stringify({ title: title.trim() }), {
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Generate title error:', error);
-    return Response.json({ 
-      success: false, 
-      error: '标题生成失败' 
-    }, { status: 500 });
+    return new Response(JSON.stringify({ error: '生成失败' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

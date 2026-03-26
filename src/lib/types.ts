@@ -1,8 +1,8 @@
 // 选题类型
 export type TopicType = 'market_hot' | 'beginner_guide' | 'advanced_invest' | 'professional_analysis';
 
-// 用户标签
-export type UserTag = 'beginner' | 'intermediate' | 'professional';
+// 用户标签（根据微证券业务调整）
+export type UserTag = 'newbie' | 'active_trader' | 'long_term_investor';
 
 // 内容类型
 export type ContentType = 'article' | 'video_script';
@@ -20,7 +20,10 @@ export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' 
 export type HotTopicTimeRange = '24h' | '7d' | '30d';
 
 // 补充要求
-export type AdditionalRequirement = 'short_300' | 'short_term' | 'examples' | 'risk_warning' | 'recommend_wzq' | 'custom';
+export type AdditionalRequirement = 'short_300' | 'short_term' | 'long_term' | 'examples' | 'risk_warning' | 'recommend_wzq' | 'story_telling' | 'custom';
+
+// 博主人设类型
+export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'veteran_trader' | 'finance_scholar' | 'roaster' | 'custom';
 
 // 热点数据
 export interface HotTopic {
@@ -32,35 +35,10 @@ export interface HotTopic {
   publishTime?: string;
 }
 
-// 博主人设类型
-export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'veteran_trader' | 'finance_scholar' | 'roaster' | 'custom';
-
-// 生成参数
-export interface GenerateParams {
-  topicType: TopicType;
-  userTag: UserTag;
-  contentType: ContentType;
-  keywords: string;
-  hotTopicTimeRange: HotTopicTimeRange;
-  titleStyles: TitleStyle[];
-  personaType: PersonaType;
-  customPersona: string;
-  additionalRequirements: AdditionalRequirement[];
-  // 视频专用
-  videoDuration?: VideoDuration;
-  videoStyle?: VideoStyle;
-}
-
 // 标题候选
 export interface TitleCandidate {
   title: string;
   style: TitleStyle;
-}
-
-// 配图建议
-export interface ImageSuggestion {
-  type: 'cover' | 'inline';
-  description: string;
 }
 
 // 视频脚本分段
@@ -70,18 +48,6 @@ export interface ScriptSegment {
   duration: string;
 }
 
-// 生成结果
-export interface GenerateResult {
-  titles: TitleCandidate[];
-  content: string;
-  imageSuggestions?: ImageSuggestion[];
-  scriptSegments?: ScriptSegment[];
-  tags: string[];
-  riskWarning?: string;
-  complianceCheck: ComplianceResult;
-  imageUrls?: string[];
-}
-
 // 合规审查结果
 export interface ComplianceResult {
   isCompliant: boolean;
@@ -89,14 +55,17 @@ export interface ComplianceResult {
   suggestions: string[];
 }
 
-// 历史记录
-export interface HistoryRecord {
+// 导出格式
+export type ExportFormat = 'txt' | 'json' | 'image';
+
+// 内容保存记录
+export interface SavedDraft {
   id: string;
   createdAt: string;
-  params: GenerateParams;
-  result: GenerateResult;
-  isFavorite: boolean;
+  title: string;
+  content: string;
+  tags: string[];
+  imageUrl?: string;
+  topicType: TopicType;
+  userTag: UserTag;
 }
-
-// 导出格式
-export type ExportFormat = 'txt' | 'json' | 'csv' | 'script';

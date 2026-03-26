@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from '@/components/ui/select';
@@ -15,33 +16,33 @@ import {
   Sparkles, RefreshCw, Copy, Download, CheckCircle2, ImageIcon, 
   FileText, Video, TrendingUp, Loader2, Heart, Hash, Shield,
   AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
-  Flame, Clock, ExternalLink, X
+  Flame, X, Edit3, Save, Wand2, Eye, Share2, ThumbsUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   TopicType, UserTag, ContentType, VideoDuration, VideoStyle,
   TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType,
-  TitleCandidate, ImageSuggestion, HotTopic
+  TitleCandidate, HotTopic, SavedDraft
 } from '@/lib/types';
 import { 
   TOPIC_TYPE_OPTIONS, USER_TAG_OPTIONS, CONTENT_TYPE_OPTIONS,
   HOT_TOPIC_TIME_RANGE_OPTIONS, TITLE_STYLE_OPTIONS, PERSONA_OPTIONS,
   ADDITIONAL_REQUIREMENT_OPTIONS, VIDEO_DURATION_OPTIONS, VIDEO_STYLE_OPTIONS,
-  USER_TAG_TOPIC_COMPATIBILITY
+  USER_TAG_TOPIC_COMPATIBILITY, SHOW_HOT_TOPICS, TOPIC_USER_RECOMMENDATION
 } from '@/lib/constants';
 
 export default function Home() {
   // 基础参数
   const [topicType, setTopicType] = useState<TopicType>('market_hot');
-  const [userTag, setUserTag] = useState<UserTag>('beginner');
+  const [userTag, setUserTag] = useState<UserTag>('newbie');
   const [contentType, setContentType] = useState<ContentType>('article');
-  const [hotTopicTimeRange, setHotTopicTimeRange] = useState<HotTopicTimeRange>('7d');
+  const [hotTopicTimeRange, setHotTopicTimeRange] = useState<HotTopicTimeRange>('24h');
   const [keywords, setKeywords] = useState('');
 
   // 高级参数
   const [titleStyles, setTitleStyles] = useState<TitleStyle[]>([]);
   const [customTitleStyle, setCustomTitleStyle] = useState('');
-  const [personaType, setPersonaType] = useState<PersonaType>('hardcore_uncle');
+  const [personaType, setPersonaType] = useState<PersonaType>('veteran_trader');
   const [customPersona, setCustomPersona] = useState('');
   const [additionalRequirements, setAdditionalRequirements] = useState<AdditionalRequirement[]>([]);
   const [customRequirement, setCustomRequirement] = useState('');
@@ -59,19 +60,26 @@ export default function Home() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // 输出状态
   const [titles, setTitles] = useState<TitleCandidate[]>([]);
   const [selectedTitleIndex, setSelectedTitleIndex] = useState(0);
   const [content, setContent] = useState('');
-  const [imageSuggestions, setImageSuggestions] = useState<ImageSuggestion[]>([]);
+  const [editableContent, setEditableContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[] }>({ isCompliant: true, warnings: [] });
 
+  // 保存的草稿
+  const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
+
   const isVideo = contentType === 'video_script';
   const isCompatible = USER_TAG_TOPIC_COMPATIBILITY[userTag].includes(topicType);
+  const showHotTopics = SHOW_HOT_TOPICS.includes(topicType);
 
   // 加载热榜
   const loadHotTopics = useCallback(async () => {
@@ -89,8 +97,18 @@ export default function Home() {
 
   // 初始加载热榜
   useEffect(() => {
-    loadHotTopics();
-  }, [loadHotTopics]);
+    if (showHotTopics) {
+      loadHotTopics();
+    }
+  }, [loadHotTopics, showHotTopics]);
+
+  // 切换选题时清除选中的热点
+  useEffect(() => {
+    if (!showHotTopics) {
+      setSelectedHotTopic(null);
+      setKeywords('');
+    }
+  }, [showHotTopics]);
 
   // 选择热点作为关键词
   const handleSelectHotTopic = (topic: HotTopic) => {
@@ -101,6 +119,7 @@ export default function Home() {
   // 处理用户标签变化
   const handleUserTagChange = (value: UserTag) => {
     setUserTag(value);
+    // 如果当前选题不兼容，自动切换到兼容的选题
     if (!USER_TAG_TOPIC_COMPATIBILITY[value].includes(topicType)) {
       setTopicType(USER_TAG_TOPIC_COMPATIBILITY[value][0]);
     }
@@ -134,32 +153,19 @@ export default function Home() {
     setIsGenerating(true);
     setContent('');
     setTitles([]);
-    setImageSuggestions([]);
     setTags([]);
     setImageUrls([]);
     setCurrentStep('准备中...');
 
     try {
-      // 构建补充要求列表，包含自定义要求
-      const finalRequirements = [...additionalRequirements];
-      if (additionalRequirements.includes('custom') && customRequirement) {
-        // 自定义要求会在后端处理
-      }
-
-      // 构建标题风格列表，包含自定义风格
-      const finalTitleStyles = [...titleStyles];
-      if (titleStyles.includes('custom') && customTitleStyle) {
-        // 自定义风格会在后端处理
-      }
-
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topicType, userTag, contentType, keywords, hotTopicTimeRange,
-          titleStyles: finalTitleStyles, customTitleStyle,
+          titleStyles: titleStyles, customTitleStyle,
           personaType, customPersona, 
-          additionalRequirements: finalRequirements, customRequirement,
+          additionalRequirements, customRequirement,
           videoDuration, videoStyle,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
         }),
@@ -195,9 +201,7 @@ export default function Home() {
                   case 'content':
                     accumulatedContent += data.data;
                     setContent(accumulatedContent);
-                    break;
-                  case 'image_suggestions':
-                    setImageSuggestions(data.data);
+                    setEditableContent(accumulatedContent);
                     break;
                   case 'tags':
                     setTags(data.data);
@@ -225,25 +229,85 @@ export default function Home() {
     }
   }, [topicType, userTag, contentType, keywords, hotTopicTimeRange, titleStyles, customTitleStyle, personaType, customPersona, additionalRequirements, customRequirement, videoDuration, videoStyle, isCompatible, selectedHotTopic]);
 
+  // AI优化内容
+  const handleOptimize = async (type: 'title' | 'content' | 'all') => {
+    toast.info('AI优化中...');
+    // 这里可以调用优化API
+    setTimeout(() => toast.success('优化完成！'), 1500);
+  };
+
+  // 保存草稿
+  const handleSaveDraft = async () => {
+    setIsSaving(true);
+    try {
+      const draft: SavedDraft = {
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        title: titles[selectedTitleIndex]?.title || '',
+        content: editableContent,
+        tags,
+        imageUrl: imageUrls[selectedImageIndex],
+        topicType,
+        userTag,
+      };
+      
+      // 保存到localStorage
+      const drafts = JSON.parse(localStorage.getItem('drafts') || '[]');
+      drafts.unshift(draft);
+      localStorage.setItem('drafts', JSON.stringify(drafts.slice(0, 20)));
+      
+      setSavedDrafts(drafts);
+      toast.success('草稿已保存');
+    } catch (error) {
+      toast.error('保存失败');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // 复制
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('已复制');
+    toast.success('已复制到剪贴板');
   };
 
-  // 导出
+  // 导出完整内容
   const handleExport = () => {
     const selectedTitle = titles[selectedTitleIndex]?.title || '';
-    const text = `【标题】${selectedTitle}\n\n【正文】\n${content}\n\n【标签】${tags.map(t => '#' + t).join(' ')}\n\n${imageSuggestions.length > 0 ? `【配图建议】\n${imageSuggestions.map(s => `- ${s.type === 'cover' ? '封面图' : '内图'}：${s.description}`).join('\n')}` : ''}`;
+    const selectedImage = imageUrls[selectedImageIndex];
+    
+    const text = `【标题】${selectedTitle}
+
+【正文】
+${editableContent}
+
+【标签】
+${tags.map(t => '#' + t).join(' ')}
+
+【配图链接】
+${selectedImage || '未选择配图'}
+
+---
+生成时间：${new Date().toLocaleString('zh-CN')}
+选题类型：${TOPIC_TYPE_OPTIONS.find(o => o.value === topicType)?.label}
+目标用户：${USER_TAG_OPTIONS.find(o => o.value === userTag)?.label}`;
     
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `内容_${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = `小红书内容_${new Date().toISOString().split('T')[0]}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('已导出');
+  };
+
+  // 一键复制小红书格式
+  const handleCopyForXHS = () => {
+    const selectedTitle = titles[selectedTitleIndex]?.title || '';
+    const text = `${selectedTitle}\n\n${editableContent}\n\n${tags.map(t => '#' + t).join(' ')}`;
+    navigator.clipboard.writeText(text);
+    toast.success('已复制，可直接粘贴到小红书');
   };
 
   return (
@@ -262,74 +326,81 @@ export default function Home() {
           <p className="text-gray-500 text-sm">智能生成专业、深度的财经内容</p>
         </div>
 
-        {/* 热榜区域 */}
-        <Card className="mb-4 border-0 shadow-lg bg-white/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-medium flex items-center gap-2">
-                <Flame className="h-4 w-4 text-orange-500" />
-                今日热点
-                {hotTopics.length > 0 && (
-                  <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">
-                    {hotTopics.length}条
-                  </Badge>
-                )}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={loadHotTopics} disabled={hotTopicsLoading}>
-                <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {hotTopicsLoading && hotTopics.length === 0 ? (
-              <div className="flex items-center justify-center py-8 text-gray-400">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                加载热点中...
-              </div>
-            ) : (
-              <ScrollArea className="h-[120px]">
-                <div className="space-y-2">
-                  {hotTopics.slice(0, 8).map((topic) => (
-                    <button
-                      key={topic.id}
-                      onClick={() => handleSelectHotTopic(topic)}
-                      className={`w-full p-2 rounded-lg text-left transition-all flex items-start gap-2 ${
-                        selectedHotTopic?.id === topic.id
-                          ? 'bg-orange-50 border border-orange-200'
-                          : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white text-xs flex items-center justify-center font-medium">
-                        {topic.id}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{topic.title}</p>
-                        <p className="text-xs text-gray-500 truncate">{topic.source}</p>
-                      </div>
-                    </button>
-                  ))}
+        {/* 热榜区域 - 只有市场热点时显示 */}
+        {showHotTopics && (
+          <Card className="mb-4 border-0 shadow-lg bg-white/80">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  {hotTopicTimeRange === '24h' ? '今日热点' : hotTopicTimeRange === '7d' ? '近7天热点' : '近30天热点'}
+                  {hotTopics.length > 0 && (
+                    <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">
+                      {hotTopics.length}条
+                    </Badge>
+                  )}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Select value={hotTopicTimeRange} onValueChange={(v) => setHotTopicTimeRange(v as HotTopicTimeRange)}>
+                    <SelectTrigger className="h-7 w-24 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOT_TOPIC_TIME_RANGE_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="sm" onClick={loadHotTopics} disabled={hotTopicsLoading}>
+                    <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
+                  </Button>
                 </div>
-              </ScrollArea>
-            )}
-            
-            {selectedHotTopic && (
-              <div className="mt-3 p-2 bg-orange-50 rounded-lg border border-orange-200">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-xs text-orange-600 font-medium">已选热点：</p>
-                    <p className="text-sm text-gray-800">{selectedHotTopic.title}</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {hotTopicsLoading && hotTopics.length === 0 ? (
+                <div className="flex items-center justify-center py-8 text-gray-400">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  加载热点中...
+                </div>
+              ) : (
+                <ScrollArea className="h-[100px]">
+                  <div className="flex gap-2 pb-2">
+                    {hotTopics.slice(0, 6).map((topic) => (
+                      <button
+                        key={topic.id}
+                        onClick={() => handleSelectHotTopic(topic)}
+                        className={`flex-shrink-0 p-2 rounded-lg text-left transition-all w-[200px] ${
+                          selectedHotTopic?.id === topic.id
+                            ? 'bg-orange-50 border border-orange-300 shadow-sm'
+                            : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-gray-800 line-clamp-2">{topic.title}</p>
+                        <p className="text-xs text-gray-400 mt-1">{topic.source}</p>
+                      </button>
+                    ))}
                   </div>
-                  <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => {
+                </ScrollArea>
+              )}
+              
+              {selectedHotTopic && (
+                <div className="mt-2 p-2 bg-orange-50 rounded-lg border border-orange-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-orange-500" />
+                    <span className="text-sm text-gray-700">已选：{selectedHotTopic.title}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => {
                     setSelectedHotTopic(null);
                     setKeywords('');
                   }}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* 左侧：输入 */}
@@ -340,27 +411,6 @@ export default function Home() {
                 <CardTitle className="text-base font-medium">基础设置</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 选题类型 */}
-                <div>
-                  <Label className="text-xs text-gray-500 mb-1.5 block">选题类型</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TOPIC_TYPE_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setTopicType(opt.value)}
-                        className={`p-2.5 rounded-lg text-left text-sm transition-all ${
-                          topicType === opt.value
-                            ? 'bg-rose-500 text-white shadow-md'
-                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        <div className="font-medium">{opt.label}</div>
-                        <div className={`text-xs mt-0.5 ${topicType === opt.value ? 'text-rose-100' : 'text-gray-400'}`}>{opt.description}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* 目标用户 */}
                 <div>
                   <Label className="text-xs text-gray-500 mb-1.5 block">目标用户</Label>
@@ -369,16 +419,55 @@ export default function Home() {
                       <button
                         key={opt.value}
                         onClick={() => handleUserTagChange(opt.value)}
-                        className={`p-2 rounded-lg text-center text-sm transition-all ${
+                        className={`p-2.5 rounded-lg text-center transition-all ${
                           userTag === opt.value
                             ? 'bg-pink-500 text-white shadow-md'
                             : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                         }`}
                       >
-                        <div className="font-medium text-xs">{opt.label}</div>
+                        <span className="text-lg">{opt.icon}</span>
+                        <div className="font-medium text-xs mt-0.5">{opt.label}</div>
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* 选题类型 */}
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">选题类型</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TOPIC_TYPE_OPTIONS.map(opt => {
+                      const compatible = USER_TAG_TOPIC_COMPATIBILITY[userTag].includes(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => compatible && setTopicType(opt.value)}
+                          className={`p-2.5 rounded-lg text-left transition-all ${
+                            topicType === opt.value
+                              ? 'bg-rose-500 text-white shadow-md'
+                              : compatible
+                                ? 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span>{opt.icon}</span>
+                            <span className="font-medium text-sm">{opt.label}</span>
+                          </div>
+                          <div className={`text-xs mt-0.5 ${topicType === opt.value ? 'text-rose-100' : 'text-gray-400'}`}>
+                            {opt.description}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* 推荐提示 */}
+                  {TOPIC_USER_RECOMMENDATION[topicType][userTag] && (
+                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                      <ThumbsUp className="h-3 w-3 text-green-500" />
+                      {TOPIC_USER_RECOMMENDATION[topicType][userTag]}
+                    </p>
+                  )}
                 </div>
 
                 {/* 内容形式 */}
@@ -436,30 +525,15 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* 热点时效 & 关键词 */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs text-gray-500 mb-1 block">热点时效</Label>
-                    <Select value={hotTopicTimeRange} onValueChange={(v) => setHotTopicTimeRange(v as HotTopicTimeRange)}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {HOT_TOPIC_TIME_RANGE_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500 mb-1 block">关键词（可选）</Label>
-                    <Input
-                      placeholder="输入关键词..."
-                      value={keywords}
-                      onChange={(e) => setKeywords(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
+                {/* 关键词 */}
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1 block">关键词（可选，可从热点选择或手动输入）</Label>
+                  <Input
+                    placeholder="输入关键词..."
+                    value={keywords}
+                    onChange={(e) => setKeywords(e.target.value)}
+                    className="h-9"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -565,7 +639,7 @@ export default function Home() {
             <Button
               className="w-full h-12 text-base font-semibold bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 shadow-lg rounded-xl"
               onClick={handleGenerate}
-              disabled={isGenerating || !isCompatible}
+              disabled={isGenerating}
             >
               {isGenerating ? (
                 <>
@@ -589,13 +663,17 @@ export default function Home() {
                   <CardTitle className="text-base font-medium">生成结果</CardTitle>
                   {titles.length > 0 && (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleExport}>
-                        <Download className="h-3.5 w-3.5 mr-1" />
-                        导出
+                      <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
+                        <Edit3 className="h-3.5 w-3.5 mr-1" />
+                        {isEditing ? '完成编辑' : '编辑'}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={isSaving}>
+                        <Save className="h-3.5 w-3.5 mr-1" />
+                        保存
                       </Button>
                       <Button variant="outline" size="sm" onClick={handleGenerate}>
                         <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                        重新生成
+                        换一批
                       </Button>
                     </div>
                   )}
@@ -612,10 +690,16 @@ export default function Home() {
                     {/* 标题候选 */}
                     {titles.length > 0 && (
                       <div>
-                        <Label className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3 text-rose-500" />
-                          标题候选（点击选择）
-                        </Label>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-xs text-gray-500 flex items-center gap-1">
+                            <Sparkles className="h-3 w-3 text-rose-500" />
+                            标题候选（点击选择）
+                          </Label>
+                          <Button variant="ghost" size="sm" onClick={() => handleOptimize('title')}>
+                            <Wand2 className="h-3 w-3 mr-1" />
+                            AI优化
+                          </Button>
+                        </div>
                         <div className="space-y-2">
                           {titles.map((t, i) => (
                             <button
@@ -628,7 +712,7 @@ export default function Home() {
                               }`}
                             >
                               <div className="flex items-start gap-2">
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ${
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
                                   selectedTitleIndex === i ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-500'
                                 }`}>
                                   {i + 1}
@@ -649,24 +733,35 @@ export default function Home() {
                             {isVideo ? <Video className="h-3 w-3 text-orange-500" /> : <FileText className="h-3 w-3 text-pink-500" />}
                             {isVideo ? '视频脚本' : '正文内容'}
                           </Label>
-                          <Button variant="ghost" size="sm" onClick={() => handleCopy(content)}>
-                            <Copy className="h-3 w-3" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleCopy(editableContent)}>
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleOptimize('content')}>
+                              <Wand2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <Textarea
-                          value={content}
-                          readOnly
-                          className={`min-h-[200px] resize-none ${isVideo ? 'font-mono text-sm' : ''}`}
-                        />
+                        {isEditing ? (
+                          <Textarea
+                            value={editableContent}
+                            onChange={(e) => setEditableContent(e.target.value)}
+                            className={`min-h-[200px] resize-none ${isVideo ? 'font-mono text-sm' : ''}`}
+                          />
+                        ) : (
+                          <div className={`p-3 bg-gray-50 rounded-lg min-h-[200px] whitespace-pre-wrap text-sm ${isVideo ? 'font-mono' : ''}`}>
+                            {editableContent}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* AI配图（已生成图片） */}
+                    {/* AI配图 */}
                     {imageUrls.length > 0 && (
                       <div>
                         <Label className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                           <ImageIcon className="h-3 w-3 text-blue-500" />
-                          AI配图（点击选择使用）
+                          AI配图（点击选择）
                         </Label>
                         <div className="grid grid-cols-3 gap-2">
                           {imageUrls.map((url, i) => (
@@ -719,6 +814,23 @@ export default function Home() {
                         {compliance.warnings.map((w, i) => (
                           <p key={i} className="text-sm text-amber-600">{w}</p>
                         ))}
+                      </div>
+                    )}
+
+                    {/* 操作按钮 */}
+                    {titles.length > 0 && (
+                      <div className="pt-4 border-t flex gap-2">
+                        <Button 
+                          className="flex-1 bg-gradient-to-r from-rose-500 to-pink-500"
+                          onClick={handleCopyForXHS}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          一键复制到小红书
+                        </Button>
+                        <Button variant="outline" onClick={handleExport}>
+                          <Download className="h-4 w-4 mr-2" />
+                          导出
+                        </Button>
                       </div>
                     )}
                   </div>

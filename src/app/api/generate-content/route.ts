@@ -10,11 +10,11 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   professional_analysis: '专业分析',
 };
 
-// 用户标签映射
+// 用户标签映射（根据微证券业务调整）
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
-  beginner: '小白投资者，刚入市的新手，需要通俗易懂的解释',
-  intermediate: '进阶投资者，有一定经验的投资者，需要实用的策略',
-  professional: '专业玩家，经验丰富的专业投资者，需要深度分析',
+  newbie: '新手投资者，刚开户的新手，需要通俗易懂的解释和生活化的比喻',
+  active_trader: '活跃交易者，经常交易，关注短期机会和风险，需要实用的交易策略',
+  long_term_investor: '长线投资者，关注基本面和价值投资，需要深度的研究分析',
 };
 
 // 视频风格映射
@@ -139,7 +139,7 @@ function generateVideoPrompt(
   const durationInfo = VIDEO_DURATION_STRUCTURE[videoDuration || '60s'];
   const styleGuide = VIDEO_STYLE_PROMPTS[videoStyle || 'popular_science'];
 
-  return `你是短视频脚本专家。请根据以下要求生成专业的视频脚本：
+  return `你是短视频脚本专家。请为以下内容生成一个真实博主风格的视频脚本：
 
 标题：${title}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -153,23 +153,17 @@ ${hotTopicInfo ? `最新资讯：\n${hotTopicInfo}` : ''}
 【脚本格式要求】
 严格按以下格式输出，每个分段包含：画面、文案、时长
 
-【画面】：描述镜头画面（具体到场景、人物动作、表情）
-【文案】：口播台词（口语化、有节奏感）
+【画面】：描述镜头画面（要具体，比如博主出镜、手机屏幕展示、数据图表等）
+【文案】：口播台词（要有博主个人风格，不要像官方广告）
 【时长】：X秒
 
-示例：
-【画面】：黄金K线图，箭头指向新高位置
-【文案】：黄金价格又创历史新高了！
-【时长】：3秒
-
-【画面】：分屏对比 – 普通投资者 vs 机构投资者
-【文案】：很多人问，现在还能买吗？
-【时长】：4秒
-
-【内容结构】
-- 开头（${durationInfo.hookTime}）：用悬念或热点切入
-- 主体（${durationInfo.mainTime}）：层层递进，关键信息
-- 结尾（${durationInfo.ctaTime}）：行动号召
+【原生感要求 - 非常重要】
+- 文案要像真实博主在跟朋友聊天，不要像官方宣传
+- 可以用口语化表达："说实话"、"我觉得"、"跟大家说"
+- 可以适当表达个人观点和情感
+- 避免"欢迎关注XX"、"点击了解更多"等官方话术
+- 结尾要自然，比如"以上就是今天的分享，希望对大家有帮助"
+- 不要有明显的营销感，要让观众觉得是在分享真实经验
 
 ${additionalRequirements && additionalRequirements.length > 0 ? `补充要求：\n${additionalRequirements.join('\n')}` : ''}
 
@@ -184,33 +178,82 @@ function generateArticlePrompt(
   hotTopicInfo?: string,
   additionalRequirements?: string[]
 ): string {
-  const depthPrompts: Record<TopicType, string> = {
-    market_hot: `
-【市场热点内容要求】
-- 按"事件背景 → 原因分析 → 市场影响 → 后续展望"结构展开
-- 提供具体数据支撑（股价涨跌、成交量、市场规模等）
-- 分析对产业链上下游的影响`,
-    
-    beginner_guide: `
+  // 根据选题类型和用户标签定制内容要求
+  const depthPrompts: Record<TopicType, Record<UserTag, string>> = {
+    market_hot: {
+      newbie: `
+【市场热点内容要求 - 新手版】
+- 用最通俗的语言解释热点事件是什么
+- 举例说明这个热点对普通人的影响
+- 告诉新手应该关注什么、注意什么
+- 不要堆砌专业术语，用生活化的比喻`,
+      active_trader: `
+【市场热点内容要求 - 交易者版】
+- 分析热点对相关板块/个股的影响
+- 提供短期交易机会的参考逻辑
+- 风险提示要具体，不要泛泛而谈
+- 可以适当分享个人判断逻辑`,
+      long_term_investor: `
+【市场热点内容要求 - 投资者版】
+- 从长期视角分析热点对行业格局的影响
+- 关注基本面变化和长期趋势
+- 分析对投资组合的影响`,
+    },
+    beginner_guide: {
+      newbie: `
 【小白科普内容要求】
-- 用生活例子类比复杂概念
+- 用生活例子类比复杂概念，比如把股票比作什么
 - 分点说明，每点用小标题或emoji标识
-- 列举常见误区和避坑指南`,
-
-    advanced_invest: `
+- 列举常见误区和避坑指南
+- 语气要亲切，像朋友聊天`,
+      active_trader: `
+【科普内容要求】
+- 解释概念时结合实际交易场景
+- 提供实用的操作建议
+- 可以分享一些小技巧`,
+      long_term_investor: `
+【科普内容要求】
+- 从长期投资的角度解释概念
+- 关注对长期投资决策的影响`,
+    },
+    advanced_invest: {
+      newbie: `
+【进阶投资内容要求 - 简化版】
+- 用通俗语言解读券商研报的核心观点
+- 解释专业术语，帮助新手理解
+- 提供简单的行动建议`,
+      active_trader: `
 【进阶投资内容要求】
 - 引用券商/机构研报观点
 - 分析机构评级原因和逻辑
-- 提供投资逻辑框架`,
-    
-    professional_analysis: `
+- 提供投资逻辑框架
+- 可以适当加入个人观点和判断`,
+      long_term_investor: `
+【进阶投资内容要求】
+- 深度解读券商研报
+- 分析长期投资价值
+- 关注基本面和行业趋势`,
+    },
+    professional_analysis: {
+      newbie: `
+【专业分析内容要求 - 简化版】
+- 用通俗语言解读财报关键数据
+- 解释数据背后的含义
+- 给出简单易懂的结论`,
+      active_trader: `
 【专业分析内容要求】
-- 分析财报关键指标（营收、净利润、毛利率等）
+- 分析财报关键指标变化
 - 解读股价变化与财报的关系
-- 或分析期货价格变动原因（宏观因素、供需关系等）`,
+- 提供短期交易参考`,
+      long_term_investor: `
+【专业分析内容要求】
+- 深度分析财报数据
+- 评估公司长期价值
+- 分析行业竞争格局`,
+    },
   };
 
-  return `你是小红书爆款内容专家。请根据以下要求生成高质量的图文内容：
+  return `你是小红书博主，请为以下场景生成一篇真实、有价值的图文内容：
 
 标题：${title}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -218,17 +261,24 @@ function generateArticlePrompt(
 ${keywords ? `关键词：${keywords}` : ''}
 ${hotTopicInfo ? `最新资讯：\n${hotTopicInfo}` : ''}
 
-${depthPrompts[topicType]}
+${depthPrompts[topicType][userTag]}
 
 【图文结构要求】
-- 开头（1-2句）：用场景、痛点或热点切入，快速吸引注意力
+- 开头（1-2句）：用场景、痛点或个人经历切入，快速建立共鸣
 - 中间：分点展开，每段不超过4行，可适当使用emoji
-- 结尾：总结观点 + 可操作建议
+- 结尾：总结观点 + 个人建议或行动号召
+
+【原生感要求 - 非常重要】
+- 要像真实博主分享，不要像官方账号发文
+- 可以用口语化表达："说实话"、"我觉得"、"我的建议是"
+- 可以分享个人经历或观点，增强真实感
+- 避免过于正式的宣传腔
+- 要让读者觉得这是一个真人在分享经验
 
 【合规要求】
 - 严禁使用"保证收益"、"稳赚不赔"、"内幕消息"等违规词
-- 不要推荐具体股票代码
-- 文末声明"不构成投资建议"
+- 不要推荐具体股票代码（可以用行业、板块代指）
+- 文末可以加上"以上仅为个人观点，不构成投资建议"
 
 ${additionalRequirements && additionalRequirements.length > 0 ? `补充要求：\n${additionalRequirements.join('\n')}` : ''}
 

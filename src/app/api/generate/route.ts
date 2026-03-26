@@ -15,11 +15,11 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   professional_analysis: '专业分析',
 };
 
-// 用户标签映射
+// 用户标签映射（根据微证券业务调整）
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
-  beginner: '小白投资者，刚入市的新手，需要通俗易懂的解释',
-  intermediate: '进阶投资者，有一定经验的投资者，需要实用的策略',
-  professional: '专业玩家，经验丰富的专业投资者，需要深度分析',
+  newbie: '新手投资者，刚开户的新手，需要通俗易懂的解释和生活化的比喻',
+  active_trader: '活跃交易者，经常交易，关注短期机会和风险，需要实用的交易策略',
+  long_term_investor: '长线投资者，关注基本面和价值投资，需要深度的研究分析',
 };
 
 // 标题风格映射
@@ -45,23 +45,59 @@ const VIDEO_STYLE_PROMPTS: Record<VideoStyle, string> = {
 const ADDITIONAL_REQUIREMENT_PROMPTS: Record<AdditionalRequirement, string> = {
   short_300: '正文控制在300字左右，简洁精炼',
   short_term: '侧重短期投资机会和风险分析',
+  long_term: '侧重长期投资价值和基本面分析',
   examples: '多举例说明，用具体案例解释概念',
+  story_telling: '用故事形式展开，增强代入感和真实感',
   risk_warning: '结尾必须包含投资风险提示语',
   recommend_wzq: '结尾自然融入微证券推荐',
   custom: '自定义要求',
 };
 
-// 博主人设映射
+// 博主人设映射（增强原生感）
 function getPersonaPrompt(personaType: PersonaType, customPersona?: string): string {
-  const personas: Record<PersonaType, string> = {
-    hardcore_uncle: '硬核财经大叔：专业、理性、数据说话、深度分析、犀利点评',
-    sweet_girl: '甜妹理财科普：可爱、亲切、通俗易懂、闺蜜感、温暖治愈',
-    veteran_trader: '实战派老股民：经验丰富、接地气、实战案例、避坑指南、真诚分享',
-    finance_scholar: '金融学霸人设：专业术语、逻辑清晰、学术派、数据支撑、严谨分析',
-    roaster: '吐槽型财经博主：幽默、犀利、一针见血、敢说真话、接地气',
-    custom: customPersona || '专业理财博主',
+  const personas: Record<PersonaType, { keywords: string; tone: string; example: string }> = {
+    hardcore_uncle: {
+      keywords: '专业、理性、数据说话',
+      tone: '像老朋友在茶馆聊投资，严肃但不刻板',
+      example: '「说实话，这个数据我看了都替大家着急...」',
+    },
+    sweet_girl: {
+      keywords: '可爱、亲切、通俗易懂',
+      tone: '像闺蜜在咖啡厅分享理财心得',
+      example: '「姐妹们！今天要跟大家分享一个超实用的小技巧...」',
+    },
+    veteran_trader: {
+      keywords: '经验丰富、接地气、真诚',
+      tone: '像老股民在证券大厅跟你唠嗑',
+      example: '「我在这个市场摸爬滚打十几年，这种走势见太多了...」',
+    },
+    finance_scholar: {
+      keywords: '专业术语、逻辑清晰、严谨',
+      tone: '像大学教授在讲解投资课',
+      example: '「从宏观经济的角度来看，这个指标的变化意味着...」',
+    },
+    roaster: {
+      keywords: '幽默、犀利、敢说真话',
+      tone: '像在饭局上吐槽行业内幕',
+      example: '「说实话，看到这个消息我第一反应是：又来割韭菜了？」',
+    },
+    custom: {
+      keywords: customPersona || '专业理财博主',
+      tone: '真诚分享，像朋友聊天',
+      example: '',
+    },
   };
-  return `博主人设：${personas[personaType]}。语气、称呼、表达方式都要贴合这个人设。`;
+  
+  const p = personas[personaType];
+  return `博主人设：${p.keywords}。
+语气风格：${p.tone}。
+${p.example ? `参考话术：${p.example}` : ''}
+
+【原生感要求】
+- 不要像官方账号说话，要像真实博主分享
+- 可以适当使用口语化表达，如"说实话"、"跟大家说"、"我觉得"等
+- 避免过于正式的宣传腔，要有个人观点和情感
+- 可以适当表达个人立场，比如"我个人倾向于..."、"如果是我的话..."`;
 }
 
 // 时间范围映射
@@ -72,7 +108,7 @@ const TIME_RANGE_MAP: Record<HotTopicTimeRange, string> = {
 };
 
 // 支持热点的选题类型
-const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot', 'advanced_invest', 'professional_analysis'];
+const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot'];
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
     const isVideo = contentType === 'video_script';
-    const timeRange = hotTopicTimeRange || '7d';
+    const timeRange = hotTopicTimeRange || '24h';
 
     // 创建流式响应
     const encoder = new TextEncoder();
@@ -110,7 +146,7 @@ export async function POST(request: NextRequest) {
         let accumulatedContent = '';
         
         try {
-          // 1. 搜索热点（如果传入了热点信息则使用传入的）
+          // 1. 搜索热点（只有市场热点选题才搜索）
           let hotTopicInfo = passedHotTopicInfo || '';
           if (!hotTopicInfo && HOT_TOPIC_SUPPORTED.includes(topicType)) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在搜索热点资讯...' })}\n\n`));
@@ -141,7 +177,7 @@ export async function POST(request: NextRequest) {
           const tags = await generateTags(topicType, keywords, titles[0]?.title || '', accumulatedContent);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`));
 
-          // 5. 生成配图（直接调用模型生成图片）
+          // 5. 生成配图
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图...' })}\n\n`));
           const imageUrls = await generateImages(titles[0]?.title || '', accumulatedContent, customHeaders);
           if (imageUrls.length > 0) {
@@ -181,7 +217,7 @@ export async function POST(request: NextRequest) {
 async function searchHotTopics(
   topicType: TopicType, 
   keywords?: string,
-  timeRange: string = '7d',
+  timeRange: string = '1d',
   customHeaders?: Record<string, string>
 ): Promise<{ info: string }> {
   try {
@@ -189,10 +225,10 @@ async function searchHotTopics(
     const client = new SearchClient(config, customHeaders);
 
     const searchQueries: Record<TopicType, string> = {
-      market_hot: `AI人工智能 机器人 新能源 财经新闻 最新 今日`,
+      market_hot: `A股 股市 财经新闻 最新 今日 热点`,
       beginner_guide: `投资理财入门 新手指南`,
-      advanced_invest: `券商研报 机构评级 行业分析 最新 今日`,
-      professional_analysis: `上市公司财报 股价分析 黄金石油外汇 最新 今日`,
+      advanced_invest: `券商研报 机构评级 行业分析`,
+      professional_analysis: `上市公司财报 股价分析`,
     };
 
     let query = searchQueries[topicType];
@@ -259,12 +295,13 @@ ${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 500)}` : ''}
 标题风格参考：${styleGuides}
 ${personaPrompt}
 
-要求：
+【标题要求】
 1. 生成3个不同风格的标题，用数字1/2/3标号
 2. 每个标题使用1-2个emoji增加吸引力
 3. 标题长度20-30字
-4. 避免夸张虚假宣传
+4. 避免夸张虚假宣传，不要用"必看"、"震惊"等低质标题党
 5. 体现专业度和时效性
+6. 要有博主个人风格，不要像官方账号
 
 请按以下格式输出：
 1. [标题一]
@@ -319,44 +356,92 @@ async function* generateContentStream(
     }
   }
   
-  // 深度要求
-  const depthPrompts: Record<TopicType, string> = {
-    market_hot: `
-【市场热点内容要求】
-- 按"事件背景 → 原因分析 → 市场影响 → 后续展望"结构展开
-- 提供具体数据支撑（股价涨跌、成交量、市场规模等）
-- 分析对产业链上下游的影响`,
-    
-    beginner_guide: `
+  // 根据选题类型和用户标签定制内容要求
+  const depthPrompts: Record<TopicType, Record<UserTag, string>> = {
+    market_hot: {
+      newbie: `
+【市场热点内容要求 - 新手版】
+- 用最通俗的语言解释热点事件是什么
+- 举例说明这个热点对普通人的影响
+- 告诉新手应该关注什么、注意什么
+- 不要堆砌专业术语，用生活化的比喻`,
+      active_trader: `
+【市场热点内容要求 - 交易者版】
+- 分析热点对相关板块/个股的影响
+- 提供短期交易机会的参考逻辑
+- 风险提示要具体，不要泛泛而谈
+- 可以适当分享个人判断逻辑`,
+      long_term_investor: `
+【市场热点内容要求 - 投资者版】
+- 从长期视角分析热点对行业格局的影响
+- 关注基本面变化和长期趋势
+- 分析对投资组合的影响`,
+    },
+    beginner_guide: {
+      newbie: `
 【小白科普内容要求】
-- 用生活例子类比复杂概念
+- 用生活例子类比复杂概念，比如把股票比作什么
 - 分点说明，每点用小标题或emoji标识
-- 列举常见误区和避坑指南`,
-
-    advanced_invest: `
+- 列举常见误区和避坑指南
+- 语气要亲切，像朋友聊天`,
+      active_trader: `
+【科普内容要求】
+- 解释概念时结合实际交易场景
+- 提供实用的操作建议
+- 可以分享一些小技巧`,
+      long_term_investor: `
+【科普内容要求】
+- 从长期投资的角度解释概念
+- 关注对长期投资决策的影响`,
+    },
+    advanced_invest: {
+      newbie: `
+【进阶投资内容要求 - 简化版】
+- 用通俗语言解读券商研报的核心观点
+- 解释专业术语，帮助新手理解
+- 提供简单的行动建议`,
+      active_trader: `
 【进阶投资内容要求】
 - 引用券商/机构研报观点
 - 分析机构评级原因和逻辑
-- 提供投资逻辑框架`,
-    
-    professional_analysis: `
+- 提供投资逻辑框架
+- 可以适当加入个人观点和判断`,
+      long_term_investor: `
+【进阶投资内容要求】
+- 深度解读券商研报
+- 分析长期投资价值
+- 关注基本面和行业趋势`,
+    },
+    professional_analysis: {
+      newbie: `
+【专业分析内容要求 - 简化版】
+- 用通俗语言解读财报关键数据
+- 解释数据背后的含义
+- 给出简单易懂的结论`,
+      active_trader: `
 【专业分析内容要求】
-- 分析财报关键指标（营收、净利润、毛利率等）
+- 分析财报关键指标变化
 - 解读股价变化与财报的关系
-- 或分析期货价格变动原因（宏观因素、供需关系等）`,
+- 提供短期交易参考`,
+      long_term_investor: `
+【专业分析内容要求】
+- 深度分析财报数据
+- 评估公司长期价值
+- 分析行业竞争格局`,
+    },
   };
 
   let prompt = '';
   
   if (isVideo) {
-    // 视频脚本格式
+    // 视频脚本格式 - 增强原生感
     const durationGuide: Record<VideoDuration, string> = {
       '30s': '30秒，约80-100字',
       '60s': '60秒，约180-220字',
       '3min': '3分钟，约500-600字',
     };
     
-    prompt = `你是短视频脚本专家。请为以下内容生成专业视频脚本：
+    prompt = `你是短视频脚本专家。请为以下内容生成一个真实博主风格的视频脚本：
 
 标题：${selectedTitle}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -372,23 +457,27 @@ ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 【脚本格式要求】
 严格按以下格式输出，每个分段包含：画面、文案、时长
 
-【画面】：描述镜头画面
-【文案】：口播台词
+【画面】：描述镜头画面（要具体，比如博主出镜、手机屏幕展示、数据图表等）
+【文案】：口播台词（要有博主个人风格，不要像官方广告）
 【时长】：X秒
 
-示例：
-【画面】：黄金K线图，箭头指向新高位置
-【文案】：黄金价格又创历史新高了！
-【时长】：3秒
+【原生感要求 - 非常重要】
+- 文案要像真实博主在跟朋友聊天，不要像官方宣传
+- 可以用口语化表达："说实话"、"我觉得"、"跟大家说"
+- 可以适当表达个人观点和情感
+- 避免"欢迎关注XX"、"点击了解更多"等官方话术
+- 结尾要自然，比如"以上就是今天的分享，希望对大家有帮助"
+- 不要有明显的营销感，要让观众觉得是在分享真实经验
 
-【画面】：分屏对比 – 普通投资者 vs 机构投资者
-【文案】：很多人问，现在还能买吗？
-【时长】：4秒
+示例风格：
+【画面】：博主对着镜头，表情认真
+【文案】：说实话，看到这个数据的时候，我第一反应是...这也太离谱了吧？
+【时长】：5秒
 
 请直接输出脚本内容：`;
   } else {
-    // 图文内容格式
-    prompt = `你是小红书爆款内容专家。请为以下场景生成高质量图文内容：
+    // 图文内容格式 - 增强原生感
+    prompt = `你是小红书博主，请为以下场景生成一篇真实、有价值的图文内容：
 
 标题：${selectedTitle}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -396,19 +485,26 @@ ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 ${keywords ? `关键词：${keywords}` : ''}
 ${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 800)}` : ''}
 
-${depthPrompts[topicType]}
+${depthPrompts[topicType][userTag]}
 ${personaPrompt}
 ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 
 【图文结构要求】
-- 开头（1-2句）：用场景、痛点或热点切入，快速吸引注意力
+- 开头（1-2句）：用场景、痛点或个人经历切入，快速建立共鸣
 - 中间：分点展开，每段不超过4行，可适当使用emoji
-- 结尾：总结观点 + 可操作建议
+- 结尾：总结观点 + 个人建议或行动号召
+
+【原生感要求 - 非常重要】
+- 要像真实博主分享，不要像官方账号发文
+- 可以用口语化表达："说实话"、"我觉得"、"我的建议是"
+- 可以分享个人经历或观点，增强真实感
+- 避免过于正式的宣传腔
+- 要让读者觉得这是一个真人在分享经验
 
 【合规要求】
 - 严禁使用"保证收益"、"稳赚不赔"、"内幕消息"等违规词
-- 不要推荐具体股票代码
-- 文末声明"不构成投资建议"
+- 不要推荐具体股票代码（可以用行业、板块代指）
+- 文末可以加上"以上仅为个人观点，不构成投资建议"
 
 请直接输出正文内容：`;
   }
@@ -436,15 +532,12 @@ ${keywords ? `关键词：${keywords}` : ''}
   return response.split(/[,，、\n]/).map((tag) => tag.trim().replace(/^#/, '')).filter((tag) => tag.length > 0 && tag.length < 15);
 }
 
-// 生成配图（直接调用模型生成图片）
+// 生成配图
 async function generateImages(title: string, content: string, customHeaders?: Record<string, string>): Promise<string[]> {
   try {
     const config = new Config();
     const client = new ImageGenerationClient(config, customHeaders);
 
-    // 根据内容生成配图prompt
-    const contentPrompt = `Financial investment theme, ${title.substring(0, 50)}`;
-    
     const imagePrompts = [
       `Professional financial infographic style, clean data visualization, business growth concept, blue and white color scheme, modern minimalist design, suitable for social media cover, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,
       `Modern investment planning scene, laptop with stock charts, warm natural lighting, professional atmosphere, lifestyle photography, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,
