@@ -73,7 +73,16 @@ export default function Home() {
   const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
   const [hotTopicsLoading, setHotTopicsLoading] = useState(false);
   const [selectedHotTopic, setSelectedHotTopic] = useState<HotTopic | null>(null);
-  const [hotTopicTimeRange, setHotTopicTimeRange] = useState<HotTopicTimeRange>('24h');
+  const [hotCategory, setHotCategory] = useState<string>('finance');
+  const [hotUpdateTime, setHotUpdateTime] = useState<string>('');
+  
+  // 热点板块配置
+  const HOT_CATEGORIES = [
+    { id: 'finance', name: '财经热搜', icon: '📈' },
+    { id: 'tech', name: '科技前沿', icon: '🚀' },
+    { id: 'crypto', name: '数字货币', icon: '₿' },
+    { id: 'global', name: '环球财经', icon: '🌍' },
+  ];
 
   // ==================== 历史记录 ====================
   const [historyRecords, setHistoryRecords] = useState<HistoryRecord[]>([]);
@@ -116,7 +125,7 @@ export default function Home() {
     if (showHotTopics) {
       loadHotTopics();
     }
-  }, [showHotTopics, hotTopicTimeRange]);
+  }, [showHotTopics]);
 
   // 加载历史记录（从数据库）
   useEffect(() => {
@@ -153,18 +162,26 @@ export default function Home() {
   }, [userTag, compatibleTopics, topicType]);
 
   // ==================== 加载热榜 ====================
-  const loadHotTopics = useCallback(async () => {
+  const loadHotTopics = useCallback(async (category?: string) => {
     setHotTopicsLoading(true);
+    const targetCategory = category || hotCategory;
     try {
-      const response = await fetch(`/api/hot-topics?timeRange=${hotTopicTimeRange}`);
+      const response = await fetch(`/api/hot-topics?category=${targetCategory}`);
       const data = await response.json();
       setHotTopics(data.topics || []);
+      setHotUpdateTime(data.updateTime || '');
     } catch (error) {
       console.error('Load hot topics error:', error);
     } finally {
       setHotTopicsLoading(false);
     }
-  }, [hotTopicTimeRange]);
+  }, [hotCategory]);
+
+  // 切换热点板块
+  const handleCategoryChange = (categoryId: string) => {
+    setHotCategory(categoryId);
+    loadHotTopics(categoryId);
+  };
 
   // ==================== 选择热点/推荐 ====================
   const handleSelectItem = (title: string) => {
@@ -582,34 +599,56 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                       <Flame className="h-4 w-4 text-orange-500" />
-                      {hotTopicTimeRange === '24h' ? '今日热点' : hotTopicTimeRange === '7d' ? '近7天热点' : '近30天热点'}
+                      实时热搜
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <Select value={hotTopicTimeRange} onValueChange={(v) => setHotTopicTimeRange(v as HotTopicTimeRange)}>
-                        <SelectTrigger className="h-7 w-20 text-xs border-0 bg-gray-100">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HOT_TOPIC_TIME_RANGE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={loadHotTopics} disabled={hotTopicsLoading}>
+                      {hotUpdateTime && (
+                        <span className="text-[10px] text-gray-400">{hotUpdateTime}</span>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 w-7 p-0" 
+                        onClick={() => loadHotTopics()} 
+                        disabled={hotTopicsLoading}
+                      >
                         <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="px-5 pb-3 pt-0">
+                  {/* 板块Tab切换 */}
+                  <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
+                    {HOT_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => handleCategoryChange(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          hotCategory === cat.id
+                            ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span className="mr-1">{cat.icon}</span>
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* 热点列表 */}
                   {hotTopicsLoading && hotTopics.length === 0 ? (
                     <div className="flex items-center justify-center py-4 text-gray-400 text-sm">
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       加载中...
                     </div>
+                  ) : hotTopics.length === 0 ? (
+                    <div className="flex items-center justify-center py-4 text-gray-400 text-sm">
+                      暂无热点数据
+                    </div>
                   ) : (
                     <div className="space-y-1.5">
-                      {hotTopics.slice(0, 5).map((topic) => (
+                      {hotTopics.slice(0, 8).map((topic, index) => (
                         <button
                           key={topic.id}
                           onClick={() => handleSelectItem(topic.title)}
@@ -620,11 +659,28 @@ export default function Home() {
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white text-[10px] flex items-center justify-center font-medium flex-shrink-0">
-                              {topic.id}
+                            {/* 排名 */}
+                            <span className={`w-5 h-5 rounded-lg text-[10px] flex items-center justify-center font-bold flex-shrink-0 ${
+                              index < 3 
+                                ? 'bg-gradient-to-br from-orange-400 to-rose-500 text-white' 
+                                : 'bg-gray-200 text-gray-600'
+                            }`}>
+                              {index + 1}
                             </span>
-                            <p className="text-xs text-gray-700 line-clamp-1 flex-1">{topic.title}</p>
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">{topic.source}</span>
+                            {/* 标题 */}
+                            <p className="text-xs text-gray-700 line-clamp-1 flex-1 font-medium">
+                              {topic.title}
+                            </p>
+                            {/* 热度 */}
+                            {(topic as any).hot && (
+                              <span className="text-[10px] text-orange-500 font-medium flex-shrink-0">
+                                🔥 {(topic as any).hot}
+                              </span>
+                            )}
+                            {/* 来源 */}
+                            <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:block">
+                              {topic.source}
+                            </span>
                           </div>
                         </button>
                       ))}
