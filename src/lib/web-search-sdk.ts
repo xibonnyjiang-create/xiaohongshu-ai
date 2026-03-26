@@ -3,14 +3,19 @@
  * 此文件仅在沙箱环境中被动态导入，避免Vercel构建错误
  */
 
-import { SearchClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
-
 export interface SearchResult {
   title: string;
   link: string;
   snippet: string;
   source: string;
   publishTime?: string;
+}
+
+// 动态导入 SDK，避免构建时错误
+async function getSDK() {
+  // @ts-ignore - 动态导入
+  const { SearchClient, Config, HeaderUtils } = await import('coze-coding-dev-sdk');
+  return { SearchClient, Config, HeaderUtils };
 }
 
 /**
@@ -22,6 +27,8 @@ export async function searchWithSDK(
   timeRange: string,
   customHeaders?: Record<string, string>
 ): Promise<SearchResult[]> {
+  const { SearchClient, Config } = await getSDK();
+  
   const config = new Config();
   const client = new SearchClient(config, customHeaders);
   
@@ -54,6 +61,7 @@ export async function searchWithSDK(
 /**
  * 提取请求头
  */
-export function extractHeadersFromRequest(headers: Headers): Record<string, string> {
+export async function extractHeadersFromRequest(headers: Headers): Promise<Record<string, string>> {
+  const { HeaderUtils } = await getSDK();
   return HeaderUtils.extractForwardHeaders(headers);
 }
