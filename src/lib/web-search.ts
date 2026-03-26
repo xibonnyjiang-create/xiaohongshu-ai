@@ -1,6 +1,6 @@
 /**
  * 网络搜索服务
- * - 沙箱环境：使用 coze-coding-dev-sdk
+ * - 沙箱环境：使用 coze-coding-dev-sdk（通过单独文件导入）
  * - Vercel环境：使用外部API（SerpAPI）
  */
 
@@ -38,9 +38,10 @@ export async function searchWeb(query: string, options?: {
 }): Promise<SearchResult[]> {
   const { count = 10, timeRange = 'day', headers } = options || {};
   
-  // 沙箱环境：使用内置SDK
+  // 沙箱环境：使用内置SDK（单独文件，避免Vercel构建错误）
   if (isSandboxEnvironment()) {
     try {
+      const { searchWithSDK } = await import('./web-search-sdk');
       return await searchWithSDK(query, count, timeRange, headers);
     } catch (error) {
       console.warn('SDK搜索失败，尝试备用方案:', error);
@@ -59,47 +60,6 @@ export async function searchWeb(query: string, options?: {
   // 无配置时返回模拟数据
   console.warn('未配置搜索API，返回模拟数据');
   return getMockSearchResults(query);
-}
-
-/**
- * 使用 coze-coding-dev-sdk 搜索（沙箱环境）
- */
-async function searchWithSDK(
-  query: string, 
-  count: number, 
-  timeRange: string,
-  customHeaders?: Record<string, string>
-): Promise<SearchResult[]> {
-  // 动态导入，避免在非沙箱环境报错
-  const { SearchClient, Config, HeaderUtils } = await import('coze-coding-dev-sdk');
-  
-  const config = new Config();
-  const client = new SearchClient(config, customHeaders);
-  
-  const timeRangeMap: Record<string, string> = {
-    'day': '1d',
-    'week': '1w',
-    'month': '1m',
-  };
-  
-  const response = await client.advancedSearch(query, {
-    searchType: 'web',
-    count: count,
-    timeRange: timeRangeMap[timeRange] || '1d',
-    needSummary: false,
-  });
-  
-  if (response.web_items && response.web_items.length > 0) {
-    return response.web_items.map((item) => ({
-      title: item.title,
-      link: item.url || '',
-      snippet: item.snippet || '',
-      source: item.site_name || '',
-      publishTime: item.publish_time,
-    }));
-  }
-  
-  return [];
 }
 
 /**
@@ -226,8 +186,8 @@ export async function extractHeaders(headers: Headers): Promise<Record<string, s
   }
   
   try {
-    const { HeaderUtils } = await import('coze-coding-dev-sdk');
-    return HeaderUtils.extractForwardHeaders(headers);
+    const { extractHeadersFromRequest } = await import('./web-search-sdk');
+    return extractHeadersFromRequest(headers);
   } catch {
     return {};
   }
