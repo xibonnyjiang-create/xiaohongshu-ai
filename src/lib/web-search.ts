@@ -187,7 +187,7 @@ export async function extractHeaders(headers: Headers): Promise<Record<string, s
   
   try {
     const { extractHeadersFromRequest } = await import('./web-search-sdk');
-    return extractHeadersFromRequest(headers);
+    return await extractHeadersFromRequest(headers);
   } catch {
     return {};
   }
