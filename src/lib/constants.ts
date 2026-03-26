@@ -111,6 +111,7 @@ export const VIDEO_STYLE_OPTIONS: { value: VideoStyle; label: string }[] = [
   { value: 'deep_dive', label: '深度解读' },
   { value: 'funny_roast', label: '轻松吐槽' },
   { value: 'demo', label: '实战演示' },
+  { value: 'custom', label: '自定义风格' },
 ];
 
 // 用户标签与选题类型的兼容性映射（互斥关系）

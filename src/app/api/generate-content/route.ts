@@ -24,6 +24,7 @@ const VIDEO_STYLE_PROMPTS: Record<VideoStyle, string> = {
   deep_dive: '深度解读：抽丝剥茧，层层深入',
   funny_roast: '轻松吐槽：幽默风趣，犀利点评',
   demo: '实战演示：手把手教，实操性强',
+  custom: '自定义风格',
 };
 
 // 视频时长对应的内容结构

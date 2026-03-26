@@ -71,6 +71,7 @@ const VIDEO_STYLE_PROMPTS: Record<VideoStyle, string> = {
   deep_dive: '深度解读：抽丝剥茧，层层深入',
   funny_roast: '轻松吐槽：幽默风趣，犀利点评',
   demo: '实战演示：手把手教，实操性强',
+  custom: '自定义风格',
 };
 
 // 补充要求映射
@@ -201,7 +202,13 @@ export async function POST(request: NextRequest) {
           const complianceResult = await callComplianceCheck(titles[0]?.title || '', accumulatedContent, tags.join(' '));
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'compliance', data: complianceResult })}\n\n`));
 
-          // 6. 种草力评分
+          // 6. 音乐推荐（仅视频）
+          if (isVideo) {
+            const musicRecommendations = await generateMusicRecommendations(accumulatedContent, videoStyle);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'music', data: musicRecommendations })}\n\n`));
+          }
+
+          // 7. 种草力评分
           const engagementScore = await calculateEngagementScore(titles[0]?.title || '', accumulatedContent, tags);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'engagement_score', data: engagementScore })}\n\n`));
 
@@ -347,13 +354,13 @@ ${includeResearch ? '- 需要引用研报' : ''}`;
   
   if (isVideo) {
     const durationGuide: Record<VideoDuration, string> = {
-      '15s': '15秒，约40-60字',
-      '30s': '30秒，约80-100字',
-      '60s': '60秒，约180-220字',
-      '90s': '90秒，约280-320字',
+      '15s': '15秒，约40-60字，1-2个镜头',
+      '30s': '30秒，约80-100字，2-3个镜头',
+      '60s': '60秒，约180-220字，3-5个镜头',
+      '90s': '90秒，约280-320字，5-7个镜头',
     };
     
-    prompt = `你是短视频脚本专家。生成一个真实博主风格的视频脚本：
+    prompt = `你是短视频脚本专家。生成一个专业级的视频脚本，包含详细的画面描述：
 
 标题：${selectedTitle}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -367,17 +374,29 @@ ${dynamicPrompt}
 ${personaPrompt}
 ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 
-【脚本格式】
-【画面】：镜头描述
-【文案】：口播台词
+【脚本格式 - 每个镜头包含】
+【画面】：详细的镜头描述，包括：
+  - 景别：远景/全景/中景/近景/特写
+  - 构图：人物位置、背景元素
+  - 空镜素材：如需要穿插空镜（如城市、咖啡厅、办公场景等）
+  - 动作：人物的具体动作
+【文案】：口播台词（要有博主个人风格）
 【时长】：X秒
+【备注】：拍摄建议（可选）
+
+【画面描述示例】
+- "【近景】博主坐在书房，面前放着一杯咖啡，手拿笔记本，背景是书架，自然光线"
+- "【特写】手机屏幕展示K线图，手指滑动查看走势"
+- "【空镜】城市天际线延时摄影，傍晚时分，车水马龙"
+- "【中景】博主站在白板前，正在画简单的示意图，表情认真"
+- "【远景】咖啡厅外景，阳光透过玻璃窗，温馨氛围"
 
 【原生感要求】
 - 开头：「哈喽大家好，今天想和大家聊点实在的...」「最近好多朋友问我...」
 - 中间：「说实话...」「我当时第一反应是...」
 - 结尾：「以上就是今天的分享，觉得有用的话点个赞」「评论区聊聊你们的看法」
 
-直接输出脚本：`;
+直接输出完整脚本：`;
   } else {
     prompt = `你是小红书博主，生成一篇真实、有价值的图文内容：
 
@@ -499,4 +518,38 @@ async function calculateEngagementScore(title: string, content: string, tags: st
   }
   
   return { score: 7, reasons: ['内容结构清晰'], suggestions: ['可增加更多互动引导'] };
+}
+
+// 生成音乐推荐（视频内容）
+async function generateMusicRecommendations(content: string, videoStyle?: VideoStyle): Promise<string[]> {
+  const styleContext = videoStyle ? `视频风格：${VIDEO_STYLE_PROMPTS[videoStyle]}` : '';
+  
+  const prompt = `你是短视频音乐推荐专家。根据以下视频内容推荐3-5首适合的背景音乐：
+
+视频内容：
+${content.substring(0, 500)}
+
+${styleContext}
+
+【推荐要求】
+1. 推荐抖音/小红书热门BGM
+2. 标注歌曲名和歌手
+3. 简要说明推荐理由（情绪匹配度）
+4. 音乐风格要与财经内容搭配，不要过于娱乐化
+
+输出格式（每行一首）：
+1. 歌曲名 - 歌手：推荐理由`;
+
+  try {
+    const response = await callLLM(prompt);
+    const lines = response.split('\n').filter(l => l.trim() && /^\d+/.test(l.trim()));
+    return lines.slice(0, 5);
+  } catch (error) {
+    console.error('Music recommendation error:', error);
+    return [
+      '1. 轻快商务风BGM - 适合科普讲解类内容',
+      '2. 城市夜景氛围曲 - 适合深度分析类内容',
+      '3. 每日财经早报曲 - 经典财经节目配乐',
+    ];
+  }
 }

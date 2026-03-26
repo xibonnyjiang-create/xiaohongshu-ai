@@ -11,7 +11,7 @@ export type ContentType = 'article' | 'video_script';
 export type VideoDuration = '15s' | '30s' | '60s' | '90s';
 
 // 视频风格
-export type VideoStyle = 'popular_science' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo';
+export type VideoStyle = 'popular_science' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo' | 'custom';
 
 // 标题风格
 export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' | 'contrast' | 'custom';

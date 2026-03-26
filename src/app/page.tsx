@@ -18,7 +18,8 @@ import {
   FileText, Video, TrendingUp, Loader2, Heart, Hash,
   AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
-  Trash2, FileEdit, Lightbulb, Target, Layers, Star
+  Trash2, FileEdit, Lightbulb, Target, Layers, Star,
+  ImagePlus, Music
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -56,6 +57,7 @@ export default function Home() {
   // ==================== 内容设置 ====================
   const [videoDuration, setVideoDuration] = useState<VideoDuration>('60s');
   const [videoStyle, setVideoStyle] = useState<VideoStyle>('popular_science');
+  const [customVideoStyle, setCustomVideoStyle] = useState('');
   const [enableImageSuggestion, setEnableImageSuggestion] = useState(true);
 
   // ==================== 高级参数 ====================
@@ -80,9 +82,11 @@ export default function Home() {
   // ==================== UI状态 ====================
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
-  const [viewMode, setViewMode] = useState<'integrated' | 'split'>('integrated');
+  const [viewMode, setViewMode] = useState<'integrated' | 'split'>('split'); // 默认拆分视图
   const [isEditing, setIsEditing] = useState(false);
   const [lockedModules, setLockedModules] = useState<Set<'title' | 'content' | 'tags'>>(new Set());
+  const [userEdited, setUserEdited] = useState(false); // 标记用户是否手动编辑过
+  const [showGuide, setShowGuide] = useState(true); // 显示引导提示
 
   // ==================== 输出状态 ====================
   const [titles, setTitles] = useState<TitleCandidate[]>([]);
@@ -92,8 +96,14 @@ export default function Home() {
   const [tags, setTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[] }>({ isCompliant: true, warnings: [] });
+  const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean }>({ isCompliant: true, warnings: [] });
   const [engagementScore, setEngagementScore] = useState<EngagementScore | null>(null);
+  const [recommendedMusic, setRecommendedMusic] = useState<string[]>([]);
+
+  // ==================== 自定义生图 ====================
+  const [showCustomImageModal, setShowCustomImageModal] = useState(false);
+  const [customImagePrompt, setCustomImagePrompt] = useState('');
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   // ==================== 计算属性 ====================
   const isVideo = contentType === 'video_script';
@@ -162,7 +172,14 @@ export default function Home() {
     setTags([]);
     setImageUrls([]);
     setEngagementScore(null);
+    setRecommendedMusic([]);
     setCurrentStep('准备中...');
+    setUserEdited(false);
+    setCompliance({ isCompliant: true, warnings: [] });
+    setViewMode('split'); // 默认使用拆分视图
+    setShowGuide(true);
+
+    const finalVideoStyle = videoStyle === 'custom' ? customVideoStyle : videoStyle;
 
     try {
       const response = await fetch('/api/generate', {
@@ -172,7 +189,7 @@ export default function Home() {
           topicType, userTag, contentType, keywords,
           analysisTarget, analysisTargetInput, contentDepth, focusDirections,
           contentSubType, platformCompare, includeExample, includeResearch,
-          videoDuration, videoStyle, enableImageSuggestion,
+          videoDuration, videoStyle: finalVideoStyle, enableImageSuggestion,
           titleStyles, customTitleStyle, personaType, customPersona,
           additionalRequirements, customRequirement,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
@@ -221,17 +238,26 @@ export default function Home() {
                     break;
                   case 'compliance':
                     setCompliance(data.data);
+                    // 如果不合规且不是用户编辑的，自动修正
+                    if (!data.data.isCompliant && !userEdited && data.data.fixedContent) {
+                      setEditableContent(data.data.fixedContent);
+                      setContent(data.data.fixedContent);
+                      setCompliance(prev => ({ ...prev, fixed: true }));
+                    }
                     break;
                   case 'engagement_score':
                     setEngagementScore(data.data);
                     setCurrentStep('');
+                    break;
+                  case 'music':
+                    setRecommendedMusic(data.data);
                     break;
                 }
               } catch (e) {}
             }
           }
         }
-        toast.success('生成完成！');
+        toast.success('生成完成！请选择您喜欢的内容');
       }
     } catch (error) {
       console.error('生成错误:', error);
@@ -241,9 +267,74 @@ export default function Home() {
     }
   }, [topicType, userTag, contentType, keywords, analysisTarget, analysisTargetInput, 
       contentDepth, focusDirections, contentSubType, platformCompare, includeExample, 
-      includeResearch, videoDuration, videoStyle, enableImageSuggestion, titleStyles, 
+      includeResearch, videoDuration, videoStyle, customVideoStyle, enableImageSuggestion, titleStyles, 
       customTitleStyle, personaType, customPersona, additionalRequirements, customRequirement, 
-      selectedHotTopic, lockedModules]);
+      selectedHotTopic, lockedModules, userEdited]);
+
+  // ==================== 自定义生图 ====================
+  const handleCustomImageGenerate = async () => {
+    if (!customImagePrompt.trim()) {
+      toast.error('请输入图片描述');
+      return;
+    }
+    
+    setIsGeneratingImage(true);
+    try {
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: customImagePrompt }),
+      });
+      
+      const data = await response.json();
+      if (data.imageUrls) {
+        setImageUrls(prev => [...data.imageUrls, ...prev]);
+        toast.success('配图生成成功！');
+        setShowCustomImageModal(false);
+        setCustomImagePrompt('');
+      }
+    } catch (error) {
+      toast.error('图片生成失败');
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  // ==================== 合规修正 ====================
+  const handleComplianceFix = async () => {
+    if (userEdited) {
+      toast.info('您已手动编辑内容，请自行调整不合规部分');
+      return;
+    }
+    
+    setIsGenerating(true);
+    setCurrentStep('正在修正合规问题...');
+    
+    try {
+      const response = await fetch('/api/compliance-fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: titles[selectedTitleIndex]?.title,
+          content: editableContent,
+          warnings: compliance.warnings,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.fixedContent) {
+        setEditableContent(data.fixedContent);
+        setContent(data.fixedContent);
+        setCompliance({ isCompliant: true, warnings: [], fixed: true });
+        toast.success('内容已自动修正');
+      }
+    } catch (error) {
+      toast.error('修正失败');
+    } finally {
+      setIsGenerating(false);
+      setCurrentStep('');
+    }
+  };
 
   // ==================== 保存到历史 ====================
   const handleSave = () => {
@@ -275,7 +366,15 @@ export default function Home() {
 
   const handleExport = () => {
     const selectedTitle = titles[selectedTitleIndex]?.title || '';
-    const text = `【标题】${selectedTitle}\n\n【正文】\n${editableContent}\n\n【标签】\n${tags.map(t => '#' + t).join(' ')}\n\n${engagementScore ? `【种草力评分】${engagementScore.score}/10分` : ''}`;
+    let text = `【标题】${selectedTitle}\n\n【正文】\n${editableContent}\n\n【标签】\n${tags.map(t => '#' + t).join(' ')}\n\n`;
+    
+    if (isVideo && recommendedMusic.length > 0) {
+      text += `【推荐音乐】\n${recommendedMusic.join('\n')}\n\n`;
+    }
+    
+    if (engagementScore) {
+      text += `【种草力评分】${engagementScore.score}/10分`;
+    }
     
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -297,6 +396,7 @@ export default function Home() {
     if (record.imageUrls?.length) setImageUrls(record.imageUrls);
     setEngagementScore(record.engagementScore || null);
     setShowHistory(false);
+    setUserEdited(true); // 加载历史视为用户编辑
     toast.success('已加载历史记录');
   };
 
@@ -305,6 +405,19 @@ export default function Home() {
     setHistoryRecords(newRecords);
     localStorage.setItem('contentHistory', JSON.stringify(newRecords));
     toast.success('已删除');
+  };
+
+  // ==================== 内容编辑处理 ====================
+  const handleContentEdit = (value: string) => {
+    setEditableContent(value);
+    setUserEdited(true);
+  };
+
+  // ==================== 整合内容 ====================
+  const handleIntegrate = () => {
+    setViewMode('integrated');
+    setShowGuide(false);
+    toast.success('已整合内容，可以一键复制');
   };
 
   return (
@@ -717,6 +830,14 @@ export default function Home() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {videoStyle === 'custom' && (
+                        <Input
+                          placeholder="描述你想要的视频风格..."
+                          value={customVideoStyle}
+                          onChange={(e) => setCustomVideoStyle(e.target.value)}
+                          className="h-8 mt-2 text-xs"
+                        />
+                      )}
                     </div>
 
                     {/* 配图建议开关 */}
@@ -887,20 +1008,20 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <div className="flex bg-gray-100 rounded-lg p-0.5">
                         <button
-                          onClick={() => setViewMode('integrated')}
-                          className={`px-2.5 py-1 text-xs rounded-md transition-all ${
-                            viewMode === 'integrated' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                          }`}
-                        >
-                          整合视图
-                        </button>
-                        <button
                           onClick={() => setViewMode('split')}
                           className={`px-2.5 py-1 text-xs rounded-md transition-all ${
                             viewMode === 'split' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                           }`}
                         >
                           拆分视图
+                        </button>
+                        <button
+                          onClick={handleIntegrate}
+                          className={`px-2.5 py-1 text-xs rounded-md transition-all ${
+                            viewMode === 'integrated' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                          }`}
+                        >
+                          整合视图
                         </button>
                       </div>
                     </div>
@@ -915,6 +1036,22 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    
+                    {/* 引导提示 - 拆分视图时显示 */}
+                    {viewMode === 'split' && showGuide && titles.length > 0 && (
+                      <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                        <div className="flex items-start gap-2">
+                          <Lightbulb className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                          <div className="text-xs text-blue-700">
+                            <p className="font-medium mb-1">💡 操作指引</p>
+                            <p>1. 从标题候选中选择最喜欢的标题</p>
+                            <p>2. 可以编辑正文内容进行微调</p>
+                            <p>3. 选择喜欢的配图</p>
+                            <p>4. 确认后点击「整合视图」一键复制到小红书</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* 整合视图 */}
                     {viewMode === 'integrated' && (
@@ -947,7 +1084,7 @@ export default function Home() {
                             {isEditing ? (
                               <Textarea
                                 value={editableContent}
-                                onChange={(e) => setEditableContent(e.target.value)}
+                                onChange={(e) => handleContentEdit(e.target.value)}
                                 className="min-h-[180px] resize-none border-0 bg-transparent p-0 text-sm"
                               />
                             ) : (
@@ -969,18 +1106,47 @@ export default function Home() {
 
                         {/* 配图 */}
                         {imageUrls.length > 0 && (
-                          <div className="grid grid-cols-3 gap-2">
-                            {imageUrls.map((url, i) => (
-                              <button
-                                key={i}
-                                onClick={() => setSelectedImageIndex(i)}
-                                className={`relative aspect-square rounded-xl overflow-hidden ${
-                                  selectedImageIndex === i ? 'ring-2 ring-rose-500 ring-offset-2' : ''
-                                }`}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-500">配图（点击选择）</span>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-xs" 
+                                onClick={() => setShowCustomImageModal(true)}
                               >
-                                <img src={url} alt="" className="w-full h-full object-cover" />
-                              </button>
-                            ))}
+                                <ImagePlus className="h-3 w-3 mr-1" />
+                                自定义生图
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              {imageUrls.map((url, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => setSelectedImageIndex(i)}
+                                  className={`relative aspect-square rounded-xl overflow-hidden ${
+                                    selectedImageIndex === i ? 'ring-2 ring-rose-500 ring-offset-2' : ''
+                                  }`}
+                                >
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 推荐音乐（视频内容） */}
+                        {isVideo && recommendedMusic.length > 0 && (
+                          <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Music className="h-4 w-4 text-purple-500" />
+                              <span className="text-xs font-medium text-gray-700">推荐音乐</span>
+                            </div>
+                            <div className="space-y-1">
+                              {recommendedMusic.map((music, i) => (
+                                <p key={i} className="text-xs text-gray-600">{i + 1}. {music}</p>
+                              ))}
+                            </div>
                           </div>
                         )}
 
@@ -999,16 +1165,32 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* 合规提醒 */}
+                        {/* 合规状态 */}
                         {!compliance.isCompliant && (
                           <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
-                            <div className="flex items-center gap-1.5 text-amber-700 font-medium mb-1 text-xs">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              合规提醒
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-amber-700 font-medium text-xs">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {compliance.fixed ? '已自动修正' : '合规提醒'}
+                              </div>
+                              {!compliance.fixed && !userEdited && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-6 text-xs"
+                                  onClick={handleComplianceFix}
+                                >
+                                  自动修正
+                                </Button>
+                              )}
                             </div>
-                            {compliance.warnings.map((w, i) => (
-                              <p key={i} className="text-xs text-amber-600">{w}</p>
-                            ))}
+                            {compliance.warnings.length > 0 && (
+                              <div className="mt-1">
+                                {compliance.warnings.map((w, i) => (
+                                  <p key={i} className="text-xs text-amber-600">{w}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1023,7 +1205,7 @@ export default function Home() {
                             <div className="flex items-center justify-between mb-2">
                               <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
                                 <Sparkles className="h-3 w-3 text-rose-500" />
-                                标题候选
+                                标题候选（选择一个）
                               </Label>
                               <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('title')}>
@@ -1039,11 +1221,20 @@ export default function Home() {
                                 <button
                                   key={i}
                                   onClick={() => setSelectedTitleIndex(i)}
-                                  className={`w-full p-2 rounded-lg text-left text-xs ${
-                                    selectedTitleIndex === i ? 'bg-rose-50 border border-rose-200' : 'bg-gray-50'
+                                  className={`w-full p-2 rounded-lg text-left text-xs transition-all ${
+                                    selectedTitleIndex === i 
+                                      ? 'bg-rose-50 border-2 border-rose-300 ring-1 ring-rose-200' 
+                                      : 'bg-gray-50 border border-gray-200 hover:border-gray-300'
                                   }`}
                                 >
-                                  {t.title}
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                      selectedTitleIndex === i ? 'border-rose-500 bg-rose-500' : 'border-gray-300'
+                                    }`}>
+                                      {selectedTitleIndex === i && <Check className="h-2.5 w-2.5 text-white" />}
+                                    </div>
+                                    <span className={selectedTitleIndex === i ? 'text-gray-900 font-medium' : 'text-gray-700'}>{t.title}</span>
+                                  </div>
                                 </button>
                               ))}
                             </div>
@@ -1073,7 +1264,7 @@ export default function Home() {
                             {isEditing ? (
                               <Textarea
                                 value={editableContent}
-                                onChange={(e) => setEditableContent(e.target.value)}
+                                onChange={(e) => handleContentEdit(e.target.value)}
                                 className="min-h-[120px] resize-none text-xs"
                               />
                             ) : (
@@ -1081,6 +1272,48 @@ export default function Home() {
                                 {editableContent}
                               </div>
                             )}
+                            {userEdited && (
+                              <p className="text-[10px] text-gray-400 mt-1">✏️ 您已编辑此内容</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 配图模块 */}
+                        {imageUrls.length > 0 && (
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <ImageIcon className="h-3 w-3 text-rose-500" />
+                                配图选择
+                              </Label>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-xs" 
+                                onClick={() => setShowCustomImageModal(true)}
+                              >
+                                <ImagePlus className="h-3 w-3 mr-1" />
+                                自定义
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              {imageUrls.map((url, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => setSelectedImageIndex(i)}
+                                  className={`relative aspect-square rounded-lg overflow-hidden ${
+                                    selectedImageIndex === i ? 'ring-2 ring-rose-500' : ''
+                                  }`}
+                                >
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                  {selectedImageIndex === i && (
+                                    <div className="absolute top-1 right-1 bg-rose-500 rounded-full p-0.5">
+                                      <Check className="h-2.5 w-2.5 text-white" />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
 
@@ -1108,6 +1341,59 @@ export default function Home() {
                             </div>
                           </div>
                         )}
+
+                        {/* 推荐音乐（视频内容） */}
+                        {isVideo && recommendedMusic.length > 0 && (
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Music className="h-3 w-3 text-purple-500" />
+                              <Label className="text-xs font-medium text-gray-700">推荐音乐</Label>
+                            </div>
+                            <div className="space-y-1">
+                              {recommendedMusic.map((music, i) => (
+                                <p key={i} className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2">{i + 1}. {music}</p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 合规状态 */}
+                        {!compliance.isCompliant && (
+                          <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-amber-700 font-medium text-xs">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {compliance.fixed ? '已自动修正' : '发现合规问题'}
+                              </div>
+                              {!compliance.fixed && !userEdited && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-6 text-xs"
+                                  onClick={handleComplianceFix}
+                                >
+                                  自动修正
+                                </Button>
+                              )}
+                            </div>
+                            {compliance.warnings.length > 0 && (
+                              <div className="mt-1">
+                                {compliance.warnings.map((w, i) => (
+                                  <p key={i} className="text-xs text-amber-600">{w}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 整合按钮 */}
+                        <Button
+                          className="w-full h-10 text-sm font-semibold bg-gradient-to-r from-rose-500 to-orange-500"
+                          onClick={handleIntegrate}
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          确认选择，整合内容
+                        </Button>
                       </div>
                     )}
 
@@ -1126,9 +1412,14 @@ export default function Home() {
                           <Download className="h-3 w-3 mr-1" />
                           导出
                         </Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs">
-                          <Wand2 className="h-3 w-3 mr-1" />
-                          AI优化
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-xs" 
+                          onClick={() => setShowCustomImageModal(true)}
+                        >
+                          <ImagePlus className="h-3 w-3 mr-1" />
+                          自定义生图
                         </Button>
                         <Button size="sm" className="h-7 text-xs bg-rose-500 hover:bg-rose-600" onClick={handleCopyForXHS}>
                           <Copy className="h-3 w-3 mr-1" />
@@ -1189,6 +1480,63 @@ export default function Home() {
                   </div>
                 )}
               </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 自定义生图弹窗 */}
+      {showCustomImageModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md bg-white">
+            <CardHeader className="flex flex-row items-center justify-between py-3 px-5">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ImagePlus className="h-4 w-4 text-rose-500" />
+                自定义生成配图
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setShowCustomImageModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="px-5 pb-4 space-y-3">
+              <div>
+                <Label className="text-xs text-gray-500 mb-1.5 block">图片描述</Label>
+                <Textarea
+                  placeholder="描述你想要的图片，例如：简约风格的理财规划图表，蓝色渐变背景，无文字..."
+                  value={customImagePrompt}
+                  onChange={(e) => setCustomImagePrompt(e.target.value)}
+                  className="min-h-[100px] text-sm"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  💡 提示：图片会自动添加"无文字"约束，适合作为小红书封面
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={() => setShowCustomImageModal(false)}
+                >
+                  取消
+                </Button>
+                <Button 
+                  className="flex-1 bg-rose-500 hover:bg-rose-600"
+                  onClick={handleCustomImageGenerate}
+                  disabled={isGeneratingImage}
+                >
+                  {isGeneratingImage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      生成配图
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
