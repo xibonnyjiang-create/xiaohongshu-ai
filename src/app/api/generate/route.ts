@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { 
   TopicType, UserTag, ContentType, VideoDuration, VideoStyle, 
   TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType,
-  TitleCandidate, ImageSuggestion, ScriptSegment
+  TitleCandidate
 } from '@/lib/types';
 import { SearchClient, ImageGenerationClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
@@ -29,6 +29,7 @@ const TITLE_STYLE_PROMPTS: Record<TitleStyle, string> = {
   emotional: '情感式：触动情感共鸣',
   practical: '实用式：强调实用价值',
   contrast: '反差式：制造反差吸引眼球',
+  custom: '自定义风格',
 };
 
 // 视频风格映射
@@ -47,6 +48,7 @@ const ADDITIONAL_REQUIREMENT_PROMPTS: Record<AdditionalRequirement, string> = {
   examples: '多举例说明，用具体案例解释概念',
   risk_warning: '结尾必须包含投资风险提示语',
   recommend_wzq: '结尾自然融入微证券推荐',
+  custom: '自定义要求',
 };
 
 // 博主人设映射
@@ -69,13 +71,17 @@ const TIME_RANGE_MAP: Record<HotTopicTimeRange, string> = {
   '30d': '30d',
 };
 
+// 支持热点的选题类型
+const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot', 'advanced_invest', 'professional_analysis'];
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
       topicType, userTag, contentType, keywords, hotTopicTimeRange,
-      titleStyles, personaType, customPersona, additionalRequirements,
-      videoDuration, videoStyle,
+      titleStyles, customTitleStyle, personaType, customPersona, 
+      additionalRequirements, customRequirement,
+      videoDuration, videoStyle, hotTopicInfo: passedHotTopicInfo,
     } = body as {
       topicType: TopicType;
       userTag: UserTag;
@@ -83,11 +89,14 @@ export async function POST(request: NextRequest) {
       keywords?: string;
       hotTopicTimeRange?: HotTopicTimeRange;
       titleStyles?: TitleStyle[];
+      customTitleStyle?: string;
       personaType?: PersonaType;
       customPersona?: string;
       additionalRequirements?: AdditionalRequirement[];
+      customRequirement?: string;
       videoDuration?: VideoDuration;
       videoStyle?: VideoStyle;
+      hotTopicInfo?: string;
     };
 
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
@@ -101,9 +110,9 @@ export async function POST(request: NextRequest) {
         let accumulatedContent = '';
         
         try {
-          // 1. 搜索热点
-          let hotTopicInfo = '';
-          if (HOT_TOPIC_SUPPORTED.includes(topicType)) {
+          // 1. 搜索热点（如果传入了热点信息则使用传入的）
+          let hotTopicInfo = passedHotTopicInfo || '';
+          if (!hotTopicInfo && HOT_TOPIC_SUPPORTED.includes(topicType)) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在搜索热点资讯...' })}\n\n`));
             const result = await searchHotTopics(topicType, keywords, TIME_RANGE_MAP[timeRange], customHeaders);
             hotTopicInfo = result.info;
@@ -111,7 +120,7 @@ export async function POST(request: NextRequest) {
 
           // 2. 生成标题候选
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`));
-          const titles = await generateTitles(topicType, userTag, contentType, keywords, hotTopicInfo, titleStyles, personaType, customPersona);
+          const titles = await generateTitles(topicType, userTag, contentType, keywords, hotTopicInfo, titleStyles, customTitleStyle, personaType, customPersona);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`));
 
           // 3. 生成正文/脚本
@@ -120,7 +129,7 @@ export async function POST(request: NextRequest) {
           const requirements = additionalRequirements || [];
           const contentStream = await generateContentStream(
             topicType, userTag, contentType, keywords, hotTopicInfo,
-            titles, requirements, videoDuration, videoStyle, personaType, customPersona
+            titles, requirements, customRequirement, videoDuration, videoStyle, personaType, customPersona
           );
           
           for await (const chunk of contentStream) {
@@ -128,24 +137,18 @@ export async function POST(request: NextRequest) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`));
           }
 
-          // 4. 生成配图建议（图文）
-          if (!isVideo) {
-            const imageSuggestions = await generateImageSuggestions(titles[0]?.title || '', accumulatedContent);
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'image_suggestions', data: imageSuggestions })}\n\n`));
-          }
-
-          // 5. 生成标签
+          // 4. 生成标签
           const tags = await generateTags(topicType, keywords, titles[0]?.title || '', accumulatedContent);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`));
 
-          // 6. 生成配图
+          // 5. 生成配图（直接调用模型生成图片）
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图...' })}\n\n`));
           const imageUrls = await generateImages(titles[0]?.title || '', accumulatedContent, customHeaders);
           if (imageUrls.length > 0) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`));
           }
 
-          // 7. 合规审查
+          // 6. 合规审查
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在进行合规审查...' })}\n\n`));
           const complianceResult = await callComplianceCheck(titles[0]?.title || '', accumulatedContent, tags.join(' '));
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'compliance', data: complianceResult })}\n\n`));
@@ -175,8 +178,6 @@ export async function POST(request: NextRequest) {
 }
 
 // 热点搜索
-const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot', 'advanced_invest', 'professional_analysis'];
-
 async function searchHotTopics(
   topicType: TopicType, 
   keywords?: string,
@@ -188,10 +189,10 @@ async function searchHotTopics(
     const client = new SearchClient(config, customHeaders);
 
     const searchQueries: Record<TopicType, string> = {
-      market_hot: `AI人工智能 机器人 新能源 财经新闻 最新`,
+      market_hot: `AI人工智能 机器人 新能源 财经新闻 最新 今日`,
       beginner_guide: `投资理财入门 新手指南`,
-      advanced_invest: `券商研报 机构评级 行业分析 最新`,
-      professional_analysis: `上市公司财报 股价分析 黄金石油外汇 最新`,
+      advanced_invest: `券商研报 机构评级 行业分析 最新 今日`,
+      professional_analysis: `上市公司财报 股价分析 黄金石油外汇 最新 今日`,
     };
 
     let query = searchQueries[topicType];
@@ -228,12 +229,22 @@ async function generateTitles(
   keywords?: string,
   hotTopicInfo?: string,
   titleStyles?: TitleStyle[],
+  customTitleStyle?: string,
   personaType?: PersonaType,
   customPersona?: string
 ): Promise<TitleCandidate[]> {
-  const styleGuides = (titleStyles && titleStyles.length > 0)
-    ? titleStyles.map(s => TITLE_STYLE_PROMPTS[s]).join('；')
-    : '选择最适合的风格';
+  // 构建风格指南
+  let styleGuides = '';
+  if (titleStyles && titleStyles.length > 0) {
+    const nonCustomStyles = titleStyles.filter(s => s !== 'custom');
+    styleGuides = nonCustomStyles.map(s => TITLE_STYLE_PROMPTS[s]).join('；');
+    if (titleStyles.includes('custom') && customTitleStyle) {
+      styleGuides += `；自定义风格：${customTitleStyle}`;
+    }
+  }
+  if (!styleGuides) {
+    styleGuides = '选择最适合的风格';
+  }
 
   const personaPrompt = personaType ? getPersonaPrompt(personaType, customPersona) : '';
 
@@ -288,6 +299,7 @@ async function* generateContentStream(
   hotTopicInfo?: string,
   titles?: TitleCandidate[],
   additionalRequirements?: AdditionalRequirement[],
+  customRequirement?: string,
   videoDuration?: VideoDuration,
   videoStyle?: VideoStyle,
   personaType?: PersonaType,
@@ -295,11 +307,17 @@ async function* generateContentStream(
 ): AsyncGenerator<string> {
   const isVideo = contentType === 'video_script';
   const selectedTitle = titles?.[0]?.title || '';
-  const requirements = additionalRequirements || [];
   const personaPrompt = personaType ? getPersonaPrompt(personaType, customPersona) : '';
 
-  // 补充要求提示
-  const requirementPrompts = requirements.map(r => ADDITIONAL_REQUIREMENT_PROMPTS[r]).join('\n');
+  // 构建补充要求提示
+  let requirementPrompts = '';
+  if (additionalRequirements && additionalRequirements.length > 0) {
+    const nonCustomReqs = additionalRequirements.filter(r => r !== 'custom');
+    requirementPrompts = nonCustomReqs.map(r => ADDITIONAL_REQUIREMENT_PROMPTS[r]).join('\n');
+    if (additionalRequirements.includes('custom') && customRequirement) {
+      requirementPrompts += `\n${customRequirement}`;
+    }
+  }
   
   // 深度要求
   const depthPrompts: Record<TopicType, string> = {
@@ -401,36 +419,6 @@ ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
   }
 }
 
-// 生成配图建议
-async function generateImageSuggestions(title: string, content: string): Promise<ImageSuggestion[]> {
-  const prompt = `你是小红书配图专家。根据以下内容，提供3条配图建议：
-
-标题：${title}
-内容摘要：${content.substring(0, 300)}
-
-请提供封面图和内图建议，格式：
-- 封面图：[建议]
-- 内图1：[建议]
-- 内图2：[建议]
-
-建议要具体，如：数据图表、对比图、关键词大字图、情绪表情包等`;
-
-  const response = await callLLM(prompt);
-  
-  const suggestions: ImageSuggestion[] = [];
-  const lines = response.split('\n');
-  
-  for (const line of lines) {
-    if (line.includes('封面图')) {
-      suggestions.push({ type: 'cover', description: line.replace(/^-?\s*封面图[：:]\s*/, '') });
-    } else if (line.includes('内图')) {
-      suggestions.push({ type: 'inline', description: line.replace(/^-?\s*内图\d[：:]\s*/, '') });
-    }
-  }
-
-  return suggestions;
-}
-
 // 生成标签
 async function generateTags(topicType: TopicType, keywords?: string, title?: string, content?: string): Promise<string[]> {
   const prompt = `你是小红书SEO专家。请为以下内容生成6-8个热门标签：
@@ -448,16 +436,19 @@ ${keywords ? `关键词：${keywords}` : ''}
   return response.split(/[,，、\n]/).map((tag) => tag.trim().replace(/^#/, '')).filter((tag) => tag.length > 0 && tag.length < 15);
 }
 
-// 生成配图
+// 生成配图（直接调用模型生成图片）
 async function generateImages(title: string, content: string, customHeaders?: Record<string, string>): Promise<string[]> {
   try {
     const config = new Config();
     const client = new ImageGenerationClient(config, customHeaders);
 
+    // 根据内容生成配图prompt
+    const contentPrompt = `Financial investment theme, ${title.substring(0, 50)}`;
+    
     const imagePrompts = [
-      `Professional financial infographic style, clean data visualization, business growth concept, blue and white color scheme, modern minimalist design, NO TEXT, NO WORDS, NO LETTERS, suitable for social media cover`,
-      `Modern investment planning scene, laptop with charts, warm natural lighting, professional atmosphere, NO TEXT, NO WORDS, NO LETTERS, lifestyle photography`,
-      `Abstract upward growth visualization, geometric shapes, gradient from blue to green, clean modern design, NO TEXT, NO WORDS, NO LETTERS, professional business aesthetic`,
+      `Professional financial infographic style, clean data visualization, business growth concept, blue and white color scheme, modern minimalist design, suitable for social media cover, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,
+      `Modern investment planning scene, laptop with stock charts, warm natural lighting, professional atmosphere, lifestyle photography, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,
+      `Abstract upward growth visualization, geometric shapes, gradient from blue to green, clean modern design, professional business aesthetic, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,
     ];
 
     const imageUrls: string[] = [];

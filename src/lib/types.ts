@@ -14,13 +14,23 @@ export type VideoDuration = '30s' | '60s' | '3min';
 export type VideoStyle = 'popular_science' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo';
 
 // 标题风格
-export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' | 'contrast';
+export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' | 'contrast' | 'custom';
 
 // 热点时间筛选
 export type HotTopicTimeRange = '24h' | '7d' | '30d';
 
 // 补充要求
-export type AdditionalRequirement = 'short_300' | 'short_term' | 'examples' | 'risk_warning' | 'recommend_wzq';
+export type AdditionalRequirement = 'short_300' | 'short_term' | 'examples' | 'risk_warning' | 'recommend_wzq' | 'custom';
+
+// 热点数据
+export interface HotTopic {
+  id: number;
+  title: string;
+  source: string;
+  snippet: string;
+  url?: string;
+  publishTime?: string;
+}
 
 // 博主人设类型
 export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'veteran_trader' | 'finance_scholar' | 'roaster' | 'custom';

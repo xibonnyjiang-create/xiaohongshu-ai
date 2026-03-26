@@ -38,6 +38,7 @@ export const TITLE_STYLE_OPTIONS: { value: TitleStyle; label: string; example: s
   { value: 'emotional', label: '情感式', example: '「我踩过的坑，希望你不要再踩」' },
   { value: 'practical', label: '实用式', example: '「小白必看：5分钟学会选基」' },
   { value: 'contrast', label: '反差式', example: '「月薪3000也能实现财富自由？」' },
+  { value: 'custom', label: '自定义', example: '输入你想要的标题风格' },
 ];
 
 // 博主人设选项
@@ -57,6 +58,7 @@ export const ADDITIONAL_REQUIREMENT_OPTIONS: { value: AdditionalRequirement; lab
   { value: 'examples', label: '举例说明' },
   { value: 'risk_warning', label: '加投资风险提示' },
   { value: 'recommend_wzq', label: '结尾推荐微证券' },
+  { value: 'custom', label: '自定义' },
 ];
 
 // 视频时长选项

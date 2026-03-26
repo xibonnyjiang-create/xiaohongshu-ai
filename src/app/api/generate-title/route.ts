@@ -24,6 +24,7 @@ const TITLE_STYLE_PROMPTS: Record<TitleStyle, string> = {
   emotional: '情感式标题：触动情感共鸣，如"我踩过的坑，希望你不要再踩"',
   practical: '实用式标题：强调实用价值，如"小白必看：5分钟学会选基"',
   contrast: '反差式标题：制造反差吸引眼球，如"月薪3000也能实现财富自由？"',
+  custom: '自定义标题风格',
 };
 
 // 人设风格适配

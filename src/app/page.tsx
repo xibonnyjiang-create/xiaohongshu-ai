@@ -14,13 +14,14 @@ import {
 import { 
   Sparkles, RefreshCw, Copy, Download, CheckCircle2, ImageIcon, 
   FileText, Video, TrendingUp, Loader2, Heart, Hash, Shield,
-  AlertTriangle, Check, ChevronDown, ChevronUp, Settings2
+  AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
+  Flame, Clock, ExternalLink, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   TopicType, UserTag, ContentType, VideoDuration, VideoStyle,
   TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType,
-  TitleCandidate, ImageSuggestion, GenerateResult
+  TitleCandidate, ImageSuggestion, HotTopic
 } from '@/lib/types';
 import { 
   TOPIC_TYPE_OPTIONS, USER_TAG_OPTIONS, CONTENT_TYPE_OPTIONS,
@@ -39,13 +40,20 @@ export default function Home() {
 
   // 高级参数
   const [titleStyles, setTitleStyles] = useState<TitleStyle[]>([]);
+  const [customTitleStyle, setCustomTitleStyle] = useState('');
   const [personaType, setPersonaType] = useState<PersonaType>('hardcore_uncle');
   const [customPersona, setCustomPersona] = useState('');
   const [additionalRequirements, setAdditionalRequirements] = useState<AdditionalRequirement[]>([]);
+  const [customRequirement, setCustomRequirement] = useState('');
   
   // 视频专用
   const [videoDuration, setVideoDuration] = useState<VideoDuration>('60s');
   const [videoStyle, setVideoStyle] = useState<VideoStyle>('popular_science');
+
+  // 热榜数据
+  const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
+  const [hotTopicsLoading, setHotTopicsLoading] = useState(false);
+  const [selectedHotTopic, setSelectedHotTopic] = useState<HotTopic | null>(null);
 
   // UI状态
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -64,6 +72,31 @@ export default function Home() {
 
   const isVideo = contentType === 'video_script';
   const isCompatible = USER_TAG_TOPIC_COMPATIBILITY[userTag].includes(topicType);
+
+  // 加载热榜
+  const loadHotTopics = useCallback(async () => {
+    setHotTopicsLoading(true);
+    try {
+      const response = await fetch('/api/hot-topics');
+      const data = await response.json();
+      setHotTopics(data.topics || []);
+    } catch (error) {
+      console.error('Load hot topics error:', error);
+    } finally {
+      setHotTopicsLoading(false);
+    }
+  }, []);
+
+  // 初始加载热榜
+  useEffect(() => {
+    loadHotTopics();
+  }, [loadHotTopics]);
+
+  // 选择热点作为关键词
+  const handleSelectHotTopic = (topic: HotTopic) => {
+    setSelectedHotTopic(topic);
+    setKeywords(topic.title);
+  };
 
   // 处理用户标签变化
   const handleUserTagChange = (value: UserTag) => {
@@ -107,13 +140,28 @@ export default function Home() {
     setCurrentStep('准备中...');
 
     try {
+      // 构建补充要求列表，包含自定义要求
+      const finalRequirements = [...additionalRequirements];
+      if (additionalRequirements.includes('custom') && customRequirement) {
+        // 自定义要求会在后端处理
+      }
+
+      // 构建标题风格列表，包含自定义风格
+      const finalTitleStyles = [...titleStyles];
+      if (titleStyles.includes('custom') && customTitleStyle) {
+        // 自定义风格会在后端处理
+      }
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topicType, userTag, contentType, keywords, hotTopicTimeRange,
-          titleStyles, personaType, customPersona, additionalRequirements,
+          titleStyles: finalTitleStyles, customTitleStyle,
+          personaType, customPersona, 
+          additionalRequirements: finalRequirements, customRequirement,
           videoDuration, videoStyle,
+          hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
         }),
       });
 
@@ -175,7 +223,7 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }, [topicType, userTag, contentType, keywords, hotTopicTimeRange, titleStyles, personaType, customPersona, additionalRequirements, videoDuration, videoStyle, isCompatible]);
+  }, [topicType, userTag, contentType, keywords, hotTopicTimeRange, titleStyles, customTitleStyle, personaType, customPersona, additionalRequirements, customRequirement, videoDuration, videoStyle, isCompatible, selectedHotTopic]);
 
   // 复制
   const handleCopy = (text: string) => {
@@ -200,9 +248,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* 头部 */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="inline-flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-gradient-to-br from-rose-500 to-pink-500 rounded-xl shadow-lg">
               <TrendingUp className="h-6 w-6 text-white" />
@@ -213,6 +261,75 @@ export default function Home() {
           </div>
           <p className="text-gray-500 text-sm">智能生成专业、深度的财经内容</p>
         </div>
+
+        {/* 热榜区域 */}
+        <Card className="mb-4 border-0 shadow-lg bg-white/80">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Flame className="h-4 w-4 text-orange-500" />
+                今日热点
+                {hotTopics.length > 0 && (
+                  <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">
+                    {hotTopics.length}条
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={loadHotTopics} disabled={hotTopicsLoading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {hotTopicsLoading && hotTopics.length === 0 ? (
+              <div className="flex items-center justify-center py-8 text-gray-400">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                加载热点中...
+              </div>
+            ) : (
+              <ScrollArea className="h-[120px]">
+                <div className="space-y-2">
+                  {hotTopics.slice(0, 8).map((topic) => (
+                    <button
+                      key={topic.id}
+                      onClick={() => handleSelectHotTopic(topic)}
+                      className={`w-full p-2 rounded-lg text-left transition-all flex items-start gap-2 ${
+                        selectedHotTopic?.id === topic.id
+                          ? 'bg-orange-50 border border-orange-200'
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white text-xs flex items-center justify-center font-medium">
+                        {topic.id}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{topic.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{topic.source}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+            
+            {selectedHotTopic && (
+              <div className="mt-3 p-2 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs text-orange-600 font-medium">已选热点：</p>
+                    <p className="text-sm text-gray-800">{selectedHotTopic.title}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => {
+                    setSelectedHotTopic(null);
+                    setKeywords('');
+                  }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* 左侧：输入 */}
@@ -380,6 +497,14 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
+                    {titleStyles.includes('custom') && (
+                      <Input
+                        placeholder="输入自定义标题风格描述..."
+                        value={customTitleStyle}
+                        onChange={(e) => setCustomTitleStyle(e.target.value)}
+                        className="h-8 mt-2 text-sm"
+                      />
+                    )}
                   </div>
 
                   {/* 博主人设 */}
@@ -423,6 +548,14 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
+                    {additionalRequirements.includes('custom') && (
+                      <Input
+                        placeholder="输入自定义补充要求..."
+                        value={customRequirement}
+                        onChange={(e) => setCustomRequirement(e.target.value)}
+                        className="h-8 mt-2 text-sm"
+                      />
+                    )}
                   </div>
                 </CardContent>
               )}
@@ -528,32 +661,12 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* 配图建议 */}
-                    {imageSuggestions.length > 0 && !isVideo && (
-                      <div>
-                        <Label className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                          <ImageIcon className="h-3 w-3 text-violet-500" />
-                          配图建议
-                        </Label>
-                        <div className="space-y-1.5">
-                          {imageSuggestions.map((s, i) => (
-                            <div key={i} className="flex items-start gap-2 p-2 bg-violet-50 rounded-lg">
-                              <Badge className="bg-violet-100 text-violet-700 border-0 text-xs">
-                                {s.type === 'cover' ? '封面' : '内图'}
-                              </Badge>
-                              <span className="text-sm text-gray-700">{s.description}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI配图 */}
+                    {/* AI配图（已生成图片） */}
                     {imageUrls.length > 0 && (
                       <div>
                         <Label className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                           <ImageIcon className="h-3 w-3 text-blue-500" />
-                          AI配图（点击选择）
+                          AI配图（点击选择使用）
                         </Label>
                         <div className="grid grid-cols-3 gap-2">
                           {imageUrls.map((url, i) => (
