@@ -1,21 +1,22 @@
 import { 
   TopicType, UserTag, ContentType, VideoDuration, VideoStyle, 
-  TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType 
+  TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType,
+  UserTopicCompatibility
 } from './types';
 
 // 选题类型选项
-export const TOPIC_TYPE_OPTIONS: { value: TopicType; label: string; description: string }[] = [
-  { value: 'market_hot', label: '市场热点', description: '最新市场动态和热点事件' },
-  { value: 'beginner_guide', label: '小白科普', description: '基础投资知识和入门指南' },
-  { value: 'advanced_invest', label: '进阶投资', description: '券商研报解读与机构评级' },
-  { value: 'professional_analysis', label: '专业分析', description: '财报分析与期货深度解读' },
+export const TOPIC_TYPE_OPTIONS: { value: TopicType; label: string; description: string; needsHotTopic: boolean }[] = [
+  { value: 'market_hot', label: '市场热点', description: '最新市场动态和热点事件', needsHotTopic: true },
+  { value: 'beginner_guide', label: '小白科普', description: '基础投资知识和入门指南', needsHotTopic: false },
+  { value: 'advanced_invest', label: '进阶投资', description: '券商研报解读与机构评级', needsHotTopic: true },
+  { value: 'professional_analysis', label: '专业分析', description: '财报分析与期货深度解读', needsHotTopic: true },
 ];
 
-// 目标用户选项
+// 用户标签选项（调整后更符合微证券业务）
 export const USER_TAG_OPTIONS: { value: UserTag; label: string; description: string }[] = [
-  { value: 'beginner', label: '小白投资者', description: '刚入市的新手' },
-  { value: 'intermediate', label: '进阶投资者', description: '有一定经验' },
-  { value: 'professional', label: '专业玩家', description: '经验丰富' },
+  { value: 'new_investor', label: '理财新手', description: '刚入市，关注基础知识和稳健理财' },
+  { value: 'active_trader', label: '活跃交易者', description: '频繁交易，关注短期机会和热点' },
+  { value: 'value_investor', label: '价值投资者', description: '长期持有，关注基本面和深度分析' },
 ];
 
 // 内容形式选项
@@ -77,12 +78,15 @@ export const VIDEO_STYLE_OPTIONS: { value: VideoStyle; label: string; descriptio
   { value: 'demo', label: '实战演示', description: '手把手教，实操性强' },
 ];
 
-// 用户标签与选题类型的兼容性映射
-export const USER_TAG_TOPIC_COMPATIBILITY: Record<UserTag, TopicType[]> = {
-  beginner: ['market_hot', 'beginner_guide'],
-  intermediate: ['market_hot', 'advanced_invest'],
-  professional: ['market_hot', 'advanced_invest', 'professional_analysis'],
+// 用户标签与选题类型的兼容性映射（优化后）
+// 理财新手：适合市场热点（了解动态）和小白科普
+// 活跃交易者：适合市场热点和进阶投资
+// 价值投资者：适合进阶投资和专业分析
+export const USER_TAG_TOPIC_COMPATIBILITY: UserTopicCompatibility = {
+  new_investor: ['market_hot', 'beginner_guide'],
+  active_trader: ['market_hot', 'advanced_invest'],
+  value_investor: ['advanced_invest', 'professional_analysis'],
 };
 
-// 选题类型是否支持热点
-export const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot', 'advanced_invest', 'professional_analysis'];
+// 需要热榜的选题类型
+export const TOPIC_NEEDS_HOT_BOARD: TopicType[] = ['market_hot', 'advanced_invest', 'professional_analysis'];

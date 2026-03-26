@@ -1,8 +1,8 @@
 // 选题类型
 export type TopicType = 'market_hot' | 'beginner_guide' | 'advanced_invest' | 'professional_analysis';
 
-// 用户标签
-export type UserTag = 'beginner' | 'intermediate' | 'professional';
+// 用户标签（调整后更符合微证券业务）
+export type UserTag = 'new_investor' | 'active_trader' | 'value_investor';
 
 // 内容类型
 export type ContentType = 'article' | 'video_script';
@@ -21,16 +21,6 @@ export type HotTopicTimeRange = '24h' | '7d' | '30d';
 
 // 补充要求
 export type AdditionalRequirement = 'short_300' | 'short_term' | 'examples' | 'risk_warning' | 'recommend_wzq' | 'custom';
-
-// 热点数据
-export interface HotTopic {
-  id: number;
-  title: string;
-  source: string;
-  snippet: string;
-  url?: string;
-  publishTime?: string;
-}
 
 // 博主人设类型
 export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'veteran_trader' | 'finance_scholar' | 'roaster' | 'custom';
@@ -61,6 +51,7 @@ export interface TitleCandidate {
 export interface ImageSuggestion {
   type: 'cover' | 'inline';
   description: string;
+  imageUrl?: string;
 }
 
 // 视频脚本分段
@@ -100,3 +91,27 @@ export interface HistoryRecord {
 
 // 导出格式
 export type ExportFormat = 'txt' | 'json' | 'csv' | 'script';
+
+// 热点数据
+export interface HotTopic {
+  id: number;
+  title: string;
+  source: string;
+  snippet: string;
+  url?: string;
+  publishTime?: string;
+}
+
+// 内容草稿（整合视图）
+export interface ContentDraft {
+  title: string;
+  content: string;
+  tags: string[];
+  imageUrl?: string;
+  complianceWarnings: string[];
+}
+
+// 用户画像与选题类型的兼容性映射
+export type UserTopicCompatibility = {
+  [key in UserTag]: TopicType[];
+};
