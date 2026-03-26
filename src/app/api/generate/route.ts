@@ -19,7 +19,7 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
   newbie: '小白投资者，刚开户的新手，需要通俗易懂的解释和生活化的比喻',
   active_trader: '进阶投资者，有一定经验，关注短期机会和风险，需要实用的交易策略',
-  long_term_investor: '专业玩家，经验丰富，关注基本面和价值投资，需要深度的研究分析',
+  professional: '专业人士，经验丰富，关注基本面和价值投资，需要深度的研究分析',
 };
 
 // 分析对象映射
@@ -29,6 +29,7 @@ const ANALYSIS_TARGET_PROMPTS: Record<AnalysisTarget, string> = {
   company: '公司分析',
   macro_policy: '宏观政策分析',
   market_event: '市场热点事件分析',
+  custom: '自定义分析对象',
 };
 
 // 内容深度映射

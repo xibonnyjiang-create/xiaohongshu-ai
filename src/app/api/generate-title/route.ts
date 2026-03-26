@@ -13,8 +13,8 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
 // 用户标签映射（根据微证券业务调整）
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
   newbie: '新手投资者，刚开户的新手，需要通俗易懂的解释和生活化的比喻',
-  active_trader: '活跃交易者，经常交易，关注短期机会和风险，需要实用的交易策略',
-  long_term_investor: '长线投资者，关注基本面和价值投资，需要深度的研究分析',
+  active_trader: '进阶投资者，有一定经验，关注短期机会和风险，需要实用的交易策略',
+  professional: '专业人士，经验丰富，关注基本面和价值投资，需要深度的研究分析',
 };
 
 // 标题风格映射

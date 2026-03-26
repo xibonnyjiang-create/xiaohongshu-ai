@@ -13,8 +13,8 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
 // 用户标签映射（根据微证券业务调整）
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
   newbie: '新手投资者，刚开户的新手，需要通俗易懂的解释和生活化的比喻',
-  active_trader: '活跃交易者，经常交易，关注短期机会和风险，需要实用的交易策略',
-  long_term_investor: '长线投资者，关注基本面和价值投资，需要深度的研究分析',
+  active_trader: '进阶投资者，有一定经验，关注短期机会和风险，需要实用的交易策略',
+  professional: '专业人士，经验丰富，关注基本面和价值投资，需要深度的研究分析',
 };
 
 // 视频风格映射
@@ -200,7 +200,7 @@ function generateArticlePrompt(
 - 提供短期交易机会的参考逻辑
 - 风险提示要具体，不要泛泛而谈
 - 可以适当分享个人判断逻辑`,
-      long_term_investor: `
+      professional: `
 【市场热点内容要求 - 投资者版】
 - 从长期视角分析热点对行业格局的影响
 - 关注基本面变化和长期趋势
@@ -218,7 +218,7 @@ function generateArticlePrompt(
 - 解释概念时结合实际交易场景
 - 提供实用的操作建议
 - 可以分享一些小技巧`,
-      long_term_investor: `
+      professional: `
 【科普内容要求】
 - 从长期投资的角度解释概念
 - 关注对长期投资决策的影响`,
@@ -235,7 +235,7 @@ function generateArticlePrompt(
 - 分析机构评级原因和逻辑
 - 提供投资逻辑框架
 - 可以适当加入个人观点和判断`,
-      long_term_investor: `
+      professional: `
 【进阶投资内容要求】
 - 深度解读券商研报
 - 分析长期投资价值
@@ -252,7 +252,7 @@ function generateArticlePrompt(
 - 分析财报关键指标变化
 - 解读股价变化与财报的关系
 - 提供短期交易参考`,
-      long_term_investor: `
+      professional: `
 【专业分析内容要求】
 - 深度分析财报数据
 - 评估公司长期价值

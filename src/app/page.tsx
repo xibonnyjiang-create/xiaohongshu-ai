@@ -10,7 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from '@/components/ui/select';
@@ -19,8 +18,7 @@ import {
   FileText, Video, TrendingUp, Loader2, Heart, Hash,
   AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
-  Star, Trash2, FileEdit, Share2, ThumbsUp, Zap, Eye, EyeOff,
-  Lightbulb, Target, Layers, Clock, User
+  Trash2, FileEdit, Lightbulb, Target, Layers, Star
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -33,9 +31,9 @@ import {
   TOPIC_TYPE_OPTIONS, USER_TAG_OPTIONS, CONTENT_TYPE_OPTIONS,
   HOT_TOPIC_TIME_RANGE_OPTIONS, TITLE_STYLE_OPTIONS, PERSONA_OPTIONS,
   ADDITIONAL_REQUIREMENT_OPTIONS, VIDEO_DURATION_OPTIONS, VIDEO_STYLE_OPTIONS,
-  USER_TAG_TOPIC_COMPATIBILITY, SHOW_HOT_TOPICS, TOPIC_DYNAMIC_CONFIG,
+  USER_TAG_TOPIC_COMPATIBILITY, SHOW_HOT_TOPICS_TOPIC, TOPIC_RECOMMENDATIONS,
   ANALYSIS_TARGET_OPTIONS, CONTENT_DEPTH_OPTIONS, FOCUS_DIRECTION_OPTIONS,
-  CONTENT_SUBTYPE_OPTIONS, POPULAR_GUIDE_TOPICS
+  CONTENT_SUBTYPE_OPTIONS
 } from '@/lib/constants';
 
 export default function Home() {
@@ -45,13 +43,11 @@ export default function Home() {
   const [contentType, setContentType] = useState<ContentType>('article');
   const [keywords, setKeywords] = useState('');
 
-  // ==================== 动态配置（分析类）====================
+  // ==================== 动态配置 ====================
   const [analysisTarget, setAnalysisTarget] = useState<AnalysisTarget>('market_event');
   const [analysisTargetInput, setAnalysisTargetInput] = useState('');
   const [contentDepth, setContentDepth] = useState<ContentDepth>('logical');
   const [focusDirections, setFocusDirections] = useState<FocusDirection[]>(['why_happen', 'what_impact']);
-
-  // ==================== 动态配置（科普类）====================
   const [contentSubType, setContentSubType] = useState<ContentSubType>('beginner_start');
   const [platformCompare, setPlatformCompare] = useState('');
   const [includeExample, setIncludeExample] = useState(true);
@@ -101,10 +97,9 @@ export default function Home() {
 
   // ==================== 计算属性 ====================
   const isVideo = contentType === 'video_script';
-  const showHotTopics = SHOW_HOT_TOPICS.includes(topicType);
-  const dynamicConfigType = TOPIC_DYNAMIC_CONFIG[topicType];
-  const isAnalysisType = dynamicConfigType === 'analysis';
-  const isGuideType = dynamicConfigType === 'guide';
+  const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
+  const topicRecommendations = TOPIC_RECOMMENDATIONS[topicType];
+  const compatibleTopics = USER_TAG_TOPIC_COMPATIBILITY[userTag];
 
   // ==================== 初始化 ====================
   useEffect(() => {
@@ -114,21 +109,18 @@ export default function Home() {
   }, [showHotTopics, hotTopicTimeRange]);
 
   useEffect(() => {
-    // 加载历史记录
     const saved = localStorage.getItem('contentHistory');
     if (saved) {
       setHistoryRecords(JSON.parse(saved));
     }
   }, []);
 
-  // 切换选题时重置动态配置
+  // 切换用户标签时，检查选题兼容性
   useEffect(() => {
-    if (isAnalysisType) {
-      setFocusDirections(['why_happen', 'what_impact']);
-    } else if (isGuideType) {
-      setContentSubType('beginner_start');
+    if (!compatibleTopics.includes(topicType)) {
+      setTopicType(compatibleTopics[0]);
     }
-  }, [topicType, isAnalysisType, isGuideType]);
+  }, [userTag, compatibleTopics, topicType]);
 
   // ==================== 加载热榜 ====================
   const loadHotTopics = useCallback(async () => {
@@ -144,10 +136,9 @@ export default function Home() {
     }
   }, [hotTopicTimeRange]);
 
-  // ==================== 选择热点 ====================
-  const handleSelectHotTopic = (topic: HotTopic) => {
-    setSelectedHotTopic(topic);
-    setKeywords(topic.title);
+  // ==================== 选择热点/推荐 ====================
+  const handleSelectItem = (title: string) => {
+    setKeywords(title);
   };
 
   // ==================== 切换模块锁定 ====================
@@ -164,15 +155,13 @@ export default function Home() {
   };
 
   // ==================== 生成内容 ====================
-  const handleGenerate = useCallback(async (refreshModule?: 'title' | 'content' | 'tags' | 'all') => {
+  const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
-    if (refreshModule === 'all' || !refreshModule) {
-      setContent('');
-      setTitles([]);
-      setTags([]);
-      setImageUrls([]);
-      setEngagementScore(null);
-    }
+    setContent('');
+    setTitles([]);
+    setTags([]);
+    setImageUrls([]);
+    setEngagementScore(null);
     setCurrentStep('准备中...');
 
     try {
@@ -181,19 +170,12 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topicType, userTag, contentType, keywords,
-          // 动态配置
           analysisTarget, analysisTargetInput, contentDepth, focusDirections,
           contentSubType, platformCompare, includeExample, includeResearch,
-          // 内容设置
           videoDuration, videoStyle, enableImageSuggestion,
-          // 高级设置
           titleStyles, customTitleStyle, personaType, customPersona,
           additionalRequirements, customRequirement,
-          // 热点信息
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
-          // 刷新模式
-          refreshModule,
-          lockedModules: Array.from(lockedModules),
         }),
       });
 
@@ -203,7 +185,7 @@ export default function Home() {
       const decoder = new TextDecoder();
 
       if (reader) {
-        let accumulatedContent = content;
+        let accumulatedContent = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -222,9 +204,7 @@ export default function Home() {
                     setCurrentStep(data.data);
                     break;
                   case 'titles':
-                    if (!lockedModules.has('title')) {
-                      setTitles(data.data);
-                    }
+                    if (!lockedModules.has('title')) setTitles(data.data);
                     break;
                   case 'content':
                     if (!lockedModules.has('content')) {
@@ -234,9 +214,7 @@ export default function Home() {
                     }
                     break;
                   case 'tags':
-                    if (!lockedModules.has('tags')) {
-                      setTags(data.data);
-                    }
+                    if (!lockedModules.has('tags')) setTags(data.data);
                     break;
                   case 'images':
                     setImageUrls(data.data);
@@ -253,7 +231,6 @@ export default function Home() {
             }
           }
         }
-
         toast.success('生成完成！');
       }
     } catch (error) {
@@ -266,27 +243,13 @@ export default function Home() {
       contentDepth, focusDirections, contentSubType, platformCompare, includeExample, 
       includeResearch, videoDuration, videoStyle, enableImageSuggestion, titleStyles, 
       customTitleStyle, personaType, customPersona, additionalRequirements, customRequirement, 
-      selectedHotTopic, lockedModules, content]);
-
-  // ==================== AI优化 ====================
-  const handleOptimize = async (type: 'title' | 'content' | 'shorten' | 'expand') => {
-    toast.info('AI优化中...');
-    // 调用优化API
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast.success('优化完成！');
-  };
+      selectedHotTopic, lockedModules]);
 
   // ==================== 保存到历史 ====================
   const handleSave = () => {
     const record: HistoryRecord = {
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
-      params: {
-        topicType, userTag, contentType, keywords,
-        analysisTarget, contentDepth, focusDirections,
-        titleStyles, customTitleStyle, personaType, customPersona,
-        additionalRequirements, customRequirement,
-      },
       title: titles[selectedTitleIndex]?.title || '',
       content: editableContent,
       tags,
@@ -303,11 +266,6 @@ export default function Home() {
   };
 
   // ==================== 复制与导出 ====================
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('已复制到剪贴板');
-  };
-
   const handleCopyForXHS = () => {
     const selectedTitle = titles[selectedTitleIndex]?.title || '';
     const text = `${selectedTitle}\n\n${editableContent}\n\n${tags.map(t => '#' + t).join(' ')}`;
@@ -329,22 +287,19 @@ export default function Home() {
     toast.success('已导出');
   };
 
-  // ==================== 加载历史记录 ====================
+  // ==================== 历史记录操作 ====================
   const handleLoadHistory = (record: HistoryRecord) => {
     setTitles([{ title: record.title, style: 'suspense' }]);
     setSelectedTitleIndex(0);
     setContent(record.content);
     setEditableContent(record.content);
     setTags(record.tags);
-    if (record.imageUrls?.length) {
-      setImageUrls(record.imageUrls);
-    }
+    if (record.imageUrls?.length) setImageUrls(record.imageUrls);
     setEngagementScore(record.engagementScore || null);
     setShowHistory(false);
     toast.success('已加载历史记录');
   };
 
-  // ==================== 删除历史记录 ====================
   const handleDeleteHistory = (id: string) => {
     const newRecords = historyRecords.filter(r => r.id !== id);
     setHistoryRecords(newRecords);
@@ -353,73 +308,52 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50">
+      <div className="max-w-7xl mx-auto px-6 py-6">
         {/* 头部 */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg shadow-indigo-200">
-              <TrendingUp className="h-7 w-7 text-white" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-rose-500 to-pink-500 rounded-xl shadow-lg">
+              <TrendingUp className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">小红书AI爆款内容生成器</h1>
-              <p className="text-gray-500 text-sm mt-0.5">智能生成专业、深度的财经内容</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-rose-600 to-orange-500 bg-clip-text text-transparent">
+                小红书AI爆款内容生成器
+              </h1>
+              <p className="text-gray-500 text-xs">智能生成专业、深度的财经内容</p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => setShowHistory(true)} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-2">
             <History className="h-4 w-4" />
             历史记录
             {historyRecords.length > 0 && (
-              <Badge variant="secondary" className="ml-1">{historyRecords.length}</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs">{historyRecords.length}</Badge>
             )}
           </Button>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-5">
           {/* ==================== 左侧：输入区域 ==================== */}
-          <div className="col-span-5 space-y-5">
+          <div className="col-span-5 space-y-4">
             
             {/* 基础设置 */}
-            <Card className="border-0 shadow-sm bg-white">
-              <CardHeader className="pb-3 pt-5 px-6">
-                <CardTitle className="text-base font-semibold text-gray-900">基础设置</CardTitle>
+            <Card className="border-0 shadow-lg bg-white/90">
+              <CardHeader className="pb-2 pt-4 px-5">
+                <CardTitle className="text-sm font-semibold text-gray-800">基础设置</CardTitle>
               </CardHeader>
-              <CardContent className="px-6 pb-5 space-y-5">
+              <CardContent className="px-5 pb-4 space-y-4">
                 
-                {/* 选题类型 - 分段控件 */}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">选题类型</Label>
-                  <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl">
-                    {TOPIC_TYPE_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setTopicType(opt.value)}
-                        className={`py-2.5 px-2 rounded-lg text-sm font-medium transition-all ${
-                          topicType === opt.value
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {TOPIC_TYPE_OPTIONS.find(o => o.value === topicType)?.description}
-                  </p>
-                </div>
-
                 {/* 目标用户 - 分段控件 */}
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">目标用户</Label>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">目标用户</Label>
                   <div className="grid grid-cols-3 gap-1 p-1 bg-gray-100 rounded-xl">
                     {USER_TAG_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
                         onClick={() => setUserTag(opt.value)}
-                        className={`py-2.5 px-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
                           userTag === opt.value
-                            ? 'bg-white text-indigo-600 shadow-sm'
+                            ? 'bg-white text-rose-600 shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
@@ -429,17 +363,45 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* 选题类型 - 分段控件 */}
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">选题类型</Label>
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl">
+                    {TOPIC_TYPE_OPTIONS.map(opt => {
+                      const isCompatible = compatibleTopics.includes(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => isCompatible && setTopicType(opt.value)}
+                          className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                            topicType === opt.value
+                              ? 'bg-white text-rose-600 shadow-sm'
+                              : isCompatible
+                                ? 'text-gray-600 hover:text-gray-900'
+                                : 'text-gray-400 cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    {TOPIC_TYPE_OPTIONS.find(o => o.value === topicType)?.description}
+                  </p>
+                </div>
+
                 {/* 内容形式 */}
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">内容形式</Label>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">内容形式</Label>
                   <div className="flex gap-2">
                     {CONTENT_TYPE_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
                         onClick={() => setContentType(opt.value)}
-                        className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
                           contentType === opt.value
-                            ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200'
+                            ? 'bg-rose-500 text-white shadow-md'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
@@ -452,48 +414,139 @@ export default function Home() {
 
                 {/* 关键词 */}
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">关键词</Label>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">关键词</Label>
                   <Input
-                    placeholder="输入关键词或从下方热点选择..."
+                    placeholder="输入关键词或从下方选择..."
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
-                    className="h-11"
+                    className="h-9"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* ==================== 动态配置区域 ==================== */}
-            {isAnalysisType && (
-              <Card className="border-0 shadow-sm bg-white">
-                <CardHeader className="pb-3 pt-5 px-6">
-                  <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <Target className="h-4 w-4 text-indigo-500" />
-                    分析配置
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-6 pb-5 space-y-4">
-                  
-                  {/* 分析对象 */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">分析对象</Label>
-                    <div className="flex gap-2">
-                      <Select value={analysisTarget} onValueChange={(v) => setAnalysisTarget(v as AnalysisTarget)}>
-                        <SelectTrigger className="h-10 flex-1">
+            {/* ==================== 热榜/推荐区域 ==================== */}
+            {showHotTopics && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-3 px-5">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      {hotTopicTimeRange === '24h' ? '今日热点' : hotTopicTimeRange === '7d' ? '近7天热点' : '近30天热点'}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Select value={hotTopicTimeRange} onValueChange={(v) => setHotTopicTimeRange(v as HotTopicTimeRange)}>
+                        <SelectTrigger className="h-7 w-20 text-xs border-0 bg-gray-100">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {ANALYSIS_TARGET_OPTIONS.map(opt => (
+                          {HOT_TOPIC_TIME_RANGE_OPTIONS.map(opt => (
                             <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {analysisTarget === 'asset' && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={loadHotTopics} disabled={hotTopicsLoading}>
+                        <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 pb-3 pt-0">
+                  {hotTopicsLoading && hotTopics.length === 0 ? (
+                    <div className="flex items-center justify-center py-4 text-gray-400 text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      加载中...
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {hotTopics.slice(0, 5).map((topic) => (
+                        <button
+                          key={topic.id}
+                          onClick={() => handleSelectItem(topic.title)}
+                          className={`w-full p-2 rounded-lg text-left transition-all ${
+                            keywords === topic.title
+                              ? 'bg-orange-50 border border-orange-200'
+                              : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white text-[10px] flex items-center justify-center font-medium flex-shrink-0">
+                              {topic.id}
+                            </span>
+                            <p className="text-xs text-gray-700 line-clamp-1 flex-1">{topic.title}</p>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">{topic.source}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 推荐主题（非市场热点时显示） */}
+            {!showHotTopics && topicRecommendations.length > 0 && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-3 px-5">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    推荐主题
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-5 pb-3 pt-0">
+                  <div className="space-y-1.5">
+                    {topicRecommendations.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleSelectItem(item.title)}
+                        className={`w-full p-2 rounded-lg text-left transition-all ${
+                          keywords === item.title
+                            ? 'bg-amber-50 border border-amber-200'
+                            : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-700">{item.title}</p>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{item.category}</Badge>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ==================== 动态配置区域 ==================== */}
+            {(topicType === 'market_hot' || topicType === 'professional_analysis') && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-3 px-5">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Target className="h-4 w-4 text-rose-500" />
+                    分析配置
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-5 pb-4 space-y-3">
+                  
+                  {/* 分析对象 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-1.5 block">分析对象</Label>
+                    <div className="flex gap-2">
+                      <Select value={analysisTarget} onValueChange={(v) => setAnalysisTarget(v as AnalysisTarget)}>
+                        <SelectTrigger className="h-8 flex-1 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ANALYSIS_TARGET_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {(analysisTarget === 'asset' || analysisTarget === 'custom') && (
                         <Input
-                          placeholder={ANALYSIS_TARGET_OPTIONS.find(o => o.value === 'asset')?.placeholder}
+                          placeholder={ANALYSIS_TARGET_OPTIONS.find(o => o.value === analysisTarget)?.placeholder}
                           value={analysisTargetInput}
                           onChange={(e) => setAnalysisTargetInput(e.target.value)}
-                          className="h-10 w-36"
+                          className="h-8 w-32 text-xs"
                         />
                       )}
                     </div>
@@ -501,15 +554,15 @@ export default function Home() {
 
                   {/* 内容深度 */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">内容深度</Label>
-                    <div className="flex gap-2">
+                    <Label className="text-xs text-gray-500 mb-1.5 block">内容深度</Label>
+                    <div className="flex gap-1.5">
                       {CONTENT_DEPTH_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
                           onClick={() => setContentDepth(opt.value)}
-                          className={`flex-1 py-2 rounded-lg text-sm transition-all ${
+                          className={`flex-1 py-1.5 rounded-lg text-xs transition-all ${
                             contentDepth === opt.value
-                              ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
                               : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-transparent'
                           }`}
                         >
@@ -519,16 +572,16 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* 重点关注方向 */}
+                  {/* 重点关注 */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">重点关注（可多选）</Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <Label className="text-xs text-gray-500 mb-1.5 block">重点关注</Label>
+                    <div className="grid grid-cols-2 gap-1.5">
                       {FOCUS_DIRECTION_OPTIONS.map(opt => (
                         <label
                           key={opt.value}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
+                          className={`flex items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-all text-xs ${
                             focusDirections.includes(opt.value)
-                              ? 'bg-indigo-50 border border-indigo-200'
+                              ? 'bg-rose-50 border border-rose-200'
                               : 'bg-gray-50 border border-transparent hover:bg-gray-100'
                           }`}
                         >
@@ -536,13 +589,12 @@ export default function Home() {
                             checked={focusDirections.includes(opt.value)}
                             onCheckedChange={(checked) => {
                               setFocusDirections(prev =>
-                                checked
-                                  ? [...prev, opt.value]
-                                  : prev.filter(v => v !== opt.value)
+                                checked ? [...prev, opt.value] : prev.filter(v => v !== opt.value)
                               );
                             }}
+                            className="h-3.5 w-3.5"
                           />
-                          <span className="text-sm">{opt.label}</span>
+                          <span>{opt.label}</span>
                         </label>
                       ))}
                     </div>
@@ -551,32 +603,32 @@ export default function Home() {
               </Card>
             )}
 
-            {isGuideType && (
-              <Card className="border-0 shadow-sm bg-white">
-                <CardHeader className="pb-3 pt-5 px-6">
-                  <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            {(topicType === 'beginner_guide' || topicType === 'advanced_invest') && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-3 px-5">
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                     <Lightbulb className="h-4 w-4 text-amber-500" />
                     内容配置
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-6 pb-5 space-y-4">
+                <CardContent className="px-5 pb-4 space-y-3">
                   
                   {/* 内容子类型 */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">内容子类型</Label>
-                    <div className="flex gap-2">
+                    <Label className="text-xs text-gray-500 mb-1.5 block">内容子类型</Label>
+                    <div className="flex gap-1.5">
                       {CONTENT_SUBTYPE_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
                           onClick={() => setContentSubType(opt.value)}
-                          className={`flex-1 py-2.5 rounded-lg text-sm transition-all ${
+                          className={`flex-1 py-2 rounded-lg text-xs transition-all ${
                             contentSubType === opt.value
                               ? 'bg-amber-100 text-amber-700 border border-amber-200'
                               : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-transparent'
                           }`}
                         >
                           <div className="font-medium">{opt.label}</div>
-                          <div className="text-xs mt-0.5 opacity-70">{opt.description}</div>
+                          <div className="text-[10px] opacity-70">{opt.description}</div>
                         </button>
                       ))}
                     </div>
@@ -585,32 +637,34 @@ export default function Home() {
                   {/* 平台对比输入 */}
                   {contentSubType === 'platform_compare' && (
                     <div>
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">对比平台</Label>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">对比平台</Label>
                       <Input
                         placeholder="如：华泰 vs 中信"
                         value={platformCompare}
                         onChange={(e) => setPlatformCompare(e.target.value)}
-                        className="h-10"
+                        className="h-8 text-xs"
                       />
                     </div>
                   )}
 
                   {/* 附加选项 */}
                   <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
                       <Checkbox
                         checked={includeExample}
                         onCheckedChange={(checked) => setIncludeExample(checked as boolean)}
+                        className="h-3.5 w-3.5"
                       />
-                      <span className="text-sm text-gray-700">举例说明</span>
+                      举例说明
                     </label>
                     {topicType === 'advanced_invest' && (
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-700">
                         <Checkbox
                           checked={includeResearch}
                           onCheckedChange={(checked) => setIncludeResearch(checked as boolean)}
+                          className="h-3.5 w-3.5"
                         />
-                        <span className="text-sm text-gray-700">引用研报</span>
+                        引用研报
                       </label>
                     )}
                   </div>
@@ -619,28 +673,28 @@ export default function Home() {
             )}
 
             {/* ==================== 内容设置 ==================== */}
-            <Card className="border-0 shadow-sm bg-white">
-              <CardHeader className="pb-3 pt-5 px-6">
-                <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-indigo-500" />
+            <Card className="border-0 shadow-lg bg-white/90">
+              <CardHeader className="pb-2 pt-3 px-5">
+                <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-rose-500" />
                   内容设置
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-6 pb-5 space-y-4">
+              <CardContent className="px-5 pb-4 space-y-3">
                 
                 {isVideo ? (
                   <>
                     {/* 视频时长 */}
                     <div>
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">视频时长</Label>
-                      <div className="flex gap-2">
+                      <Label className="text-xs text-gray-500 mb-1.5 block">视频时长</Label>
+                      <div className="flex gap-1.5">
                         {VIDEO_DURATION_OPTIONS.map(opt => (
                           <button
                             key={opt.value}
                             onClick={() => setVideoDuration(opt.value)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                               videoDuration === opt.value
-                                ? 'bg-indigo-500 text-white'
+                                ? 'bg-rose-500 text-white'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                           >
@@ -652,29 +706,37 @@ export default function Home() {
 
                     {/* 视频风格 */}
                     <div>
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">视频风格</Label>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">视频风格</Label>
                       <Select value={videoStyle} onValueChange={(v) => setVideoStyle(v as VideoStyle)}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {VIDEO_STYLE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              <div>
-                                <div className="font-medium">{opt.label}</div>
-                              </div>
-                            </SelectItem>
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* 配图建议开关 */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700">参考配图</Label>
+                        <p className="text-[10px] text-gray-400">生成内容时附带配图</p>
+                      </div>
+                      <Switch
+                        checked={enableImageSuggestion}
+                        onCheckedChange={setEnableImageSuggestion}
+                      />
                     </div>
                   </>
                 ) : (
                   /* 配图建议开关 */
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-sm font-medium text-gray-700">配图建议</Label>
-                      <p className="text-xs text-gray-500 mt-0.5">生成内容时附带封面/配图描述</p>
+                      <Label className="text-xs font-medium text-gray-700">配图建议</Label>
+                      <p className="text-[10px] text-gray-400">生成内容时附带封面/配图</p>
                     </div>
                     <Switch
                       checked={enableImageSuggestion}
@@ -686,12 +748,12 @@ export default function Home() {
             </Card>
 
             {/* ==================== 高级设置 ==================== */}
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-lg bg-white/90">
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full px-6 py-4 flex items-center justify-between"
+                className="w-full px-5 py-3 flex items-center justify-between"
               >
-                <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                   <Settings2 className="h-4 w-4 text-gray-500" />
                   高级设置
                 </CardTitle>
@@ -699,23 +761,18 @@ export default function Home() {
               </button>
               
               {showAdvanced && (
-                <CardContent className="px-6 pb-5 space-y-4">
+                <CardContent className="px-5 pb-4 space-y-3">
                   
                   {/* 博主人设 */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">博主人设</Label>
+                    <Label className="text-xs text-gray-500 mb-1.5 block">博主人设</Label>
                     <Select value={personaType} onValueChange={(v) => setPersonaType(v as PersonaType)}>
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {PERSONA_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            <div>
-                              <div className="font-medium">{opt.label}</div>
-                              <div className="text-xs text-gray-500">{opt.description}</div>
-                            </div>
-                          </SelectItem>
+                          <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -724,15 +781,15 @@ export default function Home() {
                         placeholder="输入自定义人设描述..."
                         value={customPersona}
                         onChange={(e) => setCustomPersona(e.target.value)}
-                        className="h-10 mt-2"
+                        className="h-8 mt-2 text-xs"
                       />
                     )}
                   </div>
 
                   {/* 标题风格 */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">标题风格（可多选）</Label>
-                    <div className="flex flex-wrap gap-1.5">
+                    <Label className="text-xs text-gray-500 mb-1.5 block">标题风格</Label>
+                    <div className="flex flex-wrap gap-1">
                       {TITLE_STYLE_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
@@ -743,7 +800,7 @@ export default function Home() {
                                 : [...prev, opt.value]
                             );
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                          className={`px-2.5 py-1 rounded-full text-xs transition-all ${
                             titleStyles.includes(opt.value)
                               ? 'bg-amber-100 text-amber-700 border border-amber-200'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -755,18 +812,18 @@ export default function Home() {
                     </div>
                     {titleStyles.includes('custom') && (
                       <Input
-                        placeholder="输入自定义风格描述..."
+                        placeholder="输入自定义风格..."
                         value={customTitleStyle}
                         onChange={(e) => setCustomTitleStyle(e.target.value)}
-                        className="h-9 mt-2 text-sm"
+                        className="h-8 mt-2 text-xs"
                       />
                     )}
                   </div>
 
                   {/* 补充要求 */}
                   <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">补充要求（可多选）</Label>
-                    <div className="flex flex-wrap gap-1.5">
+                    <Label className="text-xs text-gray-500 mb-1.5 block">补充要求</Label>
+                    <div className="flex flex-wrap gap-1">
                       {ADDITIONAL_REQUIREMENT_OPTIONS.map(opt => (
                         <button
                           key={opt.value}
@@ -777,7 +834,7 @@ export default function Home() {
                                 : [...prev, opt.value]
                             );
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                          className={`px-2.5 py-1 rounded-full text-xs transition-all ${
                             additionalRequirements.includes(opt.value)
                               ? 'bg-violet-100 text-violet-700 border border-violet-200'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -792,7 +849,7 @@ export default function Home() {
                         placeholder="输入自定义要求..."
                         value={customRequirement}
                         onChange={(e) => setCustomRequirement(e.target.value)}
-                        className="h-9 mt-2 text-sm"
+                        className="h-8 mt-2 text-xs"
                       />
                     )}
                   </div>
@@ -802,130 +859,36 @@ export default function Home() {
 
             {/* 生成按钮 */}
             <Button
-              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-200 rounded-xl"
-              onClick={() => handleGenerate()}
+              className="w-full h-11 text-sm font-semibold bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 shadow-lg rounded-xl"
+              onClick={handleGenerate}
               disabled={isGenerating}
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   {currentStep || '生成中...'}
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-5 w-5 mr-2" />
+                  <Sparkles className="h-4 w-4 mr-2" />
                   生成内容
                 </>
               )}
             </Button>
           </div>
 
-          {/* ==================== 右侧：热榜 + 输出区域 ==================== */}
-          <div className="col-span-7 space-y-5">
-            
-            {/* 热榜区域 */}
-            {showHotTopics && (
-              <Card className="border-0 shadow-sm bg-white">
-                <CardHeader className="pb-2 pt-4 px-6">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                      <Flame className="h-4 w-4 text-orange-500" />
-                      {hotTopicTimeRange === '24h' ? '今日热点' : hotTopicTimeRange === '7d' ? '近7天热点' : '近30天热点'}
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Select value={hotTopicTimeRange} onValueChange={(v) => setHotTopicTimeRange(v as HotTopicTimeRange)}>
-                        <SelectTrigger className="h-8 w-24 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HOT_TOPIC_TIME_RANGE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="ghost" size="sm" onClick={loadHotTopics} disabled={hotTopicsLoading}>
-                        <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-6 pb-4">
-                  {hotTopicsLoading && hotTopics.length === 0 ? (
-                    <div className="flex items-center justify-center py-6 text-gray-400">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      加载中...
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {hotTopics.slice(0, 5).map((topic) => (
-                        <button
-                          key={topic.id}
-                          onClick={() => handleSelectHotTopic(topic)}
-                          className={`w-full p-3 rounded-xl text-left transition-all ${
-                            selectedHotTopic?.id === topic.id
-                              ? 'bg-orange-50 border border-orange-200'
-                              : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white text-xs flex items-center justify-center font-medium flex-shrink-0">
-                              {topic.id}
-                            </span>
-                            <p className="text-sm text-gray-800 line-clamp-1">{topic.title}</p>
-                            <span className="text-xs text-gray-400 flex-shrink-0">{topic.source}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 热门科普主题（小白科普时显示） */}
-            {!showHotTopics && topicType === 'beginner_guide' && (
-              <Card className="border-0 shadow-sm bg-white">
-                <CardHeader className="pb-2 pt-4 px-6">
-                  <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <Lightbulb className="h-4 w-4 text-amber-500" />
-                    热门科普主题
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-6 pb-4">
-                  <div className="space-y-2">
-                    {POPULAR_GUIDE_TOPICS.map((topic) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => setKeywords(topic.title)}
-                        className={`w-full p-3 rounded-xl text-left transition-all ${
-                          keywords === topic.title
-                            ? 'bg-amber-50 border border-amber-200'
-                            : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-800">{topic.title}</p>
-                          <Badge variant="secondary" className="text-xs">{topic.category}</Badge>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* ==================== 输出区域 ==================== */}
-            <Card className="border-0 shadow-sm bg-white">
-              <CardHeader className="pb-2 pt-4 px-6">
+          {/* ==================== 右侧：输出区域 ==================== */}
+          <div className="col-span-7">
+            <Card className="border-0 shadow-lg bg-white/90 sticky top-4">
+              <CardHeader className="pb-2 pt-4 px-5">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold text-gray-900">生成结果</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-gray-800">生成结果</CardTitle>
                   {titles.length > 0 && (
                     <div className="flex items-center gap-2">
-                      {/* 视图切换 */}
                       <div className="flex bg-gray-100 rounded-lg p-0.5">
                         <button
                           onClick={() => setViewMode('integrated')}
-                          className={`px-3 py-1 text-xs rounded-md transition-all ${
+                          className={`px-2.5 py-1 text-xs rounded-md transition-all ${
                             viewMode === 'integrated' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                           }`}
                         >
@@ -933,7 +896,7 @@ export default function Home() {
                         </button>
                         <button
                           onClick={() => setViewMode('split')}
-                          className={`px-3 py-1 text-xs rounded-md transition-all ${
+                          className={`px-2.5 py-1 text-xs rounded-md transition-all ${
                             viewMode === 'split' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                           }`}
                         >
@@ -944,32 +907,32 @@ export default function Home() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="px-6 pb-5">
+              <CardContent className="px-5 pb-4">
                 {titles.length === 0 && !content ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                    <FileText className="h-12 w-12 mb-3" />
-                    <p>点击"生成内容"开始创作</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                    <FileText className="h-10 w-10 mb-2" />
+                    <p className="text-sm">点击"生成内容"开始创作</p>
                   </div>
                 ) : (
-                  <div className="space-y-5">
+                  <div className="space-y-4">
                     
                     {/* 整合视图 */}
                     {viewMode === 'integrated' && (
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {/* 标题 */}
                         {titles.length > 0 && (
-                          <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                            <div className="text-lg font-semibold text-gray-900">
+                          <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+                            <div className="text-base font-semibold text-gray-900">
                               {titles[selectedTitleIndex]?.title}
                             </div>
                             {titles.length > 1 && (
-                              <div className="flex gap-2 mt-2">
+                              <div className="flex gap-1.5 mt-2">
                                 {titles.map((t, i) => (
                                   <button
                                     key={i}
                                     onClick={() => setSelectedTitleIndex(i)}
                                     className={`w-2 h-2 rounded-full transition-all ${
-                                      selectedTitleIndex === i ? 'bg-indigo-500 w-4' : 'bg-gray-300'
+                                      selectedTitleIndex === i ? 'bg-rose-500 w-4' : 'bg-gray-300'
                                     }`}
                                   />
                                 ))}
@@ -980,12 +943,12 @@ export default function Home() {
 
                         {/* 正文 */}
                         {editableContent && (
-                          <div className="p-4 bg-gray-50 rounded-xl">
+                          <div className="p-3 bg-gray-50 rounded-xl">
                             {isEditing ? (
                               <Textarea
                                 value={editableContent}
                                 onChange={(e) => setEditableContent(e.target.value)}
-                                className="min-h-[200px] resize-none border-0 bg-transparent p-0"
+                                className="min-h-[180px] resize-none border-0 bg-transparent p-0 text-sm"
                               />
                             ) : (
                               <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
@@ -997,9 +960,9 @@ export default function Home() {
 
                         {/* 标签 */}
                         {tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             {tags.map((tag, i) => (
-                              <Badge key={i} className="bg-indigo-100 text-indigo-700 border-0">#{tag}</Badge>
+                              <Badge key={i} className="bg-rose-100 text-rose-700 border-0 text-xs">#{tag}</Badge>
                             ))}
                           </div>
                         )}
@@ -1012,7 +975,7 @@ export default function Home() {
                                 key={i}
                                 onClick={() => setSelectedImageIndex(i)}
                                 className={`relative aspect-square rounded-xl overflow-hidden ${
-                                  selectedImageIndex === i ? 'ring-2 ring-indigo-500 ring-offset-2' : ''
+                                  selectedImageIndex === i ? 'ring-2 ring-rose-500 ring-offset-2' : ''
                                 }`}
                               >
                                 <img src={url} alt="" className="w-full h-full object-cover" />
@@ -1023,13 +986,13 @@ export default function Home() {
 
                         {/* 种草力评分 */}
                         {engagementScore && (
-                          <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-gray-700">种草力评分</span>
-                              <span className="text-2xl font-bold text-amber-600">{engagementScore.score}/10</span>
+                          <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-gray-700">种草力评分</span>
+                              <span className="text-xl font-bold text-amber-600">{engagementScore.score}/10</span>
                             </div>
                             {engagementScore.reasons.length > 0 && (
-                              <div className="text-xs text-gray-600">
+                              <div className="text-[10px] text-gray-600">
                                 {engagementScore.reasons.join('；')}
                               </div>
                             )}
@@ -1038,13 +1001,13 @@ export default function Home() {
 
                         {/* 合规提醒 */}
                         {!compliance.isCompliant && (
-                          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-                            <div className="flex items-center gap-2 text-amber-700 font-medium mb-1">
-                              <AlertTriangle className="h-4 w-4" />
+                          <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+                            <div className="flex items-center gap-1.5 text-amber-700 font-medium mb-1 text-xs">
+                              <AlertTriangle className="h-3.5 w-3.5" />
                               合规提醒
                             </div>
                             {compliance.warnings.map((w, i) => (
-                              <p key={i} className="text-sm text-amber-600">{w}</p>
+                              <p key={i} className="text-xs text-amber-600">{w}</p>
                             ))}
                           </div>
                         )}
@@ -1053,31 +1016,31 @@ export default function Home() {
 
                     {/* 拆分视图 */}
                     {viewMode === 'split' && (
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {/* 标题模块 */}
                         {titles.length > 0 && (
-                          <div className="p-4 border rounded-xl">
-                            <div className="flex items-center justify-between mb-3">
-                              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <Sparkles className="h-3 w-3 text-rose-500" />
                                 标题候选
                               </Label>
                               <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => toggleLock('title')}>
-                                  {lockedModules.has('title') ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('title')}>
+                                  {lockedModules.has('title') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleGenerate('title')}>
-                                  <RefreshCw className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
+                                  <RefreshCw className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                               {titles.map((t, i) => (
                                 <button
                                   key={i}
                                   onClick={() => setSelectedTitleIndex(i)}
-                                  className={`w-full p-2 rounded-lg text-left text-sm ${
-                                    selectedTitleIndex === i ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50'
+                                  className={`w-full p-2 rounded-lg text-left text-xs ${
+                                    selectedTitleIndex === i ? 'bg-rose-50 border border-rose-200' : 'bg-gray-50'
                                   }`}
                                 >
                                   {t.title}
@@ -1089,21 +1052,21 @@ export default function Home() {
 
                         {/* 正文模块 */}
                         {content && (
-                          <div className="p-4 border rounded-xl">
-                            <div className="flex items-center justify-between mb-3">
-                              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <FileText className="h-3 w-3 text-rose-500" />
                                 正文内容
                               </Label>
                               <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
-                                  <Edit3 className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditing(!isEditing)}>
+                                  <Edit3 className="h-3 w-3" />
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => toggleLock('content')}>
-                                  {lockedModules.has('content') ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('content')}>
+                                  {lockedModules.has('content') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleGenerate('content')}>
-                                  <RefreshCw className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
+                                  <RefreshCw className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
@@ -1111,10 +1074,10 @@ export default function Home() {
                               <Textarea
                                 value={editableContent}
                                 onChange={(e) => setEditableContent(e.target.value)}
-                                className="min-h-[150px] resize-none"
+                                className="min-h-[120px] resize-none text-xs"
                               />
                             ) : (
-                              <div className="p-3 bg-gray-50 rounded-lg min-h-[100px] whitespace-pre-wrap text-sm">
+                              <div className="p-2 bg-gray-50 rounded-lg min-h-[80px] whitespace-pre-wrap text-xs">
                                 {editableContent}
                               </div>
                             )}
@@ -1123,24 +1086,24 @@ export default function Home() {
 
                         {/* 标签模块 */}
                         {tags.length > 0 && (
-                          <div className="p-4 border rounded-xl">
-                            <div className="flex items-center justify-between mb-3">
-                              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <Hash className="h-3.5 w-3.5 text-indigo-500" />
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <Hash className="h-3 w-3 text-rose-500" />
                                 话题标签
                               </Label>
                               <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => toggleLock('tags')}>
-                                  {lockedModules.has('tags') ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('tags')}>
+                                  {lockedModules.has('tags') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleGenerate('tags')}>
-                                  <RefreshCw className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
+                                  <RefreshCw className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-1">
                               {tags.map((tag, i) => (
-                                <Badge key={i} className="bg-indigo-100 text-indigo-700 border-0">#{tag}</Badge>
+                                <Badge key={i} className="bg-rose-100 text-rose-700 border-0 text-xs">#{tag}</Badge>
                               ))}
                             </div>
                           </div>
@@ -1149,26 +1112,26 @@ export default function Home() {
                     )}
 
                     {/* 操作工具栏 */}
-                    <div className="pt-4 border-t">
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setIsEditing(!isEditing)}>
-                          <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+                    <div className="pt-3 border-t">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setIsEditing(!isEditing)}>
+                          <Edit3 className="h-3 w-3 mr-1" />
                           编辑
                         </Button>
-                        <Button size="sm" variant="outline" onClick={handleSave}>
-                          <Save className="h-3.5 w-3.5 mr-1.5" />
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleSave}>
+                          <Save className="h-3 w-3 mr-1" />
                           保存
                         </Button>
-                        <Button size="sm" variant="outline" onClick={handleExport}>
-                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExport}>
+                          <Download className="h-3 w-3 mr-1" />
                           导出
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleOptimize('content')}>
-                          <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          <Wand2 className="h-3 w-3 mr-1" />
                           AI优化
                         </Button>
-                        <Button size="sm" className="bg-indigo-500 hover:bg-indigo-600" onClick={handleCopyForXHS}>
-                          <Copy className="h-3.5 w-3.5 mr-1.5" />
+                        <Button size="sm" className="h-7 text-xs bg-rose-500 hover:bg-rose-600" onClick={handleCopyForXHS}>
+                          <Copy className="h-3 w-3 mr-1" />
                           一键复制到小红书
                         </Button>
                       </div>
@@ -1181,7 +1144,7 @@ export default function Home() {
         </div>
 
         {/* 底部 */}
-        <div className="text-center mt-8 text-gray-400 text-xs">
+        <div className="text-center mt-6 text-gray-400 text-xs">
           Made with <Heart className="h-3 w-3 inline text-rose-500 fill-rose-500" /> by AI
         </div>
       </div>
@@ -1189,35 +1152,35 @@ export default function Home() {
       {/* 历史记录弹窗 */}
       {showHistory && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>历史记录</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>
+          <Card className="w-full max-w-lg max-h-[70vh] overflow-hidden bg-white">
+            <CardHeader className="flex flex-row items-center justify-between py-3 px-5">
+              <CardTitle className="text-sm">历史记录</CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setShowHistory(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[60vh]">
+              <ScrollArea className="h-[50vh]">
                 {historyRecords.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400">暂无历史记录</div>
+                  <div className="p-8 text-center text-gray-400 text-sm">暂无历史记录</div>
                 ) : (
                   <div className="divide-y">
                     {historyRecords.map((record) => (
-                      <div key={record.id} className="p-4 hover:bg-gray-50">
+                      <div key={record.id} className="p-3 hover:bg-gray-50">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 cursor-pointer" onClick={() => handleLoadHistory(record)}>
-                            <div className="font-medium text-gray-900 line-clamp-1">{record.title || '无标题'}</div>
-                            <div className="text-sm text-gray-500 mt-1 line-clamp-2">{record.content}</div>
-                            <div className="text-xs text-gray-400 mt-2">
+                            <div className="font-medium text-gray-900 text-sm line-clamp-1">{record.title || '无标题'}</div>
+                            <div className="text-xs text-gray-500 mt-1 line-clamp-2">{record.content}</div>
+                            <div className="text-[10px] text-gray-400 mt-1.5">
                               {new Date(record.createdAt).toLocaleString('zh-CN')}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 ml-4">
-                            <Button variant="ghost" size="sm" onClick={() => handleLoadHistory(record)}>
-                              <FileEdit className="h-3.5 w-3.5" />
+                          <div className="flex items-center gap-1 ml-3">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleLoadHistory(record)}>
+                              <FileEdit className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteHistory(record.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDeleteHistory(record.id)}>
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
