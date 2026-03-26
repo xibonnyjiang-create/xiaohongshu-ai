@@ -15,11 +15,11 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   professional_analysis: '专业分析',
 };
 
-// 用户标签映射（调整后）
+// 用户标签映射
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
-  new_investor: '理财新手，刚入市，关注基础知识和稳健理财，需要通俗易懂的解释',
-  active_trader: '活跃交易者，频繁交易，关注短期机会和热点，需要实用的策略',
-  value_investor: '价值投资者，长期持有，关注基本面和深度分析，需要专业深度',
+  beginner: '小白投资者，刚入市的新手，需要通俗易懂的解释',
+  intermediate: '进阶投资者，有一定经验的投资者，需要实用的策略',
+  professional: '专业玩家，经验丰富的专业投资者，需要深度分析',
 };
 
 // 标题风格映射
@@ -61,7 +61,7 @@ function getPersonaPrompt(personaType: PersonaType, customPersona?: string): str
     roaster: '吐槽型财经博主：幽默、犀利、一针见血、敢说真话、接地气',
     custom: customPersona || '专业理财博主',
   };
-  return `博主人设：${personas[personaType]}。语气、称呼、表达方式都要贴合这个人设，让读者感觉是真实的人在分享，而不是官方账号。`;
+  return `博主人设：${personas[personaType]}。语气、称呼、表达方式都要贴合这个人设。`;
 }
 
 // 时间范围映射
@@ -259,17 +259,12 @@ ${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 500)}` : ''}
 标题风格参考：${styleGuides}
 ${personaPrompt}
 
-【重要】让标题看起来像真实博主写的，不是官方账号：
-- 避免官方腔调，用口语化表达
-- 可以适当用"我"、"我的"等第一人称
-- 标题要有真实感和可信度
-- 避免过度夸张和标题党
-
 要求：
 1. 生成3个不同风格的标题，用数字1/2/3标号
 2. 每个标题使用1-2个emoji增加吸引力
 3. 标题长度20-30字
-4. 体现专业度和时效性
+4. 避免夸张虚假宣传
+5. 体现专业度和时效性
 
 请按以下格式输出：
 1. [标题一]
@@ -361,7 +356,7 @@ async function* generateContentStream(
       '3min': '3分钟，约500-600字',
     };
     
-    prompt = `你是一个真实的小红书/抖音财经博主，正在为粉丝录制一条短视频。请生成一个真实的、接地气的视频脚本：
+    prompt = `你是短视频脚本专家。请为以下内容生成专业视频脚本：
 
 标题：${selectedTitle}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -374,34 +369,26 @@ ${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 800)}` : ''}
 ${personaPrompt}
 ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 
-【重要】让脚本看起来像真实博主在分享，不是官方广告：
-- 用第一人称"我"讲述，像在和朋友聊天
-- 开头要有hook，比如"最近有个事让我挺意外的..."
-- 中间穿插个人感受和看法，比如"说实话，我觉得..."
-- 适当用口语化表达："啊"、"嘛"、"呢"等语气词
-- 结尾自然过渡，不要太生硬的call to action
-- 真实分享观点，不要像在念稿子
-
 【脚本格式要求】
 严格按以下格式输出，每个分段包含：画面、文案、时长
 
-【画面】：描述镜头画面（不要太官方，可以是博主出镜、手机录屏等自然场景）
-【文案】：口播台词（口语化，像在和朋友聊天）
+【画面】：描述镜头画面
+【文案】：口播台词
 【时长】：X秒
 
 示例：
-【画面】：博主面对镜头，背景是书房
-【文案】：最近黄金涨疯了，我身边好多人都在问我能不能买。
+【画面】：黄金K线图，箭头指向新高位置
+【文案】：黄金价格又创历史新高了！
 【时长】：3秒
 
-【画面】：手机屏幕展示金价走势图
-【文案】：说实话，这波涨势确实有点猛，但我觉得大家还是要冷静。
-【时长】：5秒
+【画面】：分屏对比 – 普通投资者 vs 机构投资者
+【文案】：很多人问，现在还能买吗？
+【时长】：4秒
 
 请直接输出脚本内容：`;
   } else {
     // 图文内容格式
-    prompt = `你是一个真实的小红书财经博主，正在分享自己的观点和经验。请写一篇真实、接地气的图文内容：
+    prompt = `你是小红书爆款内容专家。请为以下场景生成高质量图文内容：
 
 标题：${selectedTitle}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
@@ -413,18 +400,10 @@ ${depthPrompts[topicType]}
 ${personaPrompt}
 ${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 
-【重要】让内容看起来像真实博主写的，不是官方账号：
-- 用第一人称"我"讲述，穿插个人经历和感受
-- 开头要有共鸣感，比如"最近很多人问我..."、"有个粉丝私信说..."
-- 中间适当分享个人看法："我觉得..."、"说实话..."
-- 用口语化表达，不要书面腔
-- 可以适当吐槽或自嘲，增加亲切感
-- 结尾要有互动感，比如"你怎么看？"、"评论区聊聊"
-
 【图文结构要求】
 - 开头（1-2句）：用场景、痛点或热点切入，快速吸引注意力
 - 中间：分点展开，每段不超过4行，可适当使用emoji
-- 结尾：总结观点 + 可操作建议 + 互动引导
+- 结尾：总结观点 + 可操作建议
 
 【合规要求】
 - 严禁使用"保证收益"、"稳赚不赔"、"内幕消息"等违规词
@@ -463,6 +442,9 @@ async function generateImages(title: string, content: string, customHeaders?: Re
     const config = new Config();
     const client = new ImageGenerationClient(config, customHeaders);
 
+    // 根据内容生成配图prompt
+    const contentPrompt = `Financial investment theme, ${title.substring(0, 50)}`;
+    
     const imagePrompts = [
       `Professional financial infographic style, clean data visualization, business growth concept, blue and white color scheme, modern minimalist design, suitable for social media cover, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,
       `Modern investment planning scene, laptop with stock charts, warm natural lighting, professional atmosphere, lifestyle photography, NO TEXT, NO WORDS, NO LETTERS, NO CHARACTERS`,

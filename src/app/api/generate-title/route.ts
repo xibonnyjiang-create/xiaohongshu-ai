@@ -10,11 +10,11 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   professional_analysis: '专业分析，基于公司财报分析股价变化，解读黄金石油外汇等期货价格变动原因',
 };
 
-// 用户标签映射（调整后）
+// 用户标签映射
 const USER_TAG_PROMPTS: Record<UserTag, string> = {
-  new_investor: '理财新手，刚入市，关注基础知识和稳健理财，需要通俗易懂的解释',
-  active_trader: '活跃交易者，频繁交易，关注短期机会和热点，需要实用的策略',
-  value_investor: '价值投资者，长期持有，关注基本面和深度分析，需要专业深度',
+  beginner: '小白投资者，刚入市的新手，需要通俗易懂的解释',
+  intermediate: '进阶投资者，有一定经验的投资者，需要实用的策略',
+  professional: '专业玩家，经验丰富的专业投资者，需要深度分析',
 };
 
 // 标题风格映射
