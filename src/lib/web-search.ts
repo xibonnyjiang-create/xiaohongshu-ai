@@ -58,7 +58,7 @@ export async function searchWeb(query: string, options?: {
 }
 
 /**
- * SerpAPI搜索
+ * SerpAPI搜索 - 使用Google News引擎获取实时新闻
  */
 async function searchWithSerpApi(
   query: string, 
@@ -67,22 +67,36 @@ async function searchWithSerpApi(
 ): Promise<SearchResult[]> {
   const { apiKey } = SEARCH_CONFIG.serpApi;
   
+  // 使用 Google News 引擎，更适合获取实时热点新闻
   const params = new URLSearchParams({
+    engine: 'google_news',
     q: query,
     api_key: apiKey,
-    num: count.toString(),
-    tbs: timeRange === 'day' ? 'qdr:d' : timeRange === 'week' ? 'qdr:w' : 'qdr:m',
+    gl: 'cn',  // 地区设置为中国
+    hl: 'zh-cn',  // 语言设置为中文
   });
   
   const response = await fetch(`https://serpapi.com/search?${params}`);
   const data = await response.json();
   
-  if (data.organic_results) {
-    return data.organic_results.map((r: any, i: number) => ({
+  // Google News 返回的是 news_results
+  if (data.news_results) {
+    return data.news_results.slice(0, count).map((r: any) => ({
       title: r.title,
       link: r.link,
       snippet: r.snippet,
-      source: new URL(r.link).hostname,
+      source: r.source,
+      publishTime: r.date,
+    }));
+  }
+  
+  // 备用：使用普通搜索结果
+  if (data.organic_results) {
+    return data.organic_results.slice(0, count).map((r: any) => ({
+      title: r.title,
+      link: r.link,
+      snippet: r.snippet,
+      source: r.source || new URL(r.link).hostname,
       publishTime: r.date,
     }));
   }
