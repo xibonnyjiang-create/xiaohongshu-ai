@@ -1,14 +1,18 @@
 import { NextRequest } from 'next/server';
-import { TopicType, UserTag, ContentType, VideoDuration, VideoStyle, TitleStyle, HotTopicTimeRange } from '@/lib/types';
+import { 
+  TopicType, UserTag, ContentType, VideoDuration, VideoStyle, 
+  TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType,
+  TitleCandidate, ImageSuggestion, ScriptSegment
+} from '@/lib/types';
 import { SearchClient, ImageGenerationClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
 
-// 选题类型映射 - 增强版
+// 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
-  market_hot: '市场热点追踪，关注AI、机器人、新能源等热门行业的技术更新，以及国家宏观政策对市场的影响',
-  beginner_guide: '小白科普，基础投资知识和入门指南，帮助新手理解市场运作',
-  advanced_invest: '进阶投资，分享国内外知名券商机构的研报评级，提供专业的投资策略',
-  professional_analysis: '专业分析，基于公司财报分析股价变化，解读黄金石油外汇等期货价格变动原因',
+  market_hot: '市场热点追踪',
+  beginner_guide: '小白科普',
+  advanced_invest: '进阶投资',
+  professional_analysis: '专业分析',
 };
 
 // 用户标签映射
@@ -18,154 +22,132 @@ const USER_TAG_PROMPTS: Record<UserTag, string> = {
   professional: '专业玩家，经验丰富的专业投资者，需要深度分析',
 };
 
-// 内容类型映射
-const CONTENT_TYPE_PROMPTS: Record<ContentType, string> = {
-  article: '小红书图文笔记',
-  video_script: '短视频脚本',
-};
-
 // 标题风格映射
 const TITLE_STYLE_PROMPTS: Record<TitleStyle, string> = {
-  suspense: '悬念式标题：设置悬念，引发读者好奇心',
-  data_driven: '数据式标题：用数据说话，有理有据',
-  emotional: '情感式标题：触动情感共鸣',
-  practical: '实用式标题：强调实用价值',
-  contrast: '反差式标题：制造反差吸引眼球',
+  suspense: '悬念式：设置悬念，引发读者好奇心',
+  data_driven: '数据式：用数据说话，有理有据',
+  emotional: '情感式：触动情感共鸣',
+  practical: '实用式：强调实用价值',
+  contrast: '反差式：制造反差吸引眼球',
 };
 
 // 视频风格映射
 const VIDEO_STYLE_PROMPTS: Record<VideoStyle, string> = {
   popular_science: '科普风格：知识点密集，干货满满',
-  roast: '吐槽风格：幽默风趣，犀利点评',
-  suspense: '悬疑风格：设置悬念，引人入胜',
-  storytelling: '故事风格：案例为主，娓娓道来',
-  educational: '教学风格：步骤清晰，手把手教',
+  fast_cut: '快节奏剪辑：节奏紧凑，信息量大',
+  deep_dive: '深度解读：抽丝剥茧，层层深入',
+  funny_roast: '轻松吐槽：幽默风趣，犀利点评',
+  demo: '实战演示：手把手教，实操性强',
 };
 
-// 人设风格适配
-function getPersonaPrompt(personaKeywords?: string): string {
-  if (!personaKeywords) return '';
-  return `博主风格人设：${personaKeywords}。语气、称呼、表达方式都要贴合这个人设。`;
+// 补充要求映射
+const ADDITIONAL_REQUIREMENT_PROMPTS: Record<AdditionalRequirement, string> = {
+  short_300: '正文控制在300字左右，简洁精炼',
+  short_term: '侧重短期投资机会和风险分析',
+  examples: '多举例说明，用具体案例解释概念',
+  risk_warning: '结尾必须包含投资风险提示语',
+  recommend_wzq: '结尾自然融入微证券推荐',
+};
+
+// 博主人设映射
+function getPersonaPrompt(personaType: PersonaType, customPersona?: string): string {
+  const personas: Record<PersonaType, string> = {
+    hardcore_uncle: '硬核财经大叔：专业、理性、数据说话、深度分析、犀利点评',
+    sweet_girl: '甜妹理财科普：可爱、亲切、通俗易懂、闺蜜感、温暖治愈',
+    veteran_trader: '实战派老股民：经验丰富、接地气、实战案例、避坑指南、真诚分享',
+    finance_scholar: '金融学霸人设：专业术语、逻辑清晰、学术派、数据支撑、严谨分析',
+    roaster: '吐槽型财经博主：幽默、犀利、一针见血、敢说真话、接地气',
+    custom: customPersona || '专业理财博主',
+  };
+  return `博主人设：${personas[personaType]}。语气、称呼、表达方式都要贴合这个人设。`;
 }
 
-// 时间范围映射 - 市场热点固定3天内
+// 时间范围映射
 const TIME_RANGE_MAP: Record<HotTopicTimeRange, string> = {
   '24h': '1d',
   '7d': '7d',
   '30d': '30d',
 };
 
-// 视频时长对应的内容结构
-const VIDEO_DURATION_STRUCTURE: Record<VideoDuration, {totalTime: string, hookTime: string, mainTime: string, ctaTime: string, wordCount: string}> = {
-  '30s': {
-    totalTime: '30秒',
-    hookTime: '0-5秒',
-    mainTime: '5-25秒',
-    ctaTime: '25-30秒',
-    wordCount: '80-100字'
-  },
-  '60s': {
-    totalTime: '60秒',
-    hookTime: '0-8秒',
-    mainTime: '8-50秒',
-    ctaTime: '50-60秒',
-    wordCount: '180-220字'
-  },
-  '3min': {
-    totalTime: '3分钟',
-    hookTime: '0-15秒',
-    mainTime: '15-150秒',
-    ctaTime: '150-180秒',
-    wordCount: '500-600字'
-  }
-};
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
-      topicType, 
-      userTag, 
-      contentType, 
-      keywords, 
-      useHotTopic,
-      videoDuration = '60s',
-      videoStyle = 'popular_science',
-      titleStyle,
-      personaKeywords,
-      hotTopicTimeRange = '24h',
+      topicType, userTag, contentType, keywords, hotTopicTimeRange,
+      titleStyles, personaType, customPersona, additionalRequirements,
+      videoDuration, videoStyle,
     } = body as {
       topicType: TopicType;
       userTag: UserTag;
       contentType: ContentType;
       keywords?: string;
-      useHotTopic?: boolean;
+      hotTopicTimeRange?: HotTopicTimeRange;
+      titleStyles?: TitleStyle[];
+      personaType?: PersonaType;
+      customPersona?: string;
+      additionalRequirements?: AdditionalRequirement[];
       videoDuration?: VideoDuration;
       videoStyle?: VideoStyle;
-      titleStyle?: TitleStyle;
-      personaKeywords?: string;
-      hotTopicTimeRange?: HotTopicTimeRange;
     };
 
-    // 提取请求头用于SDK
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    const isVideo = contentType === 'video_script';
+    const timeRange = hotTopicTimeRange || '7d';
 
     // 创建流式响应
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        let accumulatedContent = ''; // 累积正文内容，用于后续生成配图
-        let accumulatedTitle = '';
+        let accumulatedContent = '';
         
         try {
-          // 0. 如果启用了热点推荐，先搜索实时热点
+          // 1. 搜索热点
           let hotTopicInfo = '';
-          let hotTopicsWithScore: Array<{title: string; score: number; snippet: string}> = [];
-          
-          if (useHotTopic) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在搜索实时热点...' })}\n\n`));
-            // 市场热点固定搜索3天内新闻
-            const effectiveTimeRange = topicType === 'market_hot' ? '3d' : TIME_RANGE_MAP[hotTopicTimeRange];
-            const result = await searchHotTopics(topicType, keywords, effectiveTimeRange, customHeaders);
+          if (HOT_TOPIC_SUPPORTED.includes(topicType)) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在搜索热点资讯...' })}\n\n`));
+            const result = await searchHotTopics(topicType, keywords, TIME_RANGE_MAP[timeRange], customHeaders);
             hotTopicInfo = result.info;
-            hotTopicsWithScore = result.topics;
-            
-            if (hotTopicsWithScore.length > 0) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'hot_topics_data', data: hotTopicsWithScore })}\n\n`));
-            }
           }
 
-          // 1. 生成标题
+          // 2. 生成标题候选
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`));
-          const title = await generateTitle(topicType, userTag, contentType, keywords, hotTopicInfo, titleStyle, personaKeywords);
-          accumulatedTitle = title;
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'title', data: title, titleStyle })}\n\n`));
+          const titles = await generateTitles(topicType, userTag, contentType, keywords, hotTopicInfo, titleStyles, personaType, customPersona);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`));
 
-          // 2. 生成正文（流式）
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成正文...' })}\n\n`));
-          const contentStream = await generateContent(
-            topicType, userTag, contentType, keywords, hotTopicInfo, title,
-            videoDuration, videoStyle, personaKeywords
+          // 3. 生成正文/脚本
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`));
+          
+          const requirements = additionalRequirements || [];
+          const contentStream = await generateContentStream(
+            topicType, userTag, contentType, keywords, hotTopicInfo,
+            titles, requirements, videoDuration, videoStyle, personaType, customPersona
           );
+          
           for await (const chunk of contentStream) {
             accumulatedContent += chunk;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`));
           }
 
-          // 3. 生成标签
-          const tags = await generateTags(topicType, keywords, title, accumulatedContent);
+          // 4. 生成配图建议（图文）
+          if (!isVideo) {
+            const imageSuggestions = await generateImageSuggestions(titles[0]?.title || '', accumulatedContent);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'image_suggestions', data: imageSuggestions })}\n\n`));
+          }
+
+          // 5. 生成标签
+          const tags = await generateTags(topicType, keywords, titles[0]?.title || '', accumulatedContent);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`));
 
-          // 4. 生成多张配图供选择 - 基于标题和内容关键词
+          // 6. 生成配图
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图...' })}\n\n`));
-          const imageUrls = await generateImages(title, accumulatedContent, customHeaders);
+          const imageUrls = await generateImages(titles[0]?.title || '', accumulatedContent, customHeaders);
           if (imageUrls.length > 0) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`));
           }
 
-          // 5. 合规审查
+          // 7. 合规审查
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在进行合规审查...' })}\n\n`));
-          const complianceResult = await checkCompliance(title, accumulatedContent, tags.join(' '));
+          const complianceResult = await callComplianceCheck(titles[0]?.title || '', accumulatedContent, tags.join(' '));
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'compliance', data: complianceResult })}\n\n`));
 
           controller.close();
@@ -192,23 +174,24 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 搜索实时热点 - 增强版，针对不同选题类型优化搜索
+// 热点搜索
+const HOT_TOPIC_SUPPORTED: TopicType[] = ['market_hot', 'advanced_invest', 'professional_analysis'];
+
 async function searchHotTopics(
   topicType: TopicType, 
   keywords?: string,
-  timeRange: string = '3d',
+  timeRange: string = '7d',
   customHeaders?: Record<string, string>
-): Promise<{ info: string; topics: Array<{title: string; score: number; snippet: string}> }> {
+): Promise<{ info: string }> {
   try {
     const config = new Config();
     const client = new SearchClient(config, customHeaders);
 
-    // 根据选题类型构建不同的搜索查询
     const searchQueries: Record<TopicType, string> = {
-      market_hot: `AI人工智能技术突破 机器人行业新闻 新能源汽车 国家宏观政策 行业监管 三天内`,
-      beginner_guide: `投资理财入门 新手指南 理财知识 最新`,
-      advanced_invest: `券商研报 机构评级 高盛摩根中信证券 行业分析报告 最新`,
-      professional_analysis: `上市公司财报 股价分析 黄金石油外汇 期货市场 经济数据 最新`,
+      market_hot: `AI人工智能 机器人 新能源 财经新闻 最新`,
+      beginner_guide: `投资理财入门 新手指南`,
+      advanced_invest: `券商研报 机构评级 行业分析 最新`,
+      professional_analysis: `上市公司财报 股价分析 黄金石油外汇 最新`,
     };
 
     let query = searchQueries[topicType];
@@ -217,186 +200,200 @@ async function searchHotTopics(
     }
 
     const response = await client.advancedSearch(query, {
-      count: 8,
+      count: 5,
       needSummary: true,
-      timeRange: timeRange,
+      timeRange,
     });
 
-    const topics: Array<{title: string; score: number; snippet: string}> = [];
-    
     if (response.web_items && response.web_items.length > 0) {
-      response.web_items.slice(0, 5).forEach((item, index) => {
-        const score = Math.max(100 - index * 15, 50);
-        topics.push({
-          title: item.title,
-          score,
-          snippet: item.snippet?.substring(0, 150) || '',
-        });
-      });
-
       const hotInfo = response.web_items
-        .slice(0, 5)
-        .map(item => `【${item.title}】\n${item.snippet?.substring(0, 200) || ''}`)
+        .slice(0, 3)
+        .map(item => `【${item.title}】\n${item.snippet?.substring(0, 150) || ''}`)
         .join('\n\n');
-      
-      const summary = response.summary ? `\n\n综合摘要：${response.summary}` : '';
-      return { info: hotInfo + summary, topics };
+      return { info: hotInfo };
     }
 
-    return { info: '', topics: [] };
+    return { info: '' };
   } catch (error) {
     console.error('Search hot topics error:', error);
-    return { info: '', topics: [] };
+    return { info: '' };
   }
 }
 
-// 生成标题
-async function generateTitle(
+// 生成多个标题
+async function generateTitles(
   topicType: TopicType,
   userTag: UserTag,
   contentType: ContentType,
   keywords?: string,
   hotTopicInfo?: string,
-  titleStyle?: TitleStyle,
-  personaKeywords?: string
-): Promise<string> {
-  const titleStylePrompt = titleStyle 
-    ? TITLE_STYLE_PROMPTS[titleStyle] 
-    : '选择最适合的标题风格';
+  titleStyles?: TitleStyle[],
+  personaType?: PersonaType,
+  customPersona?: string
+): Promise<TitleCandidate[]> {
+  const styleGuides = (titleStyles && titleStyles.length > 0)
+    ? titleStyles.map(s => TITLE_STYLE_PROMPTS[s]).join('；')
+    : '选择最适合的风格';
 
-  const prompt = `你是一个小红书爆款内容专家，请为以下场景生成一个吸引人的标题：
+  const personaPrompt = personaType ? getPersonaPrompt(personaType, customPersona) : '';
+
+  const prompt = `你是小红书爆款标题专家。请为以下场景生成3个不同风格的吸引人标题：
 
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
 目标用户：${USER_TAG_PROMPTS[userTag]}
-内容类型：${contentType === 'article' ? '图文笔记' : '视频脚本'}
+内容形式：${contentType === 'article' ? '图文内容' : '视频脚本'}
 ${keywords ? `关键词：${keywords}` : ''}
-${hotTopicInfo ? `最新资讯（必须结合这些信息）：\n${hotTopicInfo.substring(0, 800)}` : ''}
+${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 500)}` : ''}
 
-标题风格要求：${titleStylePrompt}
-${getPersonaPrompt(personaKeywords)}
+标题风格参考：${styleGuides}
+${personaPrompt}
 
 要求：
-1. 标题要有吸引力，使用emoji表情增加视觉冲击力（1-2个即可）
-2. 符合小红书风格，要有种草感、悬念感或价值感
-3. 避免使用夸张、虚假宣传词汇
-4. 标题长度控制在20-30个字
-5. 要有独特性，体现专业度和洞察力
-6. ${hotTopicInfo ? '必须结合提供的最新资讯，让内容有时效性' : ''}
+1. 生成3个不同风格的标题，用数字1/2/3标号
+2. 每个标题使用1-2个emoji增加吸引力
+3. 标题长度20-30字
+4. 避免夸张虚假宣传
+5. 体现专业度和时效性
 
-请直接输出标题，不要其他说明。`;
+请按以下格式输出：
+1. [标题一]
+2. [标题二]
+3. [标题三]`;
 
   const response = await callLLM(prompt);
-  return response.trim();
+  
+  // 解析标题
+  const lines = response.split('\n').filter(l => l.trim());
+  const titles: TitleCandidate[] = [];
+  
+  for (const line of lines) {
+    const match = line.match(/^\d+[.、．]\s*(.+)$/);
+    if (match) {
+      titles.push({
+        title: match[1].trim(),
+        style: titleStyles?.[titles.length] || 'suspense',
+      });
+    }
+  }
+
+  return titles.length > 0 ? titles : [{ title: response.trim().substring(0, 30), style: 'suspense' }];
 }
 
-// 生成正文（流式）- 大幅优化，增加深度要求
-async function* generateContent(
+// 生成内容流
+async function* generateContentStream(
   topicType: TopicType,
   userTag: UserTag,
   contentType: ContentType,
   keywords?: string,
   hotTopicInfo?: string,
-  title?: string,
+  titles?: TitleCandidate[],
+  additionalRequirements?: AdditionalRequirement[],
   videoDuration?: VideoDuration,
   videoStyle?: VideoStyle,
-  personaKeywords?: string
+  personaType?: PersonaType,
+  customPersona?: string
 ): AsyncGenerator<string> {
   const isVideo = contentType === 'video_script';
+  const selectedTitle = titles?.[0]?.title || '';
+  const requirements = additionalRequirements || [];
+  const personaPrompt = personaType ? getPersonaPrompt(personaType, customPersona) : '';
+
+  // 补充要求提示
+  const requirementPrompts = requirements.map(r => ADDITIONAL_REQUIREMENT_PROMPTS[r]).join('\n');
   
-  // 根据选题类型生成不同的深度要求
-  const depthRequirements: Record<TopicType, string> = {
+  // 深度要求
+  const depthPrompts: Record<TopicType, string> = {
     market_hot: `
-【市场热点深度要求】
-1. 必须基于最新3天内的新闻事件，说明事件背景和核心内容
-2. 分析该事件对相关行业/公司的具体影响（股价波动、市场情绪等）
-3. 提供数据支撑：如股价涨跌幅、成交量变化、市场规模等
-4. 给出投资建议或风险提示，但避免具体荐股
-5. 关联产业链上下游，分析蝴蝶效应
-
-【合规提醒】不要预测具体股价涨跌，不要推荐具体股票代码`,
-
+【市场热点内容要求】
+- 按"事件背景 → 原因分析 → 市场影响 → 后续展望"结构展开
+- 提供具体数据支撑（股价涨跌、成交量、市场规模等）
+- 分析对产业链上下游的影响`,
+    
     beginner_guide: `
-【小白科普深度要求】
-1. 用生活中的例子类比复杂的金融概念
-2. 提供2-3个实操步骤或checklist
-3. 列举常见误区和避坑指南
-4. 给出新手入门的具体路径建议`,
+【小白科普内容要求】
+- 用生活例子类比复杂概念
+- 分点说明，每点用小标题或emoji标识
+- 列举常见误区和避坑指南`,
 
     advanced_invest: `
-【进阶投资深度要求】
-1. 引用国内外知名券商/机构的最新研报观点（如高盛、摩根士丹利、中信证券、中金公司等）
-2. 分析机构给出评级的具体原因和逻辑
-3. 对比不同机构的观点差异
-4. 提供投资逻辑框架，而非简单结论
-5. 说明风险因素和不确定性
-
-【合规提醒】标明信息来源为公开研报，不构成投资建议`,
-
+【进阶投资内容要求】
+- 引用券商/机构研报观点
+- 分析机构评级原因和逻辑
+- 提供投资逻辑框架`,
+    
     professional_analysis: `
-【专业分析深度要求】
-1. 分析具体公司的最新财报数据（营收、净利润、毛利率、同比增长等关键指标）
-2. 解读财报数据背后的业务逻辑和经营状况
-3. 分析股价变化与财报数据的关系
-4. 或者分析黄金/石油/外汇等期货价格变动的原因（宏观经济因素、供需关系、地缘政治等）
-5. 给出对市场后续走势的专业判断和依据
-6. 提供具体的数据支撑和时间节点
-
-【合规提醒】声明分析基于公开数据，不构成投资建议`,
+【专业分析内容要求】
+- 分析财报关键指标（营收、净利润、毛利率等）
+- 解读股价变化与财报的关系
+- 或分析期货价格变动原因（宏观因素、供需关系等）`,
   };
 
-  const videoPrompt = isVideo ? `
-【视频脚本格式要求】
-总时长：${videoDuration || '60秒'}
-风格：${videoStyle ? VIDEO_STYLE_PROMPTS[videoStyle] : '科普风格'}
+  let prompt = '';
+  
+  if (isVideo) {
+    // 视频脚本格式
+    const durationGuide: Record<VideoDuration, string> = {
+      '30s': '30秒，约80-100字',
+      '60s': '60秒，约180-220字',
+      '3min': '3分钟，约500-600字',
+    };
+    
+    prompt = `你是短视频脚本专家。请为以下内容生成专业视频脚本：
 
-请严格按照以下格式输出脚本：
-
-━━━ 开场钩子 [${VIDEO_DURATION_STRUCTURE[videoDuration || '60s'].hookTime}] ━━━
-【镜头】描述镜头画面
-【台词】开场白内容
-
-━━━ 核心内容 [${VIDEO_DURATION_STRUCTURE[videoDuration || '60s'].mainTime}] ━━━
-【分段一】[时间节点]
-【镜头】画面描述
-【字幕】关键文字/数据
-【台词】讲解内容
-
-【分段二】[时间节点]
-...
-
-━━━ 结尾互动 [${VIDEO_DURATION_STRUCTURE[videoDuration || '60s'].ctaTime}] ━━━
-【镜头】画面描述
-【台词】总结+引导关注
-
-总字数控制在：${VIDEO_DURATION_STRUCTURE[videoDuration || '60s'].wordCount}` : '';
-
-  const prompt = `你是一位资深的投资理财博主，在知乎、小红书有百万粉丝，同时具备CFA资格和多年投资研究经验。请为以下场景生成一篇高质量的${isVideo ? '视频脚本' : '图文内容'}：
-
-${title ? `标题：${title}` : ''}
+标题：${selectedTitle}
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
 目标用户：${USER_TAG_PROMPTS[userTag]}
 ${keywords ? `关键词：${keywords}` : ''}
-${hotTopicInfo ? `最新资讯（必须深度融入内容中）：\n${hotTopicInfo.substring(0, 1500)}` : ''}
-${getPersonaPrompt(personaKeywords)}
-${depthRequirements[topicType]}
-${videoPrompt}
+${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 800)}` : ''}
 
-【通用要求】：
-1. 内容必须有深度，不要泛泛而谈
-2. 必须有具体的数据、案例或事件支撑
-3. 专业术语要有通俗解释
-4. 要有个人观点和独到见解
-5. 适当使用emoji增加可读性，但不要过度
-6. 严禁使用"保证收益"、"稳赚不赔"、"内幕消息"等违规词汇
-7. 文末要有风险提示声明
+时长：${durationGuide[videoDuration || '60s']}
+风格：${VIDEO_STYLE_PROMPTS[videoStyle || 'popular_science']}
+${personaPrompt}
+${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
 
-${!isVideo ? `
-【图文结构】
-- 开头：用数据/现象/痛点吸引眼球（1-2句话）
-- 中间：分3-5个要点深度解析，每个要点有数据/案例支撑
-- 结尾：总结核心观点 + 行动建议 + 风险提示` : ''}
+【脚本格式要求】
+严格按以下格式输出，每个分段包含：画面、文案、时长
+
+【画面】：描述镜头画面
+【文案】：口播台词
+【时长】：X秒
+
+示例：
+【画面】：黄金K线图，箭头指向新高位置
+【文案】：黄金价格又创历史新高了！
+【时长】：3秒
+
+【画面】：分屏对比 – 普通投资者 vs 机构投资者
+【文案】：很多人问，现在还能买吗？
+【时长】：4秒
+
+请直接输出脚本内容：`;
+  } else {
+    // 图文内容格式
+    prompt = `你是小红书爆款内容专家。请为以下场景生成高质量图文内容：
+
+标题：${selectedTitle}
+选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
+目标用户：${USER_TAG_PROMPTS[userTag]}
+${keywords ? `关键词：${keywords}` : ''}
+${hotTopicInfo ? `最新资讯：\n${hotTopicInfo.substring(0, 800)}` : ''}
+
+${depthPrompts[topicType]}
+${personaPrompt}
+${requirementPrompts ? `补充要求：\n${requirementPrompts}` : ''}
+
+【图文结构要求】
+- 开头（1-2句）：用场景、痛点或热点切入，快速吸引注意力
+- 中间：分点展开，每段不超过4行，可适当使用emoji
+- 结尾：总结观点 + 可操作建议
+
+【合规要求】
+- 严禁使用"保证收益"、"稳赚不赔"、"内幕消息"等违规词
+- 不要推荐具体股票代码
+- 文末声明"不构成投资建议"
 
 请直接输出正文内容：`;
+  }
 
   const stream = await callLLMStream(prompt);
   for await (const chunk of stream) {
@@ -404,83 +401,89 @@ ${!isVideo ? `
   }
 }
 
-// 生成标签
-async function generateTags(topicType: TopicType, keywords?: string, title?: string, content?: string): Promise<string[]> {
-  const prompt = `你是一个小红书SEO专家，请为以下内容生成6-8个高流量标签：
+// 生成配图建议
+async function generateImageSuggestions(title: string, content: string): Promise<ImageSuggestion[]> {
+  const prompt = `你是小红书配图专家。根据以下内容，提供3条配图建议：
 
-选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
-${title ? `标题：${title}` : ''}
-${keywords ? `关键词：${keywords}` : ''}
-${content ? `内容摘要：${content.substring(0, 300)}...` : ''}
+标题：${title}
+内容摘要：${content.substring(0, 300)}
 
-要求：
-1. 标签要热门、有流量，是用户真实搜索的词
-2. 标签要与内容高度相关
-3. 混合使用大类标签和精准标签
-4. 标签格式：去掉#号，只输出标签文本
+请提供封面图和内图建议，格式：
+- 封面图：[建议]
+- 内图1：[建议]
+- 内图2：[建议]
 
-请直接输出标签，用逗号分隔。`;
+建议要具体，如：数据图表、对比图、关键词大字图、情绪表情包等`;
 
   const response = await callLLM(prompt);
-  return response.split(/[,，、\n]/).map((tag) => tag.trim().replace(/^#/, '')).filter((tag) => tag.length > 0);
+  
+  const suggestions: ImageSuggestion[] = [];
+  const lines = response.split('\n');
+  
+  for (const line of lines) {
+    if (line.includes('封面图')) {
+      suggestions.push({ type: 'cover', description: line.replace(/^-?\s*封面图[：:]\s*/, '') });
+    } else if (line.includes('内图')) {
+      suggestions.push({ type: 'inline', description: line.replace(/^-?\s*内图\d[：:]\s*/, '') });
+    }
+  }
+
+  return suggestions;
 }
 
-// 生成多张配图 - 基于标题和内容关键词
+// 生成标签
+async function generateTags(topicType: TopicType, keywords?: string, title?: string, content?: string): Promise<string[]> {
+  const prompt = `你是小红书SEO专家。请为以下内容生成6-8个热门标签：
+
+选题：${TOPIC_TYPE_PROMPTS[topicType]}
+${title ? `标题：${title}` : ''}
+${keywords ? `关键词：${keywords}` : ''}
+
+要求：
+1. 标签要热门、有流量
+2. 混合大类标签和精准标签
+3. 只输出标签文本，用逗号分隔`;
+
+  const response = await callLLM(prompt);
+  return response.split(/[,，、\n]/).map((tag) => tag.trim().replace(/^#/, '')).filter((tag) => tag.length > 0 && tag.length < 15);
+}
+
+// 生成配图
 async function generateImages(title: string, content: string, customHeaders?: Record<string, string>): Promise<string[]> {
   try {
     const config = new Config();
     const client = new ImageGenerationClient(config, customHeaders);
-    
-    // 从标题和内容中提取关键词用于图片生成
-    const contentKeywords = content.substring(0, 200);
-    
-    // 基于内容生成相关的图片描述
+
     const imagePrompts = [
-      // 风格1：财经数据可视化风格
-      `Professional financial infographic style, clean data visualization with charts and graphs, business growth concept, blue and white color scheme, modern minimalist design, NO TEXT, NO WORDS, NO LETTERS, corporate professional aesthetic, suitable for financial article cover`,
-      
-      // 风格2：投资理财场景
-      `Modern investment planning scene, laptop with stock charts on desk, coffee cup, notebook with financial notes, warm natural lighting, professional yet approachable atmosphere, NO TEXT, NO WORDS, NO LETTERS, lifestyle photography style`,
-      
-      // 风格3：抽象经济增长
-      `Abstract upward growth visualization, geometric shapes flowing upward, gradient from blue to green, representing market growth and prosperity, clean modern design, NO TEXT, NO WORDS, NO LETTERS, professional business aesthetic`,
-      
-      // 风格4：温馨科普风格
-      `Warm and inviting illustration about money management and investment, soft pastel colors, friendly and educational atmosphere, simple clean design, NO TEXT, NO WORDS, NO LETTERS, suitable for beginner finance content`,
+      `Professional financial infographic style, clean data visualization, business growth concept, blue and white color scheme, modern minimalist design, NO TEXT, NO WORDS, NO LETTERS, suitable for social media cover`,
+      `Modern investment planning scene, laptop with charts, warm natural lighting, professional atmosphere, NO TEXT, NO WORDS, NO LETTERS, lifestyle photography`,
+      `Abstract upward growth visualization, geometric shapes, gradient from blue to green, clean modern design, NO TEXT, NO WORDS, NO LETTERS, professional business aesthetic`,
     ];
 
-    const imagePromises = imagePrompts.map(async (prompt, index) => {
+    const imageUrls: string[] = [];
+    
+    for (let i = 0; i < imagePrompts.length; i++) {
       try {
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 800));
+        
         const response = await client.generate({
-          prompt,
+          prompt: imagePrompts[i],
           size: '2K',
           watermark: false,
         });
 
         const helper = client.getResponseHelper(response);
         if (helper.success && helper.imageUrls.length > 0) {
-          return helper.imageUrls[0];
+          imageUrls.push(helper.imageUrls[0]);
         }
-        return null;
       } catch (error) {
-        console.error(`Image ${index + 1} generation error:`, error);
-        return null;
+        console.error(`Image ${i + 1} error:`, error);
       }
-    });
+    }
 
-    const results = await Promise.all(imagePromises);
-    return results.filter((url): url is string => url !== null);
+    return imageUrls;
   } catch (error) {
     console.error('Image generation error:', error);
     return [];
   }
-}
-
-// 合规审查 - 使用DeepSeek
-async function checkCompliance(title: string, content: string, tags: string): Promise<{
-  isCompliant: boolean;
-  warnings: string[];
-  suggestions: string[];
-}> {
-  return callComplianceCheck(title, content, tags);
 }

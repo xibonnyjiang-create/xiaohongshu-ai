@@ -11,13 +11,19 @@ export type ContentType = 'article' | 'video_script';
 export type VideoDuration = '30s' | '60s' | '3min';
 
 // 视频风格
-export type VideoStyle = 'popular_science' | 'roast' | 'suspense' | 'storytelling' | 'educational';
+export type VideoStyle = 'popular_science' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo';
 
-// 标题类型
+// 标题风格
 export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' | 'contrast';
 
 // 热点时间筛选
 export type HotTopicTimeRange = '24h' | '7d' | '30d';
+
+// 补充要求
+export type AdditionalRequirement = 'short_300' | 'short_term' | 'examples' | 'risk_warning' | 'recommend_wzq';
+
+// 博主人设类型
+export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'veteran_trader' | 'finance_scholar' | 'roaster' | 'custom';
 
 // 生成参数
 export interface GenerateParams {
@@ -25,35 +31,45 @@ export interface GenerateParams {
   userTag: UserTag;
   contentType: ContentType;
   keywords: string;
-  useHotTopic: boolean;
-  // 新增参数
+  hotTopicTimeRange: HotTopicTimeRange;
+  titleStyles: TitleStyle[];
+  personaType: PersonaType;
+  customPersona: string;
+  additionalRequirements: AdditionalRequirement[];
+  // 视频专用
   videoDuration?: VideoDuration;
   videoStyle?: VideoStyle;
-  titleStyle?: TitleStyle;
-  personaKeywords?: string;
-  hotTopicTimeRange?: HotTopicTimeRange;
+}
+
+// 标题候选
+export interface TitleCandidate {
+  title: string;
+  style: TitleStyle;
+}
+
+// 配图建议
+export interface ImageSuggestion {
+  type: 'cover' | 'inline';
+  description: string;
+}
+
+// 视频脚本分段
+export interface ScriptSegment {
+  visual: string;
+  script: string;
+  duration: string;
 }
 
 // 生成结果
 export interface GenerateResult {
-  title: string;
-  titleStyle?: TitleStyle;
+  titles: TitleCandidate[];
   content: string;
+  imageSuggestions?: ImageSuggestion[];
+  scriptSegments?: ScriptSegment[];
   tags: string[];
-  imageUrls?: string[];
-  selectedImageIndex?: number;
+  riskWarning?: string;
   complianceCheck: ComplianceResult;
-  // 视频脚本专用
-  scriptSections?: ScriptSection[];
-}
-
-// 视频脚本分段
-export interface ScriptSection {
-  type: 'hook' | 'main' | 'cta' | 'transition';
-  title: string;
-  content: string;
-  duration?: string;
-  notes?: string;
+  imageUrls?: string[];
 }
 
 // 合规审查结果
@@ -61,13 +77,6 @@ export interface ComplianceResult {
   isCompliant: boolean;
   warnings: string[];
   suggestions: string[];
-}
-
-// 流式响应
-export interface StreamResponse {
-  type: 'status' | 'title' | 'content' | 'tags' | 'images' | 'image' | 'compliance' | 'script_section';
-  data: any;
-  done: boolean;
 }
 
 // 历史记录
