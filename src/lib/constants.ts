@@ -1,21 +1,22 @@
 import { 
   TopicType, UserTag, ContentType, VideoDuration, VideoStyle, 
-  TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType 
+  TitleStyle, HotTopicTimeRange, AdditionalRequirement, PersonaType,
+  AnalysisTarget, ContentDepth, FocusDirection, ContentSubType
 } from './types';
 
 // 选题类型选项
-export const TOPIC_TYPE_OPTIONS: { value: TopicType; label: string; description: string; icon: string }[] = [
-  { value: 'market_hot', label: '市场热点', description: '最新市场动态和热点事件', icon: '🔥' },
-  { value: 'beginner_guide', label: '小白科普', description: '基础投资知识和入门指南', icon: '📚' },
-  { value: 'advanced_invest', label: '进阶投资', description: '券商研报解读与机构评级', icon: '📊' },
-  { value: 'professional_analysis', label: '专业分析', description: '财报分析与期货深度解读', icon: '💹' },
+export const TOPIC_TYPE_OPTIONS: { value: TopicType; label: string; description: string }[] = [
+  { value: 'market_hot', label: '市场热点', description: '追踪AI、机器人等热点' },
+  { value: 'beginner_guide', label: '小白科普', description: '基础认知和入门指南' },
+  { value: 'advanced_invest', label: '进阶投资', description: '券商研报与机构评级' },
+  { value: 'professional_analysis', label: '专业分析', description: '财报与期货深度解读' },
 ];
 
-// 目标用户选项（根据微证券业务调整）
-export const USER_TAG_OPTIONS: { value: UserTag; label: string; description: string; icon: string }[] = [
-  { value: 'newbie', label: '新手投资者', description: '刚开户，需要入门指导', icon: '🌱' },
-  { value: 'active_trader', label: '活跃交易者', description: '经常交易，关注市场机会', icon: '📈' },
-  { value: 'long_term_investor', label: '长线投资者', description: '关注基本面，做价值投资', icon: '🎯' },
+// 目标用户选项
+export const USER_TAG_OPTIONS: { value: UserTag; label: string }[] = [
+  { value: 'newbie', label: '小白投资者' },
+  { value: 'active_trader', label: '进阶投资者' },
+  { value: 'long_term_investor', label: '专业玩家' },
 ];
 
 // 内容形式选项
@@ -31,6 +32,37 @@ export const HOT_TOPIC_TIME_RANGE_OPTIONS: { value: HotTopicTimeRange; label: st
   { value: '30d', label: '近30天' },
 ];
 
+// 分析对象选项（市场热点/专业分析）
+export const ANALYSIS_TARGET_OPTIONS: { value: AnalysisTarget; label: string; placeholder?: string }[] = [
+  { value: 'asset', label: '资产', placeholder: '如：黄金、纳指、比特币、原油' },
+  { value: 'industry', label: '行业', placeholder: '如：AI、新能源、半导体' },
+  { value: 'company', label: '公司', placeholder: '如：腾讯、茅台、特斯拉' },
+  { value: 'macro_policy', label: '宏观/政策', placeholder: '如：降息、房地产政策' },
+  { value: 'market_event', label: '市场热点事件', placeholder: '如：某股票暴涨暴跌' },
+];
+
+// 内容深度选项
+export const CONTENT_DEPTH_OPTIONS: { value: ContentDepth; label: string; description: string }[] = [
+  { value: 'basic', label: '基础解读', description: '偏科普，适合新手' },
+  { value: 'logical', label: '逻辑分析', description: '有因果，适合进阶' },
+  { value: 'professional', label: '深度观点', description: '偏专业，适合老手' },
+];
+
+// 重点关注方向选项
+export const FOCUS_DIRECTION_OPTIONS: { value: FocusDirection; label: string }[] = [
+  { value: 'why_happen', label: '为什么发生' },
+  { value: 'what_impact', label: '有什么影响' },
+  { value: 'how_follow', label: '后续怎么看' },
+  { value: 'market_view', label: '市场怎么看' },
+];
+
+// 内容子类型选项（小白科普/进阶投资）
+export const CONTENT_SUBTYPE_OPTIONS: { value: ContentSubType; label: string; description: string }[] = [
+  { value: 'beginner_start', label: '新手入门', description: '开户/基础认知' },
+  { value: 'tool_knowledge', label: '工具认知', description: 'ETF/指数/规则' },
+  { value: 'platform_compare', label: '平台对比', description: '券商/平台差异说明' },
+];
+
 // 标题风格选项
 export const TITLE_STYLE_OPTIONS: { value: TitleStyle; label: string; example: string }[] = [
   { value: 'suspense', label: '悬念式', example: '「这个信号出现，我果断清仓了...」' },
@@ -42,32 +74,33 @@ export const TITLE_STYLE_OPTIONS: { value: TitleStyle; label: string; example: s
 ];
 
 // 博主人设选项
-export const PERSONA_OPTIONS: { value: PersonaType; label: string; keywords: string; tone: string }[] = [
-  { value: 'hardcore_uncle', label: '硬核财经大叔', keywords: '专业、理性、数据说话、深度分析、犀利点评', tone: '严肃但不刻板，像在跟朋友喝茶聊投资' },
-  { value: 'sweet_girl', label: '甜妹理财科普', keywords: '可爱、亲切、通俗易懂、闺蜜感、温暖治愈', tone: '像闺蜜在咖啡厅分享理财心得' },
-  { value: 'veteran_trader', label: '实战派老股民', keywords: '经验丰富、接地气、实战案例、避坑指南、真诚分享', tone: '像老股民在证券大厅跟你唠嗑' },
-  { value: 'finance_scholar', label: '金融学霸人设', keywords: '专业术语、逻辑清晰、学术派、数据支撑、严谨分析', tone: '像大学教授在讲解投资课' },
-  { value: 'roaster', label: '吐槽型财经博主', keywords: '幽默、犀利、一针见血、敢说真话、接地气', tone: '像在饭局上吐槽行业内幕' },
-  { value: 'custom', label: '自定义人设', keywords: '', tone: '' },
+export const PERSONA_OPTIONS: { value: PersonaType; label: string; description: string }[] = [
+  { value: 'hardcore_uncle', label: '硬核财经大叔', description: '数据+逻辑+略带批判' },
+  { value: 'sweet_girl', label: '甜妹理财科普', description: '类比生活+温柔提醒' },
+  { value: 'veteran_trader', label: '实战派老股民', description: '真实操作+教训分享' },
+  { value: 'finance_scholar', label: '金融学霸人设', description: '专业严谨+学术派' },
+  { value: 'roaster', label: '吐槽型财经博主', description: '幽默犀利+敢说真话' },
+  { value: 'custom', label: '自定义人设', description: '' },
 ];
 
 // 补充要求选项
-export const ADDITIONAL_REQUIREMENT_OPTIONS: { value: AdditionalRequirement; label: string; description: string }[] = [
-  { value: 'short_300', label: '控制在300字', description: '简洁精炼，适合快节奏阅读' },
-  { value: 'short_term', label: '侧重短期', description: '关注短期机会和风险' },
-  { value: 'long_term', label: '侧重长期', description: '关注长期投资价值' },
-  { value: 'examples', label: '举例说明', description: '用具体案例解释概念' },
-  { value: 'story_telling', label: '故事化表达', description: '用故事形式增强代入感' },
-  { value: 'risk_warning', label: '加投资风险提示', description: '文末添加风险提示' },
-  { value: 'recommend_wzq', label: '结尾推荐微证券', description: '自然融入产品推荐' },
-  { value: 'custom', label: '自定义', description: '输入自定义要求' },
+export const ADDITIONAL_REQUIREMENT_OPTIONS: { value: AdditionalRequirement; label: string }[] = [
+  { value: 'short_300', label: '控制在300字' },
+  { value: 'short_term', label: '侧重短期分析' },
+  { value: 'long_term', label: '侧重长期价值' },
+  { value: 'examples', label: '举例说明' },
+  { value: 'story_telling', label: '故事化表达' },
+  { value: 'risk_warning', label: '加投资风险提示' },
+  { value: 'recommend_wzq', label: '结尾推荐微证券' },
+  { value: 'custom', label: '自定义' },
 ];
 
 // 视频时长选项
-export const VIDEO_DURATION_OPTIONS: { value: VideoDuration; label: string; description: string }[] = [
-  { value: '30s', label: '30秒', description: '快节奏短视频' },
-  { value: '60s', label: '1分钟', description: '标准短视频' },
-  { value: '3min', label: '3分钟', description: '深度内容视频' },
+export const VIDEO_DURATION_OPTIONS: { value: VideoDuration; label: string }[] = [
+  { value: '15s', label: '15秒' },
+  { value: '30s', label: '30秒' },
+  { value: '60s', label: '60秒' },
+  { value: '90s', label: '90秒' },
 ];
 
 // 视频风格选项
@@ -89,26 +122,20 @@ export const USER_TAG_TOPIC_COMPATIBILITY: Record<UserTag, TopicType[]> = {
 // 选题类型是否显示热榜
 export const SHOW_HOT_TOPICS: TopicType[] = ['market_hot'];
 
-// 选题类型与用户标签的推荐文案
-export const TOPIC_USER_RECOMMENDATION: Record<TopicType, Record<UserTag, string>> = {
-  market_hot: {
-    newbie: '用通俗易懂的语言解读热点，帮助新手快速理解',
-    active_trader: '分析热点对短期交易的影响和机会',
-    long_term_investor: '从长期视角解读热点对行业的影响',
-  },
-  beginner_guide: {
-    newbie: '最适合的选题，用生活化比喻解释投资概念',
-    active_trader: '可以了解基础概念，但可能不够深入',
-    long_term_investor: '可以了解基础概念，但可能不够深入',
-  },
-  advanced_invest: {
-    newbie: '内容较专业，建议先学习基础知识',
-    active_trader: '非常适合，提供券商研报和机构观点',
-    long_term_investor: '非常适合，提供深度投资逻辑',
-  },
-  professional_analysis: {
-    newbie: '内容较专业，建议先学习基础知识',
-    active_trader: '内容较专业，适合有一定经验的投资者',
-    long_term_investor: '非常适合，提供财报分析和深度研究',
-  },
+// 选题类型显示动态配置
+export const TOPIC_DYNAMIC_CONFIG: Record<TopicType, 'analysis' | 'guide'> = {
+  market_hot: 'analysis',
+  beginner_guide: 'guide',
+  advanced_invest: 'guide',
+  professional_analysis: 'analysis',
 };
+
+// 热门科普主题（小白科普时显示）
+export const POPULAR_GUIDE_TOPICS = [
+  { id: 1, title: '新手必须懂的3个指标', category: '入门' },
+  { id: 2, title: 'ETF和基金有什么区别', category: '工具' },
+  { id: 3, title: '如何看懂K线图', category: '入门' },
+  { id: 4, title: '打新债真的稳赚吗', category: '工具' },
+  { id: 5, title: '定投到底怎么选', category: '策略' },
+  { id: 6, title: '股票开户避坑指南', category: '入门' },
+];

@@ -27,7 +27,14 @@ const VIDEO_STYLE_PROMPTS: Record<VideoStyle, string> = {
 };
 
 // 视频时长对应的内容结构
-const VIDEO_DURATION_STRUCTURE: Record<VideoDuration, {totalTime: string, hookTime: string, mainTime: string, ctaTime: string, wordCount: string}> = {
+const VIDEO_DURATION_STRUCTURE: Record<VideoDuration, {totalTime: string; hookTime: string; mainTime: string; ctaTime: string; wordCount: string}> = {
+  '15s': {
+    totalTime: '15秒',
+    hookTime: '0-3秒',
+    mainTime: '3-12秒',
+    ctaTime: '12-15秒',
+    wordCount: '40-60字'
+  },
   '30s': {
     totalTime: '30秒',
     hookTime: '0-5秒',
@@ -42,12 +49,12 @@ const VIDEO_DURATION_STRUCTURE: Record<VideoDuration, {totalTime: string, hookTi
     ctaTime: '52-60秒',
     wordCount: '180-220字'
   },
-  '3min': {
-    totalTime: '3分钟',
-    hookTime: '0-15秒',
-    mainTime: '15-165秒',
-    ctaTime: '165-180秒',
-    wordCount: '500-600字'
+  '90s': {
+    totalTime: '90秒',
+    hookTime: '0-10秒',
+    mainTime: '10-80秒',
+    ctaTime: '80-90秒',
+    wordCount: '280-320字'
   },
 };
 
