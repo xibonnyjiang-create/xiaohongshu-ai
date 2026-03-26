@@ -1,7 +1,7 @@
 // LLM调用工具函数 - 使用DeepSeek API
 
 // DeepSeek API配置
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-163be4f88dc54eedbfad7896318473c7';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-de27900c492246a6b5373c83bbd17ddd';
 const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 
