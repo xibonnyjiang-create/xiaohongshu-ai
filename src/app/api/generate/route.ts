@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
           // 4. 生成配图
           if (enableImageSuggestion || isVideo) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图...' })}\n\n`));
-            const imageUrls = await generateImages(titles[0]?.title || '', accumulatedContent, customHeaders);
+            const imageUrls = await generateImages(titles[0]?.title || '', accumulatedContent);
             if (imageUrls.length > 0) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`));
             }
@@ -447,7 +447,7 @@ ${keywords ? `关键词：${keywords}` : ''}
 }
 
 // 生成配图
-async function generateImages(title: string, content: string, customHeaders?: Record<string, string>): Promise<string[]> {
+async function generateImages(title: string, content: string): Promise<string[]> {
   try {
     const imagePrompts = [
       `Professional financial infographic, clean data visualization, business growth, blue and white, modern minimalist`,
