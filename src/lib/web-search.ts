@@ -100,7 +100,7 @@ async function searchWithSerpApi(
         title: r.title,
         link: r.link,
         snippet: r.snippet,
-        source: r.source,
+        source: typeof r.source === 'string' ? r.source : (r.source?.name || '未知来源'),
         publishTime: r.date,
       }));
     }
@@ -110,7 +110,7 @@ async function searchWithSerpApi(
         title: r.title,
         link: r.link,
         snippet: r.snippet,
-        source: r.source || new URL(r.link).hostname,
+        source: typeof r.source === 'string' ? r.source : (r.source?.name || new URL(r.link).hostname),
         publishTime: r.date,
       }));
     }

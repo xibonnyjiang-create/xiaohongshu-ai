@@ -679,7 +679,7 @@ export default function Home() {
                             )}
                             {/* 来源 */}
                             <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:block">
-                              {topic.source}
+                              {typeof topic.source === 'string' ? topic.source : (topic.source as any)?.name || '未知来源'}
                             </span>
                           </div>
                         </button>
