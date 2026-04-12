@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchWeb, extractHeaders } from '@/lib/web-search';
+import { extractHotTopicTags } from '@/lib/llm';
 
 // 热点板块配置
 const HOT_CATEGORIES = [
@@ -41,8 +42,18 @@ export async function GET(request: NextRequest) {
 
       const finalTopics = hotTopics.length > 0 ? hotTopics : getMockTopics(category);
 
+      // 提取Top3标签（线性接入）
+      let top3Tags: string[] = [];
+      try {
+        top3Tags = await extractHotTopicTags(finalTopics.slice(0, 5).map(t => t.title));
+      } catch (tagError) {
+        console.warn('Top3标签提取失败:', tagError);
+        top3Tags = getDefaultTags(category);
+      }
+
       return NextResponse.json({
         topics: finalTopics,
+        top3Tags: top3Tags, // 新增：热点Top3标签
         category: categoryConfig,
         updateTime: new Date().toLocaleString('zh-CN', { 
           timeZone: 'Asia/Shanghai',
@@ -55,8 +66,19 @@ export async function GET(request: NextRequest) {
     } catch (searchError) {
       // 搜索API出错时返回模拟数据
       console.warn('搜索API调用失败，使用模拟数据:', searchError);
+      const mockTopics = getMockTopics(category);
+      
+      // 模拟数据也提取Top3标签
+      let top3Tags: string[] = [];
+      try {
+        top3Tags = await extractHotTopicTags(mockTopics.slice(0, 5).map(t => t.title));
+      } catch (tagError) {
+        top3Tags = getDefaultTags(category);
+      }
+
       return NextResponse.json({
-        topics: getMockTopics(category),
+        topics: mockTopics,
+        top3Tags: top3Tags, // 新增：热点Top3标签
         category: categoryConfig,
         updateTime: new Date().toLocaleString('zh-CN', { 
           timeZone: 'Asia/Shanghai',
@@ -69,8 +91,11 @@ export async function GET(request: NextRequest) {
     console.error('Hot topics fetch error:', error);
     
     const category = new URL(request.url).searchParams.get('category') || 'finance';
+    const mockTopics = getMockTopics(category);
+    
     return NextResponse.json({
-      topics: getMockTopics(category),
+      topics: mockTopics,
+      top3Tags: getDefaultTags(category),
       updateTime: new Date().toLocaleString('zh-CN', { 
         timeZone: 'Asia/Shanghai',
         hour: '2-digit',
@@ -78,6 +103,17 @@ export async function GET(request: NextRequest) {
       }),
     });
   }
+}
+
+// 根据分类获取默认标签
+function getDefaultTags(category: string): string[] {
+  const defaultTags: Record<string, string[]> = {
+    finance: ['市场热点', '投资机会', '财经解读'],
+    tech: ['科技前沿', '行业动态', '技术创新'],
+    crypto: ['加密货币', '区块链', '数字资产'],
+    global: ['全球经济', '国际市场', '财经要闻'],
+  };
+  return defaultTags[category] || defaultTags.finance;
 }
 
 // 模拟热点数据（作为备用）

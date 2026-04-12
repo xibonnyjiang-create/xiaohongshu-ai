@@ -75,6 +75,7 @@ export default function Home() {
   const [selectedHotTopic, setSelectedHotTopic] = useState<HotTopic | null>(null);
   const [hotCategory, setHotCategory] = useState<string>('finance');
   const [hotUpdateTime, setHotUpdateTime] = useState<string>('');
+  const [hotTop3Tags, setHotTop3Tags] = useState<string[]>([]); // 热点Top3标签（线性接入）
   
   // 热点板块配置
   const HOT_CATEGORIES = [
@@ -170,6 +171,7 @@ export default function Home() {
       const data = await response.json();
       setHotTopics(data.topics || []);
       setHotUpdateTime(data.updateTime || '');
+      setHotTop3Tags(data.top3Tags || []); // 设置热点Top3标签
     } catch (error) {
       console.error('Load hot topics error:', error);
     } finally {
@@ -230,6 +232,7 @@ export default function Home() {
           titleStyles, customTitleStyle, personaType, customPersona,
           additionalRequirements, customRequirement,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
+          hotTop3Tags: hotTop3Tags, // 传递热点Top3标签
         }),
       });
 
@@ -635,6 +638,32 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
+                  
+                  {/* 热点Top3标签 - 线性接入 */}
+                  {hotTop3Tags.length > 0 && (
+                    <div className="mb-3 p-2 bg-gradient-to-r from-orange-50 to-rose-50 rounded-lg border border-orange-100">
+                      <div className="flex items-center gap-1 mb-1.5">
+                        <Sparkles className="h-3 w-3 text-orange-500" />
+                        <span className="text-[10px] text-orange-600 font-medium">热点Top3标签</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {hotTop3Tags.map((tag, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setKeywords(tag)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                              keywords === tag
+                                ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
+                                : 'bg-white text-gray-700 hover:from-orange-500 hover:to-rose-500 hover:text-white border border-gray-200'
+                            }`}
+                          >
+                            {index === 0 && <span className="mr-1">🔥</span>}
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* 热点列表 */}
                   {hotTopicsLoading && hotTopics.length === 0 ? (
