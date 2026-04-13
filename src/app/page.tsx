@@ -107,6 +107,7 @@ export default function Home() {
   const [toneStyle, setToneStyle] = useState<string>('casual'); // 语气风格
   const [emojiDensity, setEmojiDensity] = useState<string>('medium'); // 表情包密度
   const [enableRiskWarning, setEnableRiskWarning] = useState(true); // 风险提示开关（默认开启）
+  const [titleStyle, setTitleStyle] = useState<string>('suspense'); // 标题风格
   const [showTitlePreview, setShowTitlePreview] = useState(false); // 显示标题预览
   const [generatedTitles, setGeneratedTitles] = useState<string[]>([]); // 生成的标题候选
   const [selectedTitleIndex, setSelectedTitleIndex] = useState<number | null>(null); // 选中的标题索引
@@ -213,6 +214,15 @@ export default function Home() {
       }
       return newSet;
     });
+  };
+
+  // ==================== 切换补充要求 ====================
+  const toggleAdditionalRequirement = (value: string) => {
+    setAdditionalRequirements(prev =>
+      prev.includes(value as AdditionalRequirement)
+        ? prev.filter(r => r !== value)
+        : [...prev, value as AdditionalRequirement]
+    );
   };
 
   // ==================== 生成内容 ====================
@@ -1211,6 +1221,107 @@ export default function Home() {
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  {/* 标题风格 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      标题风格
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { value: 'suspense', label: '悬念式', icon: '🤔' },
+                        { value: 'data', label: '数据式', icon: '📊' },
+                        { value: 'emotional', label: '情感式', icon: '❤️' },
+                        { value: 'practical', label: '实用式', icon: '💡' },
+                        { value: 'contrast', label: '反差式', icon: '⚡' },
+                        { value: 'custom', label: '自定义', icon: '✏️' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setTitleStyle(opt.value as any)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            titleStyle === opt.value
+                              ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span className="mr-1">{opt.icon}</span>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* 自定义标题风格输入 */}
+                    {titleStyle === 'custom' && (
+                      <Input
+                        placeholder="输入自定义标题风格要求..."
+                        value={customTitleStyle || ''}
+                        onChange={(e) => setCustomTitleStyle(e.target.value)}
+                        className="mt-2 h-9"
+                      />
+                    )}
+                  </div>
+
+                  {/* 补充要求 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <FileEdit className="h-3.5 w-3.5" />
+                      补充要求
+                    </Label>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { value: 'short_300', label: '控制在300字', icon: '📝' },
+                          { value: 'short_term', label: '侧重短期分析', icon: '⚡' },
+                          { value: 'long_term', label: '侧重长期价值', icon: '🏆' },
+                          { value: 'examples', label: '举例说明', icon: '📖' },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => toggleAdditionalRequirement(opt.value)}
+                            className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              additionalRequirements.includes(opt.value as AdditionalRequirement)
+                                ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <span className="mr-1">{opt.icon}</span>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { value: 'story_telling', label: '故事化表达', icon: '📚' },
+                          { value: 'risk_warning', label: '加风险提示', icon: '⚠️' },
+                          { value: 'recommend_wzq', label: '推荐微证券', icon: '💰' },
+                          { value: 'custom', label: '自定义', icon: '✏️' },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => toggleAdditionalRequirement(opt.value)}
+                            className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              additionalRequirements.includes(opt.value as AdditionalRequirement)
+                                ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <span className="mr-1">{opt.icon}</span>
+                            {opt.label}
+                          </button>
+                        ))}
+                        {/* 自定义补充要求输入框 */}
+                        {additionalRequirements.includes('custom' as AdditionalRequirement) && (
+                          <Input
+                            placeholder="输入自定义补充要求..."
+                            value={customRequirement || ''}
+                            onChange={(e) => setCustomRequirement(e.target.value)}
+                            className="mt-2 h-9"
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* 生成按钮 - 改为先生成标题预览 */}
