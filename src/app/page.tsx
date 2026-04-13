@@ -76,13 +76,14 @@ export default function Home() {
   const [hotCategory, setHotCategory] = useState<string>('finance');
   const [hotUpdateTime, setHotUpdateTime] = useState<string>('');
   const [hotTop3Tags, setHotTop3Tags] = useState<string[]>([]); // 热点Top3标签（线性接入）
+  const [filterSensitive, setFilterSensitive] = useState(true); // 过滤敏感内容（数字货币等）
   
-  // 热点板块配置
+  // 热点板块配置 - 敏感板块标记
   const HOT_CATEGORIES = [
-    { id: 'finance', name: '财经热搜', icon: '📈' },
-    { id: 'tech', name: '科技前沿', icon: '🚀' },
-    { id: 'crypto', name: '数字货币', icon: '₿' },
-    { id: 'global', name: '环球财经', icon: '🌍' },
+    { id: 'finance', name: '财经热搜', icon: '📈', sensitive: false },
+    { id: 'tech', name: '科技前沿', icon: '🚀', sensitive: false },
+    { id: 'crypto', name: '数字货币', icon: '₿', sensitive: true },
+    { id: 'global', name: '环球财经', icon: '🌍', sensitive: false },
   ];
 
   // ==================== 历史记录 ====================
@@ -97,6 +98,8 @@ export default function Home() {
   const [lockedModules, setLockedModules] = useState<Set<'title' | 'content' | 'tags'>>(new Set());
   const [userEdited, setUserEdited] = useState(false); // 标记用户是否手动编辑过
   const [showGuide, setShowGuide] = useState(true); // 显示引导提示
+  const [showComplianceFirstTime, setShowComplianceFirstTime] = useState(true); // 合规提示首次显示
+  const [hideComplianceForever, setHideComplianceForever] = useState(false); // 不再提示合规
 
   // ==================== 输出状态 ====================
   const [titles, setTitles] = useState<TitleCandidate[]>([]);
@@ -621,22 +624,33 @@ export default function Home() {
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 sm:px-5 pb-3 pt-0">
-                  {/* 板块Tab切换 */}
-                  <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
-                    {HOT_CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => handleCategoryChange(cat.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                          hotCategory === cat.id
-                            ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span className="mr-1">{cat.icon}</span>
-                        {cat.name}
-                      </button>
-                    ))}
+                  {/* 板块Tab切换 + 筛选开关 */}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex gap-1 overflow-x-auto pb-1 flex-1">
+                      {HOT_CATEGORIES.filter(cat => !filterSensitive || !cat.sensitive).map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => handleCategoryChange(cat.id)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                            hotCategory === cat.id
+                              ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span className="mr-1">{cat.icon}</span>
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                    {/* 敏感内容筛选开关 */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-[10px] text-gray-400">过滤敏感</span>
+                      <Switch
+                        checked={filterSensitive}
+                        onCheckedChange={setFilterSensitive}
+                        className="h-4 w-7 scale-90"
+                      />
+                    </div>
                   </div>
                   
                   {/* 热点Top3标签 - 线性接入 */}
@@ -990,20 +1004,31 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* ==================== 高级设置 ==================== */}
-            <Card className="border-0 shadow-lg bg-white/90">
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full px-5 py-3 flex items-center justify-between"
-              >
-                <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                  <Settings2 className="h-4 w-4 text-gray-500" />
-                  高级设置
-                </CardTitle>
-                {showAdvanced ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-              </button>
-              
-              {showAdvanced && (
+            {/* ==================== 高级设置（针对进阶/专业人士）==================== */}
+            {userTag !== 'newbie' && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="w-full px-5 py-3 flex items-center justify-between"
+                >
+                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Settings2 className="h-4 w-4 text-gray-500" />
+                    高级设置
+                    {userTag === 'professional' && (
+                      <Badge variant="outline" className="ml-1 text-[10px] bg-amber-50 text-amber-600 border-amber-200">
+                        专业模式
+                      </Badge>
+                    )}
+                    {userTag === 'active_trader' && (
+                      <Badge variant="outline" className="ml-1 text-[10px] bg-blue-50 text-blue-600 border-blue-200">
+                        进阶模式
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  {showAdvanced ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                </button>
+                
+                {showAdvanced && (
                 <CardContent className="px-4 sm:px-5 pb-4 space-y-3">
                   
                   {/* 博主人设 */}
@@ -1099,6 +1124,7 @@ export default function Home() {
                 </CardContent>
               )}
             </Card>
+            )}
 
             {/* 生成按钮 */}
             <Button
@@ -1288,24 +1314,38 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* 合规状态 */}
-                        {!compliance.isCompliant && (
+                        {/* 合规状态（首次弹出 + 不再提示） */}
+                        {!compliance.isCompliant && !hideComplianceForever && (
                           <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5 text-amber-700 font-medium text-xs">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                                 {compliance.fixed ? '已自动修正' : '合规提醒'}
                               </div>
-                              {!compliance.fixed && !userEdited && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-6 text-xs"
-                                  onClick={handleComplianceFix}
-                                >
-                                  自动修正
-                                </Button>
-                              )}
+                              <div className="flex items-center gap-1">
+                                {!compliance.fixed && !userEdited && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-6 text-xs"
+                                    onClick={handleComplianceFix}
+                                  >
+                                    自动修正
+                                  </Button>
+                                )}
+                                {showComplianceFirstTime && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-1.5 text-xs text-gray-400 hover:text-gray-600"
+                                    onClick={() => {
+                                      setHideComplianceForever(true);
+                                    }}
+                                  >
+                                    不再提示
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                             {compliance.warnings.length > 0 && (
                               <div className="mt-1">
