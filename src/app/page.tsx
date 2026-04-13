@@ -20,7 +20,8 @@ import {
   AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
   Trash2, FileEdit, Lightbulb, Target, Layers, Star,
-  ImagePlus, Music, User, ShieldAlert, Users
+  ImagePlus, Music, User, ShieldAlert, Users, MessageSquare,
+  Smile, WandSparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -102,10 +103,16 @@ export default function Home() {
   const [showComplianceFirstTime, setShowComplianceFirstTime] = useState(true); // 合规提示首次显示
   const [hideComplianceForever, setHideComplianceForever] = useState(false); // 不再提示合规
   const [currentSceneStep, setCurrentSceneStep] = useState(1); // 漏斗式场景流当前步骤 (1-3)
+  const [analysisLogic, setAnalysisLogic] = useState<string>('why_happen'); // 分析逻辑选择
+  const [toneStyle, setToneStyle] = useState<string>('casual'); // 语气风格
+  const [emojiDensity, setEmojiDensity] = useState<string>('medium'); // 表情包密度
+  const [enableRiskWarning, setEnableRiskWarning] = useState(true); // 风险提示开关（默认开启）
+  const [showTitlePreview, setShowTitlePreview] = useState(false); // 显示标题预览
+  const [generatedTitles, setGeneratedTitles] = useState<string[]>([]); // 生成的标题候选
+  const [selectedTitleIndex, setSelectedTitleIndex] = useState<number | null>(null); // 选中的标题索引
 
   // ==================== 输出状态 ====================
   const [titles, setTitles] = useState<TitleCandidate[]>([]);
-  const [selectedTitleIndex, setSelectedTitleIndex] = useState(0);
   const [content, setContent] = useState('');
   const [editableContent, setEditableContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -209,21 +216,14 @@ export default function Home() {
   };
 
   // ==================== 生成内容 ====================
-  const handleGenerate = useCallback(async () => {
+  // 生成标题候选（分步预览第一步）
+  const handleGenerateTitles = useCallback(async () => {
     setIsGenerating(true);
-    setContent('');
-    setTitles([]);
-    setTags([]);
-    setImageUrls([]);
-    setEngagementScore(null);
-    setRecommendedMusic([]);
-    setCurrentStep('准备中...');
-    setUserEdited(false);
-    setCompliance({ isCompliant: true, warnings: [] });
-    setViewMode('split'); // 默认使用拆分视图
-    setShowGuide(true);
-
-    const finalVideoStyle = videoStyle === 'custom' ? customVideoStyle : videoStyle;
+    setGeneratedTitles([]);
+    setSelectedTitleIndex(null);
+    setShowTitlePreview(true);
+    setCurrentStep('生成标题中...');
+    setViewMode('split');
 
     try {
       const response = await fetch('/api/generate', {
@@ -233,11 +233,115 @@ export default function Home() {
           topicType, userTag, contentType, keywords,
           analysisTarget, analysisTargetInput, contentDepth, focusDirections,
           contentSubType, platformCompare, includeExample, includeResearch,
-          videoDuration, videoStyle: finalVideoStyle, enableImageSuggestion,
+          videoDuration, videoStyle: videoStyle, enableImageSuggestion: false,
           titleStyles, customTitleStyle, personaType, customPersona,
-          additionalRequirements, customRequirement,
+          additionalRequirements: enableRiskWarning ? ['risk_warning'] : [],
+          customRequirement,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
-          hotTop3Tags: hotTop3Tags, // 传递热点Top3标签
+          hotTop3Tags: hotTop3Tags,
+          // 新增参数
+          analysisLogic,
+          toneStyle,
+          emojiDensity,
+          enableRiskWarning,
+          // 只生成标题
+          generateOnlyTitles: true,
+        }),
+      });
+
+      if (!response.ok) throw new Error('生成失败');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                switch (data.type) {
+                  case 'status':
+                    setCurrentStep(data.data);
+                    break;
+                  case 'titles':
+                    setGeneratedTitles(data.data.map((t: any) => t.title));
+                    // 默认选中第一个
+                    if (data.data.length > 0) {
+                      setSelectedTitleIndex(0);
+                    }
+                    break;
+                  case 'engagement_score':
+                    setCurrentStep('');
+                    break;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+        toast.success('标题已生成，请选择一个并生成完整内容');
+      }
+    } catch (error) {
+      console.error('生成错误:', error);
+      toast.error('生成失败，请重试');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [topicType, userTag, contentType, keywords, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, enableRiskWarning, personaType]);
+
+  // 选中标题并生成完整内容（分步预览第二步）
+  const handleSelectTitle = useCallback((index: number) => {
+    setSelectedTitleIndex(index);
+  }, []);
+
+  // 生成完整内容
+  const handleGenerateFullContent = useCallback(async () => {
+    if (selectedTitleIndex === null) {
+      toast.error('请先选择一个标题');
+      return;
+    }
+
+    setIsGenerating(true);
+    setContent('');
+    setTags([]);
+    setImageUrls([]);
+    setEngagementScore(null);
+    setRecommendedMusic([]);
+    setCurrentStep('准备中...');
+    setUserEdited(false);
+    setCompliance({ isCompliant: true, warnings: [] });
+    setShowGuide(true);
+
+    const selectedTitle = generatedTitles[selectedTitleIndex];
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topicType, userTag, contentType, keywords,
+          analysisTarget, analysisTargetInput, contentDepth, focusDirections,
+          contentSubType, platformCompare, includeExample, includeResearch,
+          videoDuration, videoStyle: videoStyle, enableImageSuggestion: true,
+          titleStyles, customTitleStyle, personaType, customPersona,
+          additionalRequirements: enableRiskWarning ? ['risk_warning'] : [],
+          customRequirement,
+          hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
+          hotTop3Tags: hotTop3Tags,
+          // 新增参数
+          analysisLogic,
+          toneStyle,
+          emojiDensity,
+          enableRiskWarning,
+          // 指定标题
+          selectedTitle,
         }),
       });
 
@@ -283,7 +387,6 @@ export default function Home() {
                     break;
                   case 'compliance':
                     setCompliance(data.data);
-                    // 如果不合规且不是用户编辑的，自动修正
                     if (!data.data.isCompliant && !userEdited && data.data.fixedContent) {
                       setEditableContent(data.data.fixedContent);
                       setContent(data.data.fixedContent);
@@ -303,6 +406,7 @@ export default function Home() {
           }
         }
         toast.success('生成完成！请选择您喜欢的内容');
+        setShowTitlePreview(false);
       }
     } catch (error) {
       console.error('生成错误:', error);
@@ -310,11 +414,24 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }, [topicType, userTag, contentType, keywords, analysisTarget, analysisTargetInput, 
-      contentDepth, focusDirections, contentSubType, platformCompare, includeExample, 
-      includeResearch, videoDuration, videoStyle, customVideoStyle, enableImageSuggestion, titleStyles, 
-      customTitleStyle, personaType, customPersona, additionalRequirements, customRequirement, 
-      selectedHotTopic, lockedModules, userEdited]);
+  }, [selectedTitleIndex, generatedTitles, topicType, userTag, contentType, keywords, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, enableRiskWarning, personaType, lockedModules, userEdited]);
+
+  // 保留原来的handleGenerate用于直接生成（兼容旧逻辑）
+  const handleGenerate = useCallback(async () => {
+    // 如果没有标题预览，直接生成完整内容
+    if (!showTitlePreview) {
+      await handleGenerateTitles();
+      // 等待标题生成后自动触发完整内容生成
+      const checkAndGenerate = () => {
+        if (generatedTitles.length > 0 && selectedTitleIndex !== null) {
+          handleGenerateFullContent();
+        } else {
+          setTimeout(checkAndGenerate, 500);
+        }
+      };
+      setTimeout(checkAndGenerate, 500);
+    }
+  }, [showTitlePreview, generatedTitles, selectedTitleIndex, handleGenerateTitles, handleGenerateFullContent]);
 
   // ==================== 自定义生图 ====================
   const handleCustomImageGenerate = async () => {
@@ -695,19 +812,40 @@ export default function Home() {
               </Card>
             )}
 
-            {/* ==================== Step 2: 核心关键词（动态填充）==================== */}
+            {/* ==================== Step 2: 主题与逻辑（整合分析配置）==================== */}
             {currentSceneStep === 2 && (
               <Card className="border-0 shadow-lg bg-white/90">
                 <CardHeader className="pb-2 pt-4 px-5">
                   <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">2</span>
-                    What
-                    <span className="text-xs font-normal text-gray-400 ml-1">选择或输入核心关键词</span>
+                    主题与逻辑
+                    <span className="text-xs font-normal text-gray-400 ml-1">确定内容骨架</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-5 pb-5 space-y-4">
                   
-                  {/* 子类型推荐标签（新增：MECE化） */}
+                  {/* 已选主题回顾 */}
+                  <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-medium">
+                        {USER_TAG_OPTIONS.find(o => o.value === userTag)?.label}
+                      </span>
+                      <span className="text-gray-400">→</span>
+                      <span className="px-2 py-0.5 bg-pink-500 text-white rounded-full text-[10px] font-medium">
+                        {TOPIC_TYPE_OPTIONS.find(o => o.value === topicType)?.label}
+                      </span>
+                      {keywords && (
+                        <>
+                          <span className="text-gray-400">→</span>
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium">
+                            {keywords}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 子类型推荐标签（MECE化） */}
                   {topicType === 'beginner_guide' && (
                     <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
                       <div className="flex items-center gap-1.5 mb-2">
@@ -848,9 +986,7 @@ export default function Home() {
                           {hotTopics.slice(0, 6).map((topic, index) => (
                             <button
                               key={topic.id}
-                              onClick={() => {
-                                handleSelectItem(topic.title);
-                              }}
+                              onClick={() => handleSelectItem(topic.title)}
                               className={`w-full p-2 rounded-lg text-left transition-all ${
                                 keywords === topic.title
                                   ? 'bg-orange-50 border border-orange-200'
@@ -873,70 +1009,37 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* 上一步 + 下一步 */}
-                  <div className="flex gap-2 pt-2">
-                    <Button 
-                      variant="outline"
-                      onClick={() => setCurrentSceneStep(1)}
-                      className="flex-1"
-                    >
-                      ← 上一步
-                    </Button>
-                    <Button 
-                      onClick={() => setCurrentSceneStep(3)}
-                      disabled={!keywords && !selectedHotTopic}
-                      className="flex-1 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
-                    >
-                      下一步 →
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* ==================== Step 3: 生成与设置（精简） ==================== */}
-            {currentSceneStep === 3 && (
-              <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
-                    生成内容
-                    <span className="text-xs font-normal text-gray-400 ml-1">
-                      {userTag === 'newbie' ? '已为您智能预设配置' : '可自定义高级选项'}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-5 pb-5 space-y-4">
-                  
-                  {/* 快捷人设（进阶/专业可见） */}
-                  {userTag !== 'newbie' && (
-                    <div>
-                      <Label className="text-xs text-gray-500 mb-1.5 block flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5" />
-                        快速人设
-                      </Label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {PERSONA_OPTIONS.filter(p => {
-                          if (userTag === 'active_trader') {
-                            return ['market_analyst', 'trading_expert', 'opportunity_finder'].includes(p.value);
-                          }
-                          return true;
-                        }).slice(0, 3).map(p => (
-                          <button
-                            key={p.value}
-                            onClick={() => setPersonaType(p.value)}
-                            className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                              personaType === p.value
-                                ? 'bg-rose-500 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            {p.icon} {p.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* 分析逻辑选择（整合分析配置） */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5" />
+                      分析逻辑（内容的骨架）
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'why_happen', label: '为什么发生', icon: '❓', desc: '原因分析+背景解读' },
+                        { value: 'market_view', label: '市场怎么看', icon: '📊', desc: '行情解读+趋势判断' },
+                        { value: 'how_to_do', label: '怎么操作', icon: '🎯', desc: '实操策略+买入卖出' },
+                        { value: 'deep_analysis', label: '深度解读', icon: '🔍', desc: '数据支撑+研报引用' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setAnalysisLogic(opt.value as any)}
+                          className={`p-3 rounded-xl text-left transition-all ${
+                            analysisLogic === opt.value
+                              ? 'bg-rose-50 border-2 border-rose-400'
+                              : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-lg">{opt.icon}</span>
+                            <span className="text-xs font-medium text-gray-800">{opt.label}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400">{opt.desc}</p>
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
                   {/* 内容深度（专业可见） */}
                   {userTag === 'professional' && (
@@ -960,81 +1063,222 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* 高级设置折叠区（进阶/专业可见） */}
-                  {userTag !== 'newbie' && (
-                    <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-between text-xs text-gray-500 h-8">
-                          <span className="flex items-center gap-1.5">
-                            <Settings2 className="h-3.5 w-3.5" />
-                            高级选项 {userTag === 'professional' && <Badge variant="outline" className="ml-1 text-[10px] bg-amber-50">专业</Badge>}
-                          </span>
-                          {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-3 pt-2">
-                        {/* 更多人设选项 */}
+                  {/* 上一步 + 下一步 */}
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setCurrentSceneStep(1)}
+                      className="flex-1"
+                    >
+                      ← 上一步
+                    </Button>
+                    <Button 
+                      onClick={() => setCurrentSceneStep(3)}
+                      disabled={!keywords && !selectedHotTopic}
+                      className="flex-1 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                    >
+                      下一步：风格设置 →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ==================== Step 3: 风格与润色（整合高级设置）==================== */}
+            {currentSceneStep === 3 && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
+                    风格与润色
+                    <span className="text-xs font-normal text-gray-400 ml-1">内容的皮肤</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 space-y-4">
+                  
+                  {/* 人设库选择 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      人设风格 {userTag === 'newbie' && <span className="text-[10px] text-green-500">(已智能推荐)</span>}
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PERSONA_OPTIONS.filter(p => {
+                        if (userTag === 'newbie') {
+                          return ['friendly_senior'].includes(p.value);
+                        }
+                        if (userTag === 'active_trader') {
+                          return ['market_analyst', 'trading_expert', 'opportunity_finder'].includes(p.value);
+                        }
+                        return true;
+                      }).map(p => (
+                        <button
+                          key={p.value}
+                          onClick={() => setPersonaType(p.value)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            personaType === p.value
+                              ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {p.icon} {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 语气词密度 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      语气风格
+                    </Label>
+                    <div className="flex gap-2">
+                      {[
+                        { value: 'casual', label: '轻松日常', icon: '😊', desc: '姐妹们、超好用' },
+                        { value: 'professional', label: '专业严谨', icon: '📋', desc: '数据说话、逻辑严密' },
+                        { value: 'enthusiastic', label: '热情洋溢', icon: '🔥', desc: '太牛了、绝绝子' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setToneStyle(opt.value as any)}
+                          className={`flex-1 p-2 rounded-xl text-center transition-all ${
+                            toneStyle === opt.value
+                              ? 'bg-rose-50 border-2 border-rose-400'
+                              : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          <span className="text-lg block mb-0.5">{opt.icon}</span>
+                          <span className="text-[10px] font-medium text-gray-700 block">{opt.label}</span>
+                          <span className="text-[9px] text-gray-400 block mt-0.5 hidden sm:block">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 表情包密度 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <Smile className="h-3.5 w-3.5" />
+                      表情包密度
+                    </Label>
+                    <div className="flex gap-2">
+                      {[
+                        { value: 'low', label: '少', desc: '1-2个', emoji: '🙂' },
+                        { value: 'medium', label: '适中', desc: '3-5个', emoji: '😊' },
+                        { value: 'high', label: '多', desc: '5个以上', emoji: '🤩' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setEmojiDensity(opt.value as any)}
+                          className={`flex-1 py-2 rounded-xl text-center transition-all ${
+                            emojiDensity === opt.value
+                              ? 'bg-rose-500 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span className="text-lg block">{opt.emoji}</span>
+                          <span className="text-[10px] font-medium">{opt.label}</span>
+                          <span className="text-[9px] opacity-70">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 风险提示（强化：财经必备） */}
+                  <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 text-amber-600" />
                         <div>
-                          <Label className="text-[10px] text-gray-400 mb-1 block">完整人设库</Label>
-                          <div className="flex flex-wrap gap-1">
-                            {PERSONA_OPTIONS.map(p => (
-                              <button
-                                key={p.value}
-                                onClick={() => setPersonaType(p.value)}
-                                className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
-                                  personaType === p.value
-                                    ? 'bg-rose-500 text-white'
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}
-                              >
-                                {p.icon} {p.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* 风险提示开关 */}
-                        <div className="flex items-center justify-between py-2 border-t">
-                          <span className="text-xs text-gray-600 flex items-center gap-1.5">
-                            <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
+                          <span className="text-xs font-medium text-amber-700 flex items-center gap-1">
                             风险提示
+                            <Badge variant="outline" className="ml-1 text-[9px] bg-amber-50">金融必备</Badge>
                           </span>
-                          <Switch
-                            checked={additionalRequirements.includes('risk_warning')}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setAdditionalRequirements([...additionalRequirements, 'risk_warning']);
-                              } else {
-                                setAdditionalRequirements(additionalRequirements.filter(r => r !== 'risk_warning'));
-                              }
-                            }}
-                          />
+                          <p className="text-[10px] text-amber-600 mt-0.5">开启后自动在文末添加免责声明</p>
                         </div>
-                      </CollapsibleContent>
-                    </Collapsible>
+                      </div>
+                      <Switch
+                        checked={enableRiskWarning}
+                        onCheckedChange={setEnableRiskWarning}
+                        className="data-[state=checked]:bg-amber-500"
+                      />
+                    </div>
+                    {enableRiskWarning && (
+                      <div className="mt-2 p-2 bg-white/80 rounded-lg">
+                        <p className="text-[10px] text-gray-500 italic">
+                          "以上内容仅供参考，不构成投资建议。投资有风险，入市需谨慎。"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 生成按钮 - 改为先生成标题预览 */}
+                  {showTitlePreview ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="h-4 w-4 text-indigo-600" />
+                          <span className="text-xs font-medium text-indigo-700">标题候选</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="ml-auto h-6 text-[10px]"
+                            onClick={handleGenerateTitles}
+                          >
+                            换一批
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {generatedTitles.map((title, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleSelectTitle(index)}
+                              className={`w-full p-2.5 rounded-lg text-left transition-all ${
+                                selectedTitleIndex === index
+                                  ? 'bg-white border-2 border-rose-400 shadow-sm'
+                                  : 'bg-white/50 hover:bg-white border border-transparent'
+                              }`}
+                            >
+                              <p className="text-xs text-gray-800 font-medium">{title}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={handleGenerateFullContent}
+                        disabled={selectedTitleIndex === null}
+                        className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg"
+                      >
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        {isGenerating ? '生成中...' : '生成完整内容 ✨'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={handleGenerateTitles}
+                      disabled={isGenerating}
+                      className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          生成中...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-4 w-4 mr-2" />
+                          生成标题预览 ✨
+                        </>
+                      )}
+                    </Button>
                   )}
 
-                  {/* 生成按钮 */}
-                  <Button 
-                    onClick={handleGenerate}
-                    disabled={isGenerating || (!keywords && !selectedHotTopic)}
-                    className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        {currentStep || '生成中...'}
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        一键生成爆款内容 ✨
-                      </>
-                    )}
-                  </Button>
-
                   {/* 返回修改 */}
-                  <Button variant="ghost" onClick={() => setCurrentSceneStep(2)} className="w-full text-xs text-gray-400 h-7">
+                  <Button variant="ghost" onClick={() => {
+                    setShowTitlePreview(false);
+                    setCurrentSceneStep(2);
+                  }} className="w-full text-xs text-gray-400 h-7">
                     ← 返回修改关键词
                   </Button>
                 </CardContent>
