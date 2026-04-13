@@ -1073,6 +1073,68 @@ export default function Home() {
                     </div>
                   )}
 
+                  {/* 内容设置 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      内容设置
+                    </Label>
+                    
+                    {/* 视频时长（仅视频脚本显示） */}
+                    {contentType === 'video_script' && (
+                      <div className="mb-3">
+                        <Label className="text-[10px] text-gray-400 mb-1 block">视频时长</Label>
+                        <div className="flex gap-1.5">
+                          {['15s', '30s', '60s', '90s'].map(duration => (
+                            <button
+                              key={duration}
+                              onClick={() => setVideoDuration(duration as any)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                videoDuration === duration
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              {duration}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 视频风格 */}
+                    {contentType === 'video_script' && (
+                      <div className="mb-3">
+                        <Label className="text-[10px] text-gray-400 mb-1 block">视频风格</Label>
+                        <select
+                          value={videoStyle}
+                          onChange={(e) => setVideoStyle(e.target.value)}
+                          className="w-full h-9 px-3 rounded-lg border border-gray-200 text-xs bg-white"
+                        >
+                          <option value="science">科普风格</option>
+                          <option value="humor">幽默风格</option>
+                          <option value="serious">严谨风格</option>
+                          <option value="trendy">潮流风格</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* 参考配图 */}
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div>
+                        <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                          <ImageIcon className="h-3.5 w-3.5" />
+                          参考配图
+                        </span>
+                        <p className="text-[10px] text-gray-400 mt-0.5">生成内容时附带配图</p>
+                      </div>
+                      <Switch
+                        checked={enableImageSuggestion}
+                        onCheckedChange={setEnableImageSuggestion}
+                      />
+                    </div>
+                  </div>
+
                   {/* 上一步 + 下一步 */}
                   <div className="flex gap-2 pt-2">
                     <Button 
@@ -1195,34 +1257,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* 风险提示（强化：财经必备） */}
-                  <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ShieldAlert className="h-4 w-4 text-amber-600" />
-                        <div>
-                          <span className="text-xs font-medium text-amber-700 flex items-center gap-1">
-                            风险提示
-                            <Badge variant="outline" className="ml-1 text-[9px] bg-amber-50">金融必备</Badge>
-                          </span>
-                          <p className="text-[10px] text-amber-600 mt-0.5">开启后自动在文末添加免责声明</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={enableRiskWarning}
-                        onCheckedChange={setEnableRiskWarning}
-                        className="data-[state=checked]:bg-amber-500"
-                      />
-                    </div>
-                    {enableRiskWarning && (
-                      <div className="mt-2 p-2 bg-white/80 rounded-lg">
-                        <p className="text-[10px] text-gray-500 italic">
-                          "以上内容仅供参考，不构成投资建议。投资有风险，入市需谨慎。"
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
                   {/* 标题风格 */}
                   <div>
                     <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
@@ -1324,72 +1358,55 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* 生成按钮 - 改为先生成标题预览 */}
-                  {showTitlePreview ? (
-                    <div className="space-y-3">
-                      <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Sparkles className="h-4 w-4 text-indigo-600" />
-                          <span className="text-xs font-medium text-indigo-700">标题候选</span>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="ml-auto h-6 text-[10px]"
-                            onClick={handleGenerateTitles}
-                          >
-                            换一批
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {generatedTitles.map((title, index) => (
-                            <button
-                              key={index}
-                              onClick={() => handleSelectTitle(index)}
-                              className={`w-full p-2.5 rounded-lg text-left transition-all ${
-                                selectedTitleIndex === index
-                                  ? 'bg-white border-2 border-rose-400 shadow-sm'
-                                  : 'bg-white/50 hover:bg-white border border-transparent'
-                              }`}
-                            >
-                              <p className="text-xs text-gray-800 font-medium">{title}</p>
-                            </button>
-                          ))}
+                  {/* 生成按钮 - 直接生成内容 */}
+                  <Button 
+                    onClick={handleGenerate}
+                    disabled={isGenerating || (!keywords && !selectedHotTopic)}
+                    className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        {currentStep || '生成中...'}
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        一键生成爆款内容 ✨
+                      </>
+                    )}
+                  </Button>
+
+                  {/* 风险提示（移到最下面） */}
+                  <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 text-amber-600" />
+                        <div>
+                          <span className="text-xs font-medium text-amber-700 flex items-center gap-1">
+                            风险提示
+                            <Badge variant="outline" className="ml-1 text-[9px] bg-amber-50">金融必备</Badge>
+                          </span>
+                          <p className="text-[10px] text-amber-600 mt-0.5">开启后自动在文末添加免责声明</p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={handleGenerateFullContent}
-                        disabled={selectedTitleIndex === null}
-                        className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg"
-                      >
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        {isGenerating ? '生成中...' : '生成完整内容 ✨'}
-                      </Button>
+                      <Switch
+                        checked={enableRiskWarning}
+                        onCheckedChange={setEnableRiskWarning}
+                        className="data-[state=checked]:bg-amber-500"
+                      />
                     </div>
-                  ) : (
-                    <Button 
-                      onClick={handleGenerateTitles}
-                      disabled={isGenerating}
-                      className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          生成中...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="h-4 w-4 mr-2" />
-                          生成标题预览 ✨
-                        </>
-                      )}
-                    </Button>
-                  )}
+                    {enableRiskWarning && (
+                      <div className="mt-2 p-2 bg-white/80 rounded-lg">
+                        <p className="text-[10px] text-gray-500 italic">
+                          "以上内容仅供参考，不构成投资建议。投资有风险，入市需谨慎。"
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   {/* 返回修改 */}
-                  <Button variant="ghost" onClick={() => {
-                    setShowTitlePreview(false);
-                    setCurrentSceneStep(2);
-                  }} className="w-full text-xs text-gray-400 h-7">
+                  <Button variant="ghost" onClick={() => setCurrentSceneStep(2)} className="w-full text-xs text-gray-400 h-7">
                     ← 返回修改关键词
                   </Button>
                 </CardContent>
