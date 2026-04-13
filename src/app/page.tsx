@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from '@/components/ui/select';
@@ -19,7 +20,7 @@ import {
   AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
   Trash2, FileEdit, Lightbulb, Target, Layers, Star,
-  ImagePlus, Music
+  ImagePlus, Music, User, ShieldAlert, Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -100,6 +101,7 @@ export default function Home() {
   const [showGuide, setShowGuide] = useState(true); // 显示引导提示
   const [showComplianceFirstTime, setShowComplianceFirstTime] = useState(true); // 合规提示首次显示
   const [hideComplianceForever, setHideComplianceForever] = useState(false); // 不再提示合规
+  const [currentSceneStep, setCurrentSceneStep] = useState(1); // 漏斗式场景流当前步骤 (1-3)
 
   // ==================== 输出状态 ====================
   const [titles, setTitles] = useState<TitleCandidate[]>([]);
@@ -505,230 +507,536 @@ export default function Home() {
           </Button>
         </div>
 
+        {/* ==================== 漏斗式场景流（线性化交互）==================== */}
+        {/* 场景流进度指示器 */}
+        <Card className="border-0 shadow-lg bg-white/90 mb-3">
+          <CardContent className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              {/* 步骤指示器 */}
+              <div className="flex items-center gap-2 flex-1">
+                {['身份与场景', '核心关键词', '生成内容'].map((step, index) => {
+                  const stepNum = index + 1;
+                  const isActive = currentSceneStep >= stepNum;
+                  const isCurrent = currentSceneStep === stepNum;
+                  return (
+                    <div key={step} className="flex items-center gap-1.5">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        isActive 
+                          ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white' 
+                          : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        {isActive && currentSceneStep > stepNum ? '✓' : stepNum}
+                      </div>
+                      <span className={`text-xs font-medium hidden sm:block ${
+                        isCurrent ? 'text-rose-600' : isActive ? 'text-gray-600' : 'text-gray-400'
+                      }`}>
+                        {step}
+                      </span>
+                      {index < 2 && (
+                        <div className={`h-0.5 flex-1 min-w-[20px] rounded-full ${
+                          currentSceneStep > stepNum ? 'bg-rose-400' : 'bg-gray-200'
+                        }`} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* 跳过高级选项提示 */}
+              {userTag === 'newbie' && (
+                <span className="text-[10px] text-gray-400 hidden md:block">
+                  已为您智能预设配置 ✨
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 md:gap-5">
-          {/* ==================== 左侧：输入区域 ==================== */}
+          {/* ==================== 左侧：输入区域（漏斗式场景流） ==================== */}
           <div className="lg:col-span-5 space-y-3 sm:space-y-4">
             
-            {/* 基础设置 */}
-            <Card className="border-0 shadow-lg bg-white/90">
-              <CardHeader className="pb-2 pt-3 sm:pt-4 px-4 sm:px-5">
-                <CardTitle className="text-sm font-semibold text-gray-800">基础设置</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-5 pb-4 space-y-4">
-                
-                {/* 目标用户 - 分段控件 */}
-                <div>
-                  <Label className="text-xs text-gray-500 mb-1.5 block">目标用户</Label>
-                  <div className="grid grid-cols-3 gap-1 p-1 bg-gray-100 rounded-xl">
-                    {USER_TAG_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setUserTag(opt.value)}
-                        className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                          userTag === opt.value
-                            ? 'bg-white text-rose-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 选题类型 - 分段控件 */}
-                <div>
-                  <Label className="text-xs text-gray-500 mb-1.5 block">选题类型</Label>
-                  <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl">
-                    {TOPIC_TYPE_OPTIONS.map(opt => {
-                      const isCompatible = compatibleTopics.includes(opt.value);
-                      return (
-                        <button
-                          key={opt.value}
-                          onClick={() => isCompatible && setTopicType(opt.value)}
-                          className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
-                            topicType === opt.value
-                              ? 'bg-white text-rose-600 shadow-sm'
-                              : isCompatible
-                                ? 'text-gray-600 hover:text-gray-900'
-                                : 'text-gray-400 cursor-not-allowed opacity-50'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    {TOPIC_TYPE_OPTIONS.find(o => o.value === topicType)?.description}
-                  </p>
-                </div>
-
-                {/* 内容形式 */}
-                <div>
-                  <Label className="text-xs text-gray-500 mb-1.5 block">内容形式</Label>
-                  <div className="flex gap-2">
-                    {CONTENT_TYPE_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setContentType(opt.value)}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-                          contentType === opt.value
-                            ? 'bg-rose-500 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span>{opt.icon}</span>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 关键词 */}
-                <div>
-                  <Label className="text-xs text-gray-500 mb-1.5 block">关键词</Label>
-                  <Input
-                    placeholder="输入关键词或从下方选择..."
-                    value={keywords}
-                    onChange={(e) => setKeywords(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* ==================== 热榜/推荐区域 ==================== */}
-            {showHotTopics && (
+            {/* ==================== Step 1: 身份与场景选择 ==================== */}
+            {currentSceneStep === 1 && (
               <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                      <Flame className="h-4 w-4 text-orange-500" />
-                      实时热搜
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      {hotUpdateTime && (
-                        <span className="text-[10px] text-gray-400">{hotUpdateTime}</span>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 w-7 p-0" 
-                        onClick={() => loadHotTopics()} 
-                        disabled={hotTopicsLoading}
-                      >
-                        <RefreshCw className={`h-3.5 w-3.5 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
-                      </Button>
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">1</span>
+                    Who & Why
+                    <span className="text-xs font-normal text-gray-400 ml-1">确定目标用户与内容场景</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 space-y-5">
+                  
+                  {/* 目标用户选择 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5" />
+                      我要写给谁？
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {USER_TAG_OPTIONS.map(opt => {
+                        const icons: Record<string, string> = {
+                          newbie: '🌱',
+                          active_trader: '📊',
+                          professional: '🎯'
+                        };
+                        const descriptions: Record<string, string> = {
+                          newbie: '投资小白',
+                          active_trader: '有经验的投资者',
+                          professional: '资深专业投资者'
+                        };
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setUserTag(opt.value);
+                              // 自动设置默认值
+                              if (opt.value === 'newbie') {
+                                setPersonaType('friendly_senior');
+                                setContentType('article');
+                                setTopicType('beginner_guide');
+                              } else if (opt.value === 'active_trader') {
+                                setPersonaType('market_analyst');
+                                setContentType('article');
+                              }
+                            }}
+                            className={`p-3 rounded-xl text-center transition-all ${
+                              userTag === opt.value
+                                ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md ring-2 ring-rose-300'
+                                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                          >
+                            <span className="text-xl mb-1 block">{icons[opt.value]}</span>
+                            <span className="text-xs font-medium block">{opt.label}</span>
+                            <span className={`text-[10px] block mt-0.5 ${
+                              userTag === opt.value ? 'text-rose-100' : 'text-gray-400'
+                            }`}>
+                              {descriptions[opt.value]}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-5 pb-3 pt-0">
-                  {/* 板块Tab切换 + 筛选开关 */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex gap-1 overflow-x-auto pb-1 flex-1">
-                      {HOT_CATEGORIES.filter(cat => !filterSensitive || !cat.sensitive).map((cat) => (
+
+                  {/* 选题类型选择 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <Target className="h-3.5 w-3.5" />
+                      写什么类型的内容？
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {TOPIC_TYPE_OPTIONS.filter(opt => {
+                        const isCompatible = compatibleTopics.includes(opt.value);
+                        if (userTag === 'newbie') {
+                          return ['beginner_guide', 'market_hot'].includes(opt.value);
+                        }
+                        return isCompatible;
+                      }).map(opt => {
+                        const isCompatible = userTag === 'newbie' 
+                          ? ['beginner_guide', 'market_hot'].includes(opt.value)
+                          : compatibleTopics.includes(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => isCompatible && setTopicType(opt.value)}
+                            disabled={!isCompatible}
+                            className={`p-3 rounded-xl text-left transition-all ${
+                              topicType === opt.value
+                                ? 'bg-rose-50 border-2 border-rose-400'
+                                : isCompatible
+                                  ? 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                                  : 'bg-gray-50 opacity-50 cursor-not-allowed'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{opt.icon}</span>
+                              <span className="text-xs font-medium text-gray-800">{opt.label}</span>
+                            </div>
+                            <p className="text-[10px] text-gray-400 line-clamp-2">{opt.description}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 内容形式 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      选择输出形式
+                    </Label>
+                    <div className="flex gap-2">
+                      {CONTENT_TYPE_OPTIONS.map(opt => (
                         <button
-                          key={cat.id}
-                          onClick={() => handleCategoryChange(cat.id)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                            hotCategory === cat.id
-                              ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          key={opt.value}
+                          onClick={() => setContentType(opt.value)}
+                          className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+                            contentType === opt.value
+                              ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
-                          <span className="mr-1">{cat.icon}</span>
-                          {cat.name}
+                          <span>{opt.icon}</span>
+                          {opt.label}
                         </button>
                       ))}
                     </div>
-                    {/* 敏感内容筛选开关 */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[10px] text-gray-400">过滤敏感</span>
-                      <Switch
-                        checked={filterSensitive}
-                        onCheckedChange={setFilterSensitive}
-                        className="h-4 w-7 scale-90"
-                      />
-                    </div>
                   </div>
+
+                  {/* 下一步按钮 */}
+                  <Button 
+                    onClick={() => setCurrentSceneStep(2)}
+                    className="w-full h-11 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                  >
+                    下一步：选择关键词 →
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ==================== Step 2: 核心关键词（动态填充）==================== */}
+            {currentSceneStep === 2 && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">2</span>
+                    What
+                    <span className="text-xs font-normal text-gray-400 ml-1">选择或输入核心关键词</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 space-y-4">
                   
-                  {/* 热点Top3标签 - 线性接入 */}
-                  {hotTop3Tags.length > 0 && (
-                    <div className="mb-3 p-2 bg-gradient-to-r from-orange-50 to-rose-50 rounded-lg border border-orange-100">
-                      <div className="flex items-center gap-1 mb-1.5">
-                        <Sparkles className="h-3 w-3 text-orange-500" />
-                        <span className="text-[10px] text-orange-600 font-medium">热点Top3标签</span>
+                  {/* 子类型推荐标签（新增：MECE化） */}
+                  {topicType === 'beginner_guide' && (
+                    <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Lightbulb className="h-3.5 w-3.5 text-green-600" />
+                        <span className="text-xs font-medium text-green-700">推荐切入点</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {hotTop3Tags.map((tag, index) => (
+                        {['ETF基金', '理财认知', '基金定投', '国债', '货币基金', '可转债'].map(tag => (
                           <button
-                            key={index}
+                            key={tag}
                             onClick={() => setKeywords(tag)}
                             className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                               keywords === tag
-                                ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
-                                : 'bg-white text-gray-700 hover:from-orange-500 hover:to-rose-500 hover:text-white border border-gray-200'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-white text-green-700 border border-green-200 hover:bg-green-100'
                             }`}
                           >
-                            {index === 0 && <span className="mr-1">🔥</span>}
                             {tag}
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
-                  
-                  {/* 热点列表 */}
-                  {hotTopicsLoading && hotTopics.length === 0 ? (
-                    <div className="flex items-center justify-center py-4 text-gray-400 text-sm">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      加载中...
-                    </div>
-                  ) : hotTopics.length === 0 ? (
-                    <div className="flex items-center justify-center py-4 text-gray-400 text-sm">
-                      暂无热点数据
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {hotTopics.slice(0, 8).map((topic, index) => (
-                        <button
-                          key={topic.id}
-                          onClick={() => handleSelectItem(topic.title)}
-                          className={`w-full p-2 rounded-lg text-left transition-all ${
-                            keywords === topic.title
-                              ? 'bg-orange-50 border border-orange-200'
-                              : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {/* 排名 */}
-                            <span className={`w-5 h-5 rounded-lg text-[10px] flex items-center justify-center font-bold flex-shrink-0 ${
-                              index < 3 
-                                ? 'bg-gradient-to-br from-orange-400 to-rose-500 text-white' 
-                                : 'bg-gray-200 text-gray-600'
-                            }`}>
-                              {index + 1}
-                            </span>
-                            {/* 标题 */}
-                            <p className="text-xs text-gray-700 line-clamp-1 flex-1 font-medium">
-                              {topic.title}
-                            </p>
-                            {/* 热度 */}
-                            {(topic as any).hot && (
-                              <span className="text-[10px] text-orange-500 font-medium flex-shrink-0">
-                                🔥 {(topic as any).hot}
-                              </span>
-                            )}
-                            {/* 来源 */}
-                            <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:block">
-                              {topic.source}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
+
+                  {topicType === 'advanced_invest' && (
+                    <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Lightbulb className="h-3.5 w-3.5 text-blue-600" />
+                        <span className="text-xs font-medium text-blue-700">推荐切入点</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['技术分析', '波段操作', '仓位管理', '止损策略', '财报解读', '行业研报'].map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => setKeywords(tag)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                              keywords === tag
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-100'
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
+
+                  {topicType === 'professional_analysis' && (
+                    <div className="p-3 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Lightbulb className="h-3.5 w-3.5 text-purple-600" />
+                        <span className="text-xs font-medium text-purple-700">推荐切入点</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['宏观分析', '行业周期', '估值体系', '财报深读', '风险定价', '配置策略'].map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => setKeywords(tag)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                              keywords === tag
+                                ? 'bg-purple-500 text-white'
+                                : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-100'
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 关键词输入 */}
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-1.5 block">
+                      核心关键词 {keywords && <span className="text-rose-500">(已选: {keywords})</span>}
+                    </Label>
+                    <Input
+                      placeholder={topicType === 'market_hot' ? '输入想了解的话题...' : '输入或选择上方切入点...'}
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      className="h-10"
+                    />
+                  </div>
+
+                  {/* 动态显示：市场热点热搜 */}
+                  {topicType === 'market_hot' && (
+                    <div className="animate-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-xs text-gray-500 flex items-center gap-1.5">
+                          <Flame className="h-3.5 w-3.5 text-orange-500" />
+                          实时热搜（点击即可选择）
+                        </Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 w-6 p-0" 
+                          onClick={() => loadHotTopics()}
+                          disabled={hotTopicsLoading}
+                        >
+                          <RefreshCw className={`h-3 w-3 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                      
+                      {/* 热点Top3标签 */}
+                      {hotTop3Tags.length > 0 && (
+                        <div className="mb-2 p-2 bg-gradient-to-r from-orange-50 to-rose-50 rounded-lg border border-orange-100">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Sparkles className="h-3 w-3 text-orange-500" />
+                            <span className="text-[10px] text-orange-600 font-medium">🔥 热点Top3</span>
+                          </div>
+                          <div className="flex gap-1.5">
+                            {hotTop3Tags.map((tag, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setKeywords(tag)}
+                                className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
+                                  keywords === tag
+                                    ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white'
+                                    : 'bg-white text-gray-700 border border-gray-200 hover:border-orange-300'
+                                }`}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 热搜列表 */}
+                      {hotTopicsLoading && hotTopics.length === 0 ? (
+                        <div className="flex items-center justify-center py-4 text-gray-400 text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          加载中...
+                        </div>
+                      ) : (
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {hotTopics.slice(0, 6).map((topic, index) => (
+                            <button
+                              key={topic.id}
+                              onClick={() => {
+                                handleSelectItem(topic.title);
+                              }}
+                              className={`w-full p-2 rounded-lg text-left transition-all ${
+                                keywords === topic.title
+                                  ? 'bg-orange-50 border border-orange-200'
+                                  : 'bg-gray-50 hover:bg-gray-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={`w-5 h-5 rounded-lg text-[10px] flex items-center justify-center font-bold ${
+                                  index < 3 ? 'bg-orange-400 text-white' : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                  {index + 1}
+                                </span>
+                                <p className="text-xs text-gray-700 line-clamp-1 flex-1">{topic.title}</p>
+                                <span className="text-[10px] text-gray-400">{topic.source}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 上一步 + 下一步 */}
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setCurrentSceneStep(1)}
+                      className="flex-1"
+                    >
+                      ← 上一步
+                    </Button>
+                    <Button 
+                      onClick={() => setCurrentSceneStep(3)}
+                      disabled={!keywords && !selectedHotTopic}
+                      className="flex-1 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                    >
+                      下一步 →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ==================== Step 3: 生成与设置（精简） ==================== */}
+            {currentSceneStep === 3 && (
+              <Card className="border-0 shadow-lg bg-white/90">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
+                    生成内容
+                    <span className="text-xs font-normal text-gray-400 ml-1">
+                      {userTag === 'newbie' ? '已为您智能预设配置' : '可自定义高级选项'}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 space-y-4">
+                  
+                  {/* 快捷人设（进阶/专业可见） */}
+                  {userTag !== 'newbie' && (
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1.5 block flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5" />
+                        快速人设
+                      </Label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {PERSONA_OPTIONS.filter(p => {
+                          if (userTag === 'active_trader') {
+                            return ['market_analyst', 'trading_expert', 'opportunity_finder'].includes(p.value);
+                          }
+                          return true;
+                        }).slice(0, 3).map(p => (
+                          <button
+                            key={p.value}
+                            onClick={() => setPersonaType(p.value)}
+                            className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                              personaType === p.value
+                                ? 'bg-rose-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {p.icon} {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 内容深度（专业可见） */}
+                  {userTag === 'professional' && (
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1.5 block">内容深度</Label>
+                      <div className="flex gap-2">
+                        {CONTENT_DEPTH_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setContentDepth(opt.value)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                              contentDepth === opt.value
+                                ? 'bg-purple-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 高级设置折叠区（进阶/专业可见） */}
+                  {userTag !== 'newbie' && (
+                    <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between text-xs text-gray-500 h-8">
+                          <span className="flex items-center gap-1.5">
+                            <Settings2 className="h-3.5 w-3.5" />
+                            高级选项 {userTag === 'professional' && <Badge variant="outline" className="ml-1 text-[10px] bg-amber-50">专业</Badge>}
+                          </span>
+                          {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-2">
+                        {/* 更多人设选项 */}
+                        <div>
+                          <Label className="text-[10px] text-gray-400 mb-1 block">完整人设库</Label>
+                          <div className="flex flex-wrap gap-1">
+                            {PERSONA_OPTIONS.map(p => (
+                              <button
+                                key={p.value}
+                                onClick={() => setPersonaType(p.value)}
+                                className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
+                                  personaType === p.value
+                                    ? 'bg-rose-500 text-white'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {p.icon} {p.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* 风险提示开关 */}
+                        <div className="flex items-center justify-between py-2 border-t">
+                          <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                            <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
+                            风险提示
+                          </span>
+                          <Switch
+                            checked={additionalRequirements.includes('risk_warning')}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setAdditionalRequirements([...additionalRequirements, 'risk_warning']);
+                              } else {
+                                setAdditionalRequirements(additionalRequirements.filter(r => r !== 'risk_warning'));
+                              }
+                            }}
+                          />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+                  {/* 生成按钮 */}
+                  <Button 
+                    onClick={handleGenerate}
+                    disabled={isGenerating || (!keywords && !selectedHotTopic)}
+                    className="w-full h-12 bg-gradient-to-r from-rose-500 via-pink-500 to-orange-500 hover:from-rose-600 hover:via-pink-600 hover:to-orange-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        {currentStep || '生成中...'}
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        一键生成爆款内容 ✨
+                      </>
+                    )}
+                  </Button>
+
+                  {/* 返回修改 */}
+                  <Button variant="ghost" onClick={() => setCurrentSceneStep(2)} className="w-full text-xs text-gray-400 h-7">
+                    ← 返回修改关键词
+                  </Button>
                 </CardContent>
               </Card>
             )}
