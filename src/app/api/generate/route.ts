@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
       topicType, userTag, contentType, keywords,
       hotTopicInfo, titleStyles, personaType,
       enableImageSuggestion, titles: inputTitles,
-      hotTop3Tags // 接收热点Top3标签
+      hotTop3Tags, // 接收热点Top3标签
+      selectedTitle // 用户选择的标题
     } = body;
 
     const isVideo = contentType === 'video_script';
@@ -102,11 +103,13 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`));
 
           // 2. 生成正文（使用结构化指令流 - 内置合规检测）
+          // 如果用户选择了标题，使用用户选择的标题；否则使用第一个生成的标题
+          const usedTitle = selectedTitle || titles[0]?.title || '';
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容（自动合规检测中）...' })}\n\n`));
           
           const contentStream = await generateStructuredContentStream(
             topicType, userTag, contentType, keywords, hotTopicInfo,
-            titles, hotTopicTags
+            usedTitle, hotTopicTags
           );
           
           for await (const chunk of contentStream) {
@@ -115,13 +118,13 @@ export async function POST(request: NextRequest) {
           }
 
           // 3. 生成标签（基于热点Top3 + 扩展）
-          const tags = await generateStructuredTags(topicType, keywords, titles[0]?.title || '', accumulatedContent, hotTopicTags);
+          const tags = await generateStructuredTags(topicType, keywords, usedTitle, accumulatedContent, hotTopicTags);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`));
 
           // 4. 生成配图（3:4比例 + 视觉词）
           if (enableImageSuggestion || isVideo) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图...' })}\n\n`));
-            const imageUrls = await generateStructuredImages(titles[0]?.title || '', accumulatedContent, userTag);
+            const imageUrls = await generateStructuredImages(usedTitle, accumulatedContent, userTag);
             if (imageUrls.length > 0) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`));
             }
@@ -130,7 +133,7 @@ export async function POST(request: NextRequest) {
           // 5. 后置合规审查（静默拦截）
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在进行合规审查...' })}\n\n`));
           const complianceResult = await callComplianceCheck(
-            titles[0]?.title || '', 
+            usedTitle, 
             accumulatedContent, 
             tags.join(' ')
           );
