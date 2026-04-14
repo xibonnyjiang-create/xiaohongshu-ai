@@ -289,6 +289,7 @@ async function* generateStructuredContentStream(
       keywords: keywords,
       hotTopicInfo: hotTopicInfo,
       contentType: 'video_script',
+      personaType: personaType,
     }) + `
 
 【视频脚本补充要求】
@@ -314,6 +315,7 @@ ${buildStructuredPrompt({
   keywords: keywords,
   hotTopicInfo: hotTopicInfo,
   contentType: 'article',
+  personaType: personaType,
 })}
 
 【内容结构 - 必须包含三部分】

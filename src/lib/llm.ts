@@ -95,8 +95,9 @@ export function buildStructuredPrompt(params: {
   keywords?: string;
   hotTopicInfo?: string;
   contentType: string;
+  personaType?: string;
 }): string {
-  const { topicType, userTag, title, keywords, hotTopicInfo, contentType } = params;
+  const { topicType, userTag, title, keywords, hotTopicInfo, contentType, personaType } = params;
 
   // 用户层级对应的具体要求
   const userLevelRequirements = {
@@ -123,6 +124,53 @@ export function buildStructuredPrompt(params: {
 `,
   };
 
+  // 人设风格对应的具体要求
+  const personaRequirements = {
+    hardcore_uncle: `
+- 硬核财经大叔人设
+- 语气沉稳老练，带点中年男人的睿智感
+- 常用词：我跟你说、记住、这很重要、你们年轻人不懂
+- 分析深入透彻，喜欢引用历史案例和数据
+- 偶尔调侃，自带权威感但不失幽默
+`,
+    sweet_girl: `
+- 甜妹理财科普人设
+- 语气甜美亲切，像闺蜜聊天
+- 常用词：姐妹们、真的超棒、小可爱们、冲冲冲
+- 用生活化例子解释复杂概念
+- 表情丰富，情绪饱满但不失专业
+`,
+    veteran_trader: `
+- 实战派老股民人设
+- 语气实战派，有多年市场经验
+- 常用词：我当年、实战经验、散户思维、主力套路
+- 分享实操心得，不纸上谈兵
+- 直接给出可操作建议
+`,
+    finance_scholar: `
+- 金融学霸人设
+- 语气理性严谨，学术气息
+- 常用词：从理论角度、从数据来看、研究表明
+- 分析框架完整，逻辑严密
+- 喜欢引用学术研究和权威报告
+`,
+    roaster: `
+- 吐槽型财经博主
+- 语气幽默犀利，敢于调侃
+- 常用词：我就想问、这不是扯淡吗、笑死、真的服了
+- 用吐槽方式揭露市场真相
+- 自带流量属性，容易引发共鸣
+`,
+    custom: `
+- 自定义人设风格
+- 根据用户描述调整语气和表达方式
+`,
+  };
+
+  // 获取人设要求
+  const selectedPersona = personaType || 'custom';
+  const personaReq = personaRequirements[selectedPersona as keyof typeof personaRequirements] || personaRequirements.custom;
+
   return `${AGENT_SYSTEM_PROMPT}
 
 ${COMPLIANCE_RULES}
@@ -141,8 +189,11 @@ ${hotTopicInfo ? `最新热点资讯：\n${hotTopicInfo}` : ''}
 【用户层级处理规则】
 ${userLevelRequirements[userTag as keyof typeof userLevelRequirements] || userLevelRequirements.nubie}
 
+【人设风格要求】
+${personaReq}
+
 【执行要求】
-1. 严格按照用户层级输出对应风格内容
+1. 严格按照用户层级和人设风格输出对应内容
 2. 发现违规词自动替换，不询问用户
 3. 输出纯文本，无Markdown格式
 4. 标题+正文一次性输出

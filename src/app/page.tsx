@@ -1177,31 +1177,31 @@ export default function Home() {
                   <div>
                     <Label className="text-xs text-gray-500 mb-2 block flex items-center gap-1.5">
                       <User className="h-3.5 w-3.5" />
-                      人设风格 {userTag === 'newbie' && <span className="text-[10px] text-green-500">(已智能推荐)</span>}
+                      人设风格
                     </Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PERSONA_OPTIONS.filter(p => {
-                        if (userTag === 'newbie') {
-                          return ['friendly_senior'].includes(p.value);
-                        }
-                        if (userTag === 'active_trader') {
-                          return ['market_analyst', 'trading_expert', 'opportunity_finder'].includes(p.value);
-                        }
-                        return true;
-                      }).map(p => (
+                    <div className="grid grid-cols-3 gap-2">
+                      {PERSONA_OPTIONS.map(p => (
                         <button
                           key={p.value}
                           onClick={() => setPersonaType(p.value)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          className={`p-2 rounded-xl text-center transition-all ${
                             personaType === p.value
                               ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
-                          {p.icon} {p.label}
+                          <div className="text-xs font-medium">{p.label}</div>
                         </button>
                       ))}
                     </div>
+                    {personaType === 'custom' && (
+                      <Input
+                        placeholder="描述你的人设风格..."
+                        value={customPersona}
+                        onChange={(e) => setCustomPersona(e.target.value)}
+                        className="h-9 mt-2 text-xs"
+                      />
+                    )}
                   </div>
 
                   {/* 语气词密度 */}
