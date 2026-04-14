@@ -1480,7 +1480,7 @@ export default function Home() {
                   <div className="space-y-4">
                     
                     {/* 引导提示 - 拆分视图时显示 */}
-                    {viewMode === 'split' && showGuide && titles.length > 0 && (
+                    {viewMode === 'split' && showGuide && titles.length > 0 && !isGenerating && (
                       <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
                         <div className="flex items-start gap-2">
                           <Lightbulb className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -1495,62 +1495,156 @@ export default function Home() {
                       </div>
                     )}
                     
-                    {/* 整合视图 - 边生成边显示 */}
-                    {viewMode === 'integrated' && (
+                    {/* 拆分视图 - 边生成边显示 */}
+                    {viewMode === 'split' && (
                       <div className="space-y-3">
-                        {/* 标题 - 边生成边显示 */}
+                        {/* 标题模块 */}
                         {(titles.length > 0 || generatedTitles.length > 0) && (
-                          <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Sparkles className="h-4 w-4 text-rose-500" />
-                              <span className="text-xs text-rose-600 font-medium">生成中</span>
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <Sparkles className="h-3 w-3 text-rose-500" />
+                                标题候选（选择一个）
+                              </Label>
+                              {!isGenerating && (
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('title')}>
+                                    {lockedModules.has('title') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
+                                    <RefreshCw className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                            <div className="text-base font-semibold text-gray-900">
-                              {titles.length > 0 ? titles[selectedTitleIndex]?.title : generatedTitles[selectedTitleIndex || 0]}
+                            <div className="space-y-1.5">
+                              {(titles.length > 0 ? titles : generatedTitles.map((t, i) => ({ title: t, id: i }))).map((t, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => setSelectedTitleIndex(i)}
+                                  className={`w-full p-2 rounded-lg text-left text-xs transition-all ${
+                                    selectedTitleIndex === i 
+                                      ? 'bg-rose-50 border-2 border-rose-300 ring-1 ring-rose-200' 
+                                      : 'bg-gray-50 border border-gray-200 hover:border-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                      selectedTitleIndex === i ? 'border-rose-500 bg-rose-500' : 'border-gray-300'
+                                    }`}>
+                                      {selectedTitleIndex === i && <Check className="h-2.5 w-2.5 text-white" />}
+                                    </div>
+                                    <span className={selectedTitleIndex === i ? 'text-gray-900 font-medium' : 'text-gray-700'}>{t.title}</span>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
                           </div>
                         )}
 
-                        {/* 内容 - 边生成边显示 */}
-                        {content && (
-                          <div className="p-3 bg-gray-50 rounded-xl">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-green-500 animate-pulse' : 'bg-green-600'}`}></div>
-                              <span className="text-xs text-gray-500">{isGenerating ? '生成中...' : '生成完成'}</span>
-                            </div>
-                            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                              {content}
-                              {isGenerating && <span className="inline-block w-2 h-4 bg-rose-400 ml-1 animate-pulse"></span>}
-                            </div>
+                        {/* 正文模块 - 边生成边显示 */}
+                        <div className="p-3 border rounded-xl">
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                              <FileText className="h-3 w-3 text-rose-500" />
+                              正文内容
+                              {isGenerating && <span className="text-green-500 ml-1 animate-pulse">生成中...</span>}
+                            </Label>
+                            {!isGenerating && content && (
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('content')}>
+                                  {lockedModules.has('content') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditing(!isEditing)}>
+                                  {isEditing ? <Eye className="h-3 w-3" /> : <Edit3 className="h-3 w-3" />}
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                        )}
+                          {isEditing && !isGenerating ? (
+                            <Textarea
+                              value={editableContent}
+                              onChange={(e) => {
+                                setEditableContent(e.target.value);
+                                setUserEdited(true);
+                              }}
+                              className="min-h-[200px] text-xs"
+                              placeholder="编辑内容..."
+                            />
+                          ) : (
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed min-h-[100px]">
+                              {content ? (
+                                <>
+                                  {content}
+                                  {isGenerating && <span className="inline-block w-2 h-4 bg-rose-400 ml-1 animate-pulse"></span>}
+                                </>
+                              ) : (
+                                <span className="text-gray-400">
+                                  {isGenerating ? '正在生成内容...' : '点击「一键生成爆款内容」开始创作'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                        {/* 加载指示（还没开始生成内容时） */}
-                        {!content && titles.length > 0 && isGenerating && (
-                          <div className="p-4 bg-gray-50 rounded-xl">
-                            <div className="flex items-center justify-center gap-2 mb-2">
-                              <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-                              <span className="text-sm text-gray-500">{currentStep || '正在构思内容...'}</span>
+                        {/* 标签模块 */}
+                        {tags.length > 0 && (
+                          <div className="p-3 border rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <Tag className="h-3 w-3 text-rose-500" />
+                                推荐标签
+                              </Label>
+                              {!isGenerating && (
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('tags')}>
+                                  {lockedModules.has('tags') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {tags.map((tag, i) => (
+                                <span key={i} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">#{tag}</span>
+                              ))}
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* 整合视图 - 生成完毕后显示完整结果 */}
+                    {viewMode === 'integrated' && !isGenerating && content && (
+                      <div className="space-y-3">
+                        {/* 标题 */}
+                        <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="h-4 w-4 text-rose-500" />
+                            <span className="text-xs text-rose-600 font-medium">已生成标题</span>
+                          </div>
+                          <div className="text-base font-semibold text-gray-900">
+                            {titles.length > 0 ? titles[selectedTitleIndex ?? 0]?.title : generatedTitles[selectedTitleIndex ?? 0]}
+                          </div>
+                        </div>
 
                         {/* 正文 */}
-                        {editableContent && (
-                          <div className="p-3 bg-gray-50 rounded-xl">
+                        <div className="p-3 bg-gray-50 rounded-xl">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                            <span className="text-xs text-gray-500">生成完成</span>
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
                             {isEditing ? (
                               <Textarea
                                 value={editableContent}
                                 onChange={(e) => handleContentEdit(e.target.value)}
-                                className="min-h-[180px] resize-none border-0 bg-transparent p-0 text-sm"
+                                className="min-h-[180px] resize-none text-xs"
                               />
                             ) : (
-                              <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed">
-                                {editableContent}
-                              </div>
+                              <>
+                                {editableContent || content}
+                              </>
                             )}
                           </div>
-                        )}
+                        </div>
 
                         {/* 标签 */}
                         {tags.length > 0 && (
@@ -1667,237 +1761,47 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* 拆分视图 */}
-                    {viewMode === 'split' && (
+                    {/* 整合视图 - 生成中的加载指示 */}
+                    {viewMode === 'integrated' && isGenerating && (
                       <div className="space-y-3">
-                        {/* 标题模块 - 优先使用titles，否则使用generatedTitles */}
-                        {(titles.length > 0 || generatedTitles.length > 0) && (
-                          <div className="p-3 border rounded-xl">
-                            <div className="flex items-center justify-between mb-2">
-                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
-                                <Sparkles className="h-3 w-3 text-rose-500" />
-                                标题候选（选择一个）
-                              </Label>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('title')}>
-                                  {lockedModules.has('title') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
-                                  <RefreshCw className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="space-y-1.5">
-                              {(titles.length > 0 ? titles : generatedTitles.map((t, i) => ({ title: t, id: i }))).map((t, i) => (
-                                <button
-                                  key={i}
-                                  onClick={() => setSelectedTitleIndex(i)}
-                                  className={`w-full p-2 rounded-lg text-left text-xs transition-all ${
-                                    selectedTitleIndex === i 
-                                      ? 'bg-rose-50 border-2 border-rose-300 ring-1 ring-rose-200' 
-                                      : 'bg-gray-50 border border-gray-200 hover:border-gray-300'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                      selectedTitleIndex === i ? 'border-rose-500 bg-rose-500' : 'border-gray-300'
-                                    }`}>
-                                      {selectedTitleIndex === i && <Check className="h-2.5 w-2.5 text-white" />}
-                                    </div>
-                                    <span className={selectedTitleIndex === i ? 'text-gray-900 font-medium' : 'text-gray-700'}>{t.title}</span>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
+                        <div className="p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-sm text-rose-600">{currentStep || '正在构思内容...'}</span>
                           </div>
-                        )}
-
-                        {/* 正文模块 */}
-                        {content && (
-                          <div className="p-3 border rounded-xl">
-                            <div className="flex items-center justify-between mb-2">
-                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
-                                <FileText className="h-3 w-3 text-rose-500" />
-                                正文内容
-                              </Label>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditing(!isEditing)}>
-                                  <Edit3 className="h-3 w-3" />
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('content')}>
-                                  {lockedModules.has('content') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
-                                  <RefreshCw className="h-3 w-3" />
-                                </Button>
-                              </div>
+                          {content && (
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                              {content}
+                              <span className="inline-block w-2 h-4 bg-rose-400 ml-1 animate-pulse"></span>
                             </div>
-                            {isEditing ? (
-                              <Textarea
-                                value={editableContent}
-                                onChange={(e) => handleContentEdit(e.target.value)}
-                                className="min-h-[120px] resize-none text-xs"
-                              />
-                            ) : (
-                              <div className="p-2 bg-gray-50 rounded-lg min-h-[80px] whitespace-pre-wrap text-xs">
-                                {editableContent}
-                              </div>
-                            )}
-                            {userEdited && (
-                              <p className="text-[10px] text-gray-400 mt-1">✏️ 您已编辑此内容</p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* 配图模块 */}
-                        {imageUrls.length > 0 && (
-                          <div className="p-3 border rounded-xl">
-                            <div className="flex items-center justify-between mb-2">
-                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
-                                <ImageIcon className="h-3 w-3 text-rose-500" />
-                                配图选择
-                              </Label>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-6 text-xs" 
-                                onClick={() => setShowCustomImageModal(true)}
-                              >
-                                <ImagePlus className="h-3 w-3 mr-1" />
-                                自定义
-                              </Button>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                              {imageUrls.map((url, i) => (
-                                <button
-                                  key={i}
-                                  onClick={() => setSelectedImageIndex(i)}
-                                  className={`relative aspect-square rounded-lg overflow-hidden ${
-                                    selectedImageIndex === i ? 'ring-2 ring-rose-500' : ''
-                                  }`}
-                                >
-                                  <img src={url} alt="" className="w-full h-full object-cover" />
-                                  {selectedImageIndex === i && (
-                                    <div className="absolute top-1 right-1 bg-rose-500 rounded-full p-0.5">
-                                      <Check className="h-2.5 w-2.5 text-white" />
-                                    </div>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 标签模块 */}
-                        {tags.length > 0 && (
-                          <div className="p-3 border rounded-xl">
-                            <div className="flex items-center justify-between mb-2">
-                              <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
-                                <Hash className="h-3 w-3 text-rose-500" />
-                                话题标签
-                              </Label>
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => toggleLock('tags')}>
-                                  {lockedModules.has('tags') ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={handleGenerate}>
-                                  <RefreshCw className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {tags.map((tag, i) => (
-                                <Badge key={i} className="bg-rose-100 text-rose-700 border-0 text-xs">#{tag}</Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 推荐音乐（视频内容） */}
-                        {isVideo && recommendedMusic.length > 0 && (
-                          <div className="p-3 border rounded-xl">
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <Music className="h-3 w-3 text-purple-500" />
-                              <Label className="text-xs font-medium text-gray-700">推荐音乐</Label>
-                            </div>
-                            <div className="space-y-1">
-                              {recommendedMusic.map((music, i) => (
-                                <p key={i} className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2">{i + 1}. {music}</p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 合规状态 */}
-                        {!compliance.isCompliant && (
-                          <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5 text-amber-700 font-medium text-xs">
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                                {compliance.fixed ? '已自动修正' : '发现合规问题'}
-                              </div>
-                              {!compliance.fixed && !userEdited && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-6 text-xs"
-                                  onClick={handleComplianceFix}
-                                >
-                                  自动修正
-                                </Button>
-                              )}
-                            </div>
-                            {compliance.warnings.length > 0 && (
-                              <div className="mt-1">
-                                {compliance.warnings.map((w, i) => (
-                                  <p key={i} className="text-xs text-amber-600">{w}</p>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* 整合按钮 */}
-                        <Button
-                          className="w-full h-10 text-sm font-semibold bg-gradient-to-r from-rose-500 to-orange-500"
-                          onClick={handleIntegrate}
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          确认选择，整合内容
-                        </Button>
+                          )}
+                        </div>
                       </div>
                     )}
 
-                    {/* 操作工具栏 */}
-                    <div className="pt-3 border-t">
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setIsEditing(!isEditing)}>
-                          <Edit3 className="h-3 w-3 mr-1" />
-                          编辑
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleSave}>
-                          <Save className="h-3 w-3 mr-1" />
-                          保存
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleExport}>
-                          <Download className="h-3 w-3 mr-1" />
-                          导出
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 text-xs" 
-                          onClick={() => setShowCustomImageModal(true)}
+                    {/* 底部操作栏 */}
+                    {!isGenerating && content && (
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={handleCopyContent}
                         >
-                          <ImagePlus className="h-3 w-3 mr-1" />
-                          自定义生图
-                        </Button>
-                        <Button size="sm" className="h-7 text-xs bg-rose-500 hover:bg-rose-600" onClick={handleCopyForXHS}>
                           <Copy className="h-3 w-3 mr-1" />
-                          一键复制到小红书
+                          复制内容
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1 bg-gradient-to-r from-rose-500 to-orange-500 text-xs"
+                          onClick={handlePublish}
+                        >
+                          <Rocket className="h-3 w-3 mr-1" />
+                          发布笔记
                         </Button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </CardContent>
