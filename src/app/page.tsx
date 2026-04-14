@@ -16,12 +16,12 @@ import {
 } from '@/components/ui/select';
 import { 
   Sparkles, RefreshCw, Copy, Download, ImageIcon, 
-  FileText, Video, TrendingUp, Loader2, Heart, Hash,
+  FileText, Video, TrendingUp, Loader2, Heart,
   AlertTriangle, Check, ChevronDown, ChevronUp, Settings2,
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
   Trash2, FileEdit, Lightbulb, Target, Layers, Star,
   ImagePlus, Music, User, ShieldAlert, Users, MessageSquare,
-  Smile, WandSparkles
+  Smile, WandSparkles, Tag
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
