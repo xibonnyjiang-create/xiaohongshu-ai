@@ -928,6 +928,34 @@ export default function Home() {
                     </div>
                   )}
 
+                  {/* 推荐主题（当不是市场热点且有推荐主题时显示） */}
+                  {!showHotTopics && topicRecommendations.length > 0 && (
+                    <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
+                        <span className="text-xs font-medium text-amber-700">推荐主题</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {topicRecommendations.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => handleSelectItem(item.title)}
+                            className={`w-full p-2 rounded-lg text-left transition-all ${
+                              keywords === item.title
+                                ? 'bg-amber-50 border border-amber-200'
+                                : 'bg-white hover:bg-amber-50 border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-gray-700">{item.title}</p>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{item.category}</Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* 关键词输入 */}
                   <div>
                     <Label className="text-xs text-gray-500 mb-1.5 block">
@@ -1409,38 +1437,6 @@ export default function Home() {
                   <Button variant="ghost" onClick={() => setCurrentSceneStep(2)} className="w-full text-xs text-gray-400 h-7">
                     ← 返回修改关键词
                   </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 推荐主题（非市场热点时显示） */}
-            {!showHotTopics && topicRecommendations.length > 0 && (
-              <Card className="border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
-                  <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                    <Lightbulb className="h-4 w-4 text-amber-500" />
-                    推荐主题
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-5 pb-3 pt-0">
-                  <div className="space-y-1.5">
-                    {topicRecommendations.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelectItem(item.title)}
-                        className={`w-full p-2 rounded-lg text-left transition-all ${
-                          keywords === item.title
-                            ? 'bg-amber-50 border border-amber-200'
-                            : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-700">{item.title}</p>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{item.category}</Badge>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
                 </CardContent>
               </Card>
             )}
