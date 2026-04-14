@@ -962,7 +962,7 @@ export default function Home() {
                       核心关键词 {keywords && <span className="text-rose-500">(已选: {keywords})</span>}
                     </Label>
                     <Input
-                      placeholder={topicType === 'market_hot' ? '输入想了解的话题...' : '输入或选择上方切入点...'}
+                      placeholder="可输入或选择上方推荐"
                       value={keywords}
                       onChange={(e) => setKeywords(e.target.value)}
                       className="h-10"
@@ -1078,28 +1078,6 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
-
-                  {/* 内容深度（专业可见） */}
-                  {userTag === 'professional' && (
-                    <div>
-                      <Label className="text-xs text-gray-500 mb-1.5 block">内容深度</Label>
-                      <div className="flex gap-2">
-                        {CONTENT_DEPTH_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => setContentDepth(opt.value)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                              contentDepth === opt.value
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* 内容设置 */}
                   <div>
