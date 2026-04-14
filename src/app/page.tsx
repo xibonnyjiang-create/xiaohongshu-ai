@@ -226,15 +226,13 @@ export default function Home() {
   };
 
   // ==================== 生成内容 ====================
-  // 生成标题候选（分步预览第一步）
-  const handleGenerateTitles = useCallback(async () => {
+  // 一次性生成标题和内容（边生成边显示）
+  const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
-    setGeneratedTitles([]);
-    setSelectedTitleIndex(null);
     setShowTitlePreview(true);
-    setCurrentStep('生成标题中...');
-    setViewMode('split');
-    setContent(''); // 清空之前的内容
+    setViewMode('integrated');
+    setCurrentStep('正在构思...');
+    setContent(''); // 清空内容
     setTitles([]);
     setTags([]);
     setImageUrls([]);
@@ -248,19 +246,15 @@ export default function Home() {
           topicType, userTag, contentType, keywords,
           analysisTarget, analysisTargetInput, contentDepth, focusDirections,
           contentSubType, platformCompare, includeExample, includeResearch,
-          videoDuration, videoStyle: videoStyle, enableImageSuggestion: false,
+          videoDuration, videoStyle: videoStyle, enableImageSuggestion,
           titleStyles, customTitleStyle, personaType, customPersona,
           additionalRequirements: enableRiskWarning ? ['risk_warning'] : [],
           customRequirement,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
           hotTop3Tags: hotTop3Tags,
-          // 新增参数
-          analysisLogic,
-          toneStyle,
-          emojiDensity,
-          enableRiskWarning,
-          // 只生成标题，不生成内容
-          generateOnlyTitles: true,
+          analysisLogic, toneStyle, emojiDensity, enableRiskWarning,
+          // 一次性生成所有内容
+          generateOnlyTitles: false,
         }),
       });
 
@@ -287,26 +281,24 @@ export default function Home() {
                     setCurrentStep(data.data);
                     break;
                   case 'titles':
+                    // 标题生成后立即显示
                     setGeneratedTitles(data.data.map((t: any) => t.title || t));
-                    // 同时更新titles数组
                     setTitles(data.data.map((t: any) => typeof t === 'string' ? { title: t, style: 'suspense' } : t));
-                    // 默认选中第一个
                     if (data.data.length > 0) {
                       setSelectedTitleIndex(0);
                     }
+                    // 生成标题后切换到整合视图，显示"正在生成内容..."
+                    setViewMode('integrated');
+                    setCurrentStep('正在生成内容...');
                     break;
                   case 'titles_end':
-                    // 标题生成完成，等待用户选择
-                    setCurrentStep('');
-                    setIsGenerating(false);
-                    setShowTitlePreview(true);
-                    toast.success('标题已生成，请选择标题');
+                    // 标题选择完成，不结束生成，继续等内容
                     break;
                   case 'content':
+                    // 边生成边显示内容
                     setContent(prev => prev + data.data);
                     break;
                   case 'content_end':
-                    // 内容结束标记
                     break;
                   case 'tags':
                     setTags(data.data);
@@ -328,7 +320,6 @@ export default function Home() {
                   case 'engagement_score':
                     setEngagementScore(data.data);
                     setCurrentStep('');
-                    setShowTitlePreview(false);
                     toast.success('生成完成！');
                     break;
                 }
@@ -469,12 +460,6 @@ export default function Home() {
       setIsGenerating(false);
     }
   }, [selectedTitleIndex, generatedTitles, topicType, userTag, contentType, keywords, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, enableRiskWarning, personaType, lockedModules, userEdited]);
-
-  // 保留原来的handleGenerate用于直接生成
-  const handleGenerate = useCallback(async () => {
-    // 直接调用handleGenerateTitles，它会一次性生成标题和内容
-    await handleGenerateTitles();
-  }, [handleGenerateTitles]);
 
   // ==================== 自定义生图 ====================
   const handleCustomImageGenerate = async () => {
@@ -1485,24 +1470,6 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent className="px-4 sm:px-5 pb-4">
-                {/* 加载状态 */}
-                {isGenerating && (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="relative mb-4">
-                      <div className="w-16 h-16 rounded-full border-4 border-rose-100"></div>
-                      <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-rose-500 animate-spin"></div>
-                    </div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">{currentStep || '正在生成...'}</p>
-                    <p className="text-xs text-gray-400">AI正在为你创作内容，请稍候</p>
-                    {/* 进度指示器 */}
-                    <div className="flex gap-1 mt-4">
-                      <div className="w-2 h-2 rounded-full bg-rose-500 animate-bounce" style={{animationDelay: '0ms'}}></div>
-                      <div className="w-2 h-2 rounded-full bg-rose-400 animate-bounce" style={{animationDelay: '150ms'}}></div>
-                      <div className="w-2 h-2 rounded-full bg-rose-300 animate-bounce" style={{animationDelay: '300ms'}}></div>
-                    </div>
-                  </div>
-                )}
-
                 {/* 初始空状态（无加载、无内容） */}
                 {!isGenerating && titles.length === 0 && generatedTitles.length === 0 && !content ? (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400">
@@ -1528,28 +1495,43 @@ export default function Home() {
                       </div>
                     )}
                     
-                    {/* 整合视图 */}
+                    {/* 整合视图 - 边生成边显示 */}
                     {viewMode === 'integrated' && (
                       <div className="space-y-3">
-                        {/* 标题 - 优先使用titles，否则使用generatedTitles */}
+                        {/* 标题 - 边生成边显示 */}
                         {(titles.length > 0 || generatedTitles.length > 0) && (
                           <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Sparkles className="h-4 w-4 text-rose-500" />
+                              <span className="text-xs text-rose-600 font-medium">生成中</span>
+                            </div>
                             <div className="text-base font-semibold text-gray-900">
                               {titles.length > 0 ? titles[selectedTitleIndex]?.title : generatedTitles[selectedTitleIndex || 0]}
                             </div>
-                            {(titles.length > 1 || generatedTitles.length > 1) && (
-                              <div className="flex gap-1.5 mt-2">
-                                {(titles.length > 0 ? titles : generatedTitles).map((t, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => setSelectedTitleIndex(i)}
-                                    className={`w-2 h-2 rounded-full transition-all ${
-                                      selectedTitleIndex === i ? 'bg-rose-500 w-4' : 'bg-gray-300'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            )}
+                          </div>
+                        )}
+
+                        {/* 内容 - 边生成边显示 */}
+                        {content && (
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-green-500 animate-pulse' : 'bg-green-600'}`}></div>
+                              <span className="text-xs text-gray-500">{isGenerating ? '生成中...' : '生成完成'}</span>
+                            </div>
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                              {content}
+                              {isGenerating && <span className="inline-block w-2 h-4 bg-rose-400 ml-1 animate-pulse"></span>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 加载指示（还没开始生成内容时） */}
+                        {!content && titles.length > 0 && isGenerating && (
+                          <div className="p-4 bg-gray-50 rounded-xl">
+                            <div className="flex items-center justify-center gap-2 mb-2">
+                              <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-sm text-gray-500">{currentStep || '正在构思内容...'}</span>
+                            </div>
                           </div>
                         )}
 
