@@ -430,16 +430,36 @@ export default function Home() {
   const handleGenerate = useCallback(async () => {
     // 如果没有标题预览，直接生成完整内容
     if (!showTitlePreview) {
-      await handleGenerateTitles();
-      // 等待标题生成后自动触发完整内容生成
-      const checkAndGenerate = () => {
-        if (generatedTitles.length > 0 && selectedTitleIndex !== null) {
-          handleGenerateFullContent();
-        } else {
-          setTimeout(checkAndGenerate, 500);
-        }
-      };
-      setTimeout(checkAndGenerate, 500);
+      setIsGenerating(true);
+      setCurrentStep('生成中...');
+      
+      try {
+        await handleGenerateTitles();
+        
+        // 等待标题生成完成后再触发完整内容生成
+        const maxWaitTime = 30000; // 最多等待30秒
+        const startTime = Date.now();
+        
+        const checkAndGenerate = () => {
+          if (generatedTitles.length > 0 && selectedTitleIndex !== null) {
+            // 标题已生成，生成完整内容
+            handleGenerateFullContent();
+          } else if (Date.now() - startTime < maxWaitTime) {
+            // 继续等待
+            setTimeout(checkAndGenerate, 500);
+          } else {
+            // 超时
+            toast.error('生成超时，请重试');
+            setIsGenerating(false);
+          }
+        };
+        
+        setTimeout(checkAndGenerate, 500);
+      } catch (error) {
+        console.error('生成错误:', error);
+        toast.error('生成失败，请重试');
+        setIsGenerating(false);
+      }
     }
   }, [showTitlePreview, generatedTitles, selectedTitleIndex, handleGenerateTitles, handleGenerateFullContent]);
 
