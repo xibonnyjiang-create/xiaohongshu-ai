@@ -562,6 +562,14 @@ export default function Home() {
     toast.success('已复制，可直接粘贴到小红书');
   };
 
+  const handleCopyContent = () => {
+    const selectedTitle = titles[selectedTitleIndex]?.title || generatedTitles[selectedTitleIndex ?? 0] || '';
+    const textToCopy = editableContent || content;
+    const text = `【标题】${selectedTitle}\n\n【正文】\n${textToCopy}`;
+    navigator.clipboard.writeText(text);
+    toast.success('内容已复制到剪贴板');
+  };
+
   const handleExport = () => {
     const selectedTitle = titles[selectedTitleIndex]?.title || '';
     let text = `【标题】${selectedTitle}\n\n【正文】\n${editableContent}\n\n【标签】\n${tags.map(t => '#' + t).join(' ')}\n\n`;
