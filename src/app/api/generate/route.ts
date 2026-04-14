@@ -107,9 +107,12 @@ export async function POST(request: NextRequest) {
           const usedTitle = selectedTitle || titles[0]?.title || '';
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容（自动合规检测中）...' })}\n\n`));
           
+          // 将单个标题转换为TitleCandidate数组
+          const titleCandidate = [{ title: usedTitle }];
+          
           const contentStream = await generateStructuredContentStream(
             topicType, userTag, contentType, keywords, hotTopicInfo,
-            usedTitle, hotTopicTags
+            titleCandidate, hotTopicTags, personaType
           );
           
           for await (const chunk of contentStream) {
@@ -264,7 +267,8 @@ async function* generateStructuredContentStream(
   keywords?: string,
   hotTopicInfo?: string,
   titles?: TitleCandidate[],
-  hotTopicTags?: string[]
+  hotTopicTags?: string[],
+  personaType?: string
 ): AsyncGenerator<string> {
   
   const isVideo = contentType === 'video_script';
