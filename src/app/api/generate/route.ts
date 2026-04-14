@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           
           if (hotTopicTags.length === 0 && hotTopicInfo) {
             // 如果没有传入热点标签，从热点信息中提取
-            const topicLines = hotTopicInfo.split('\n').filter(l => l.trim());
+            const topicLines = hotTopicInfo.split('\n').filter((l: string) => l.trim());
             hotTopicTags = await extractHotTopicTags(topicLines.slice(0, 5));
           }
           
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容（自动合规检测中）...' })}\n\n`));
           
           // 将单个标题转换为TitleCandidate数组
-          const titleCandidate = [{ title: usedTitle }];
+          const titleCandidate: { title: string; style: 'suspense' | 'data_driven' | 'emotional' | 'practical' | 'contrast' | 'custom' }[] = [{ title: usedTitle, style: 'suspense' }];
           
           const contentStream = await generateStructuredContentStream(
             topicType, userTag, contentType, keywords, hotTopicInfo,

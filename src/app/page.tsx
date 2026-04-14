@@ -21,7 +21,7 @@ import {
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
   Trash2, FileEdit, Lightbulb, Target, Layers, Star,
   ImagePlus, Music, User, ShieldAlert, Users, MessageSquare,
-  Smile, WandSparkles, Tag, Rocket
+  Smile, WandSparkles, Tag, Rocket, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -618,7 +618,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: titles[selectedTitleIndex]?.title,
+          title: selectedTitleIndex !== null ? titles[selectedTitleIndex]?.title : generatedTitles[selectedTitleIndex ?? 0],
           content: editableContent,
           warnings: compliance.warnings,
         }),
@@ -646,7 +646,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: titles[selectedTitleIndex]?.title || '',
+          title: selectedTitleIndex !== null ? (titles[selectedTitleIndex]?.title || '') : (generatedTitles[selectedTitleIndex ?? 0] || ''),
           content: editableContent,
           tags,
           imageUrls,
@@ -669,14 +669,14 @@ export default function Home() {
 
   // ==================== 复制与导出 ====================
   const handleCopyForXHS = () => {
-    const selectedTitle = titles[selectedTitleIndex]?.title || '';
+    const selectedTitle = selectedTitleIndex !== null ? (titles[selectedTitleIndex]?.title || '') : (generatedTitles[selectedTitleIndex ?? 0] || '');
     const text = `${selectedTitle}\n\n${editableContent}\n\n${tags.map(t => '#' + t).join(' ')}`;
     navigator.clipboard.writeText(text);
     toast.success('已复制，可直接粘贴到小红书');
   };
 
   const handleCopyContent = () => {
-    const selectedTitle = titles[selectedTitleIndex]?.title || generatedTitles[selectedTitleIndex ?? 0] || '';
+    const selectedTitle = selectedTitleIndex !== null ? (titles[selectedTitleIndex]?.title || '') : (generatedTitles[selectedTitleIndex ?? 0] || '');
     const textToCopy = editableContent || content;
     const text = `【标题】${selectedTitle}\n\n【正文】\n${textToCopy}`;
     navigator.clipboard.writeText(text);
@@ -688,7 +688,7 @@ export default function Home() {
   };
 
   const handleExport = () => {
-    const selectedTitle = titles[selectedTitleIndex]?.title || '';
+    const selectedTitle = selectedTitleIndex !== null ? (titles[selectedTitleIndex]?.title || '') : (generatedTitles[selectedTitleIndex ?? 0] || '');
     let text = `【标题】${selectedTitle}\n\n【正文】\n${editableContent}\n\n【标签】\n${tags.map(t => '#' + t).join(' ')}\n\n`;
     
     if (isVideo && recommendedMusic.length > 0) {
@@ -862,11 +862,11 @@ export default function Home() {
                               setUserTag(opt.value);
                               // 自动设置默认值
                               if (opt.value === 'newbie') {
-                                setPersonaType('friendly_senior');
+                                setPersonaType('veteran_trader');
                                 setContentType('article');
                                 setTopicType('beginner_guide');
                               } else if (opt.value === 'active_trader') {
-                                setPersonaType('market_analyst');
+                                setPersonaType('hardcore_uncle');
                                 setContentType('article');
                               }
                             }}
@@ -920,7 +920,7 @@ export default function Home() {
                             }`}
                           >
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-lg">{opt.icon}</span>
+                              <span className="text-lg"><Target /></span>
                               <span className="text-xs font-medium text-gray-800">{opt.label}</span>
                             </div>
                             <p className="text-[10px] text-gray-400 line-clamp-2">{opt.description}</p>
@@ -1257,7 +1257,7 @@ export default function Home() {
                         <Label className="text-[10px] text-gray-400 mb-1 block">视频风格</Label>
                         <select
                           value={videoStyle}
-                          onChange={(e) => setVideoStyle(e.target.value)}
+                          onChange={(e) => setVideoStyle(e.target.value as VideoStyle)}
                           className="w-full h-9 px-3 rounded-lg border border-gray-200 text-xs bg-white"
                         >
                           <option value="science">科普风格</option>

@@ -12,7 +12,7 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
 
 // 用户层级映射
 const USER_TAG_DISPLAY: Record<UserTag, string> = {
-  nubie: '投资新手',
+  newbie: '投资新手',
   active_trader: '进阶交易者',
   professional: '专业投资者',
 };

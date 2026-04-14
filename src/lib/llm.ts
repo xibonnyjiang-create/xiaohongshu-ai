@@ -565,7 +565,7 @@ export async function callComplianceFix(title: string, content: string): Promise
     const result = data.choices?.[0]?.message?.content || '';
     
     // 解析输出，提取标题和正文
-    const lines = result.split('\n').filter(l => l.trim());
+    const lines = result.split('\n').filter((l: string) => l.trim());
     let fixedTitle = title;
     let fixedContent = content;
     let wasModified = false;

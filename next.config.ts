@@ -12,13 +12,14 @@ const nextConfig: NextConfig = {
     ],
   },
   // Turbopack 配置
-  turbopack: {},
-  // Webpack 配置 - 在 Vercel 环境中使用 mock 模块
+  turbopack: {
+    resolveAlias: {
+      'coze-coding-dev-sdk': 'coze-coding-dev-sdk-mock',
+    },
+  },
+  // Webpack 配置 - 作为后备
   webpack: (config, { isServer }) => {
-    // 只在非沙箱环境（Vercel）中替换 SDK
-    if (!process.env.COZE_PROJECT_ENV && !process.env.COZE_WORKSPACE_PATH) {
-      config.resolve.alias['coze-coding-dev-sdk'] = require('path').resolve(__dirname, 'src/lib/coze-coding-dev-sdk.ts');
-    }
+    config.resolve.alias['coze-coding-dev-sdk'] = './src/lib/coze-coding-dev-sdk.ts';
     return config;
   },
 };
