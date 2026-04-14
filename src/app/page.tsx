@@ -227,13 +227,16 @@ export default function Home() {
 
   // ==================== 生成内容 ====================
   // 一次性生成标题和内容（边生成边显示）
-  const handleGenerate = useCallback(async () => {
+  // 分步生成：先生成标题
+  const handleGenerateTitles = useCallback(async () => {
     setIsGenerating(true);
     setShowTitlePreview(true);
-    setViewMode('integrated');
-    setCurrentStep('正在构思...');
-    setContent(''); // 清空内容
+    setViewMode('split'); // 保持在拆分视图
+    setCurrentStep('正在构思标题...');
     setTitles([]);
+    setGeneratedTitles([]);
+    setSelectedTitleIndex(null);
+    setContent('');
     setTags([]);
     setImageUrls([]);
     setEngagementScore(null);
@@ -253,8 +256,8 @@ export default function Home() {
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
           hotTop3Tags: hotTop3Tags,
           analysisLogic, toneStyle, emojiDensity, enableRiskWarning,
-          // 一次性生成所有内容
-          generateOnlyTitles: false,
+          // 只生成标题
+          generateOnlyTitles: true,
         }),
       });
 
@@ -281,18 +284,17 @@ export default function Home() {
                     setCurrentStep(data.data);
                     break;
                   case 'titles':
-                    // 标题生成后立即显示
+                    // 标题生成后显示在拆分视图
                     setGeneratedTitles(data.data.map((t: any) => t.title || t));
                     setTitles(data.data.map((t: any) => typeof t === 'string' ? { title: t, style: 'suspense' } : t));
                     if (data.data.length > 0) {
                       setSelectedTitleIndex(0);
                     }
-                    // 生成标题后切换到整合视图，显示"正在生成内容..."
-                    setViewMode('integrated');
-                    setCurrentStep('正在生成内容...');
+                    // 标题生成完成，提示用户选择
+                    setCurrentStep('请选择标题');
+                    setIsGenerating(false);
                     break;
                   case 'titles_end':
-                    // 标题选择完成，不结束生成，继续等内容
                     break;
                   case 'content':
                     // 边生成边显示内容
@@ -327,7 +329,112 @@ export default function Home() {
             }
           }
         }
-        // 生成完成
+      }
+    } catch (error) {
+      console.error('生成错误:', error);
+      toast.error('生成失败，请重试');
+    } finally {
+      setIsGenerating(false);
+      setCurrentStep('');
+    }
+  }, [topicType, userTag, contentType, keywords, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, enableRiskWarning, personaType, analysisTarget, analysisTargetInput, contentDepth, focusDirections, contentSubType, platformCompare, includeExample, includeResearch, videoDuration, videoStyle, titleStyles, customTitleStyle, customPersona, customRequirement]);
+
+  // 根据选中的标题生成内容
+  const handleGenerateContent = useCallback(async () => {
+    if (selectedTitleIndex === null) {
+      toast.error('请先选择标题');
+      return;
+    }
+    
+    setIsGenerating(true);
+    setViewMode('split'); // 保持在拆分视图
+    setCurrentStep('正在生成内容...');
+    setContent('');
+    setTags([]);
+    setImageUrls([]);
+    setEngagementScore(null);
+
+    try {
+      const selectedTitle = titles.length > 0 
+        ? titles[selectedTitleIndex]?.title 
+        : generatedTitles[selectedTitleIndex];
+        
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topicType, userTag, contentType, keywords,
+          analysisTarget, analysisTargetInput, contentDepth, focusDirections,
+          contentSubType, platformCompare, includeExample, includeResearch,
+          videoDuration, videoStyle: videoStyle, enableImageSuggestion,
+          titleStyles, customTitleStyle, personaType, customPersona,
+          additionalRequirements: enableRiskWarning ? ['risk_warning'] : [],
+          customRequirement,
+          hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
+          hotTop3Tags: hotTop3Tags,
+          analysisLogic, toneStyle, emojiDensity, enableRiskWarning,
+          // 生成完整内容，传入选中的标题
+          generateOnlyTitles: false,
+          selectedTitle: selectedTitle,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('生成失败');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                switch (data.type) {
+                  case 'status':
+                    setCurrentStep(data.data);
+                    break;
+                  case 'content':
+                    setContent(prev => prev + data.data);
+                    break;
+                  case 'tags':
+                    setTags(data.data);
+                    break;
+                  case 'images':
+                    setImageUrls(data.data);
+                    break;
+                  case 'music':
+                    setRecommendedMusic(data.data);
+                    break;
+                  case 'compliance':
+                    setCompliance(data.data);
+                    if (!data.data.isCompliant && !userEdited && data.data.fixedContent) {
+                      setEditableContent(data.data.fixedContent);
+                      setContent(data.data.fixedContent);
+                      setCompliance(prev => ({ ...prev, fixed: true }));
+                    }
+                    break;
+                  case 'engagement_score':
+                    setEngagementScore(data.data);
+                    setCurrentStep('');
+                    toast.success('生成完成！');
+                    break;
+                }
+              } catch (e) {}
+            }
+          }
+        }
         toast.success('生成完成！');
       }
     } catch (error) {
@@ -335,9 +442,15 @@ export default function Home() {
       toast.error('生成失败，请重试');
     } finally {
       setIsGenerating(false);
+      setCurrentStep('');
     }
-  }, [topicType, userTag, contentType, keywords, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, enableRiskWarning, personaType]);
+  }, [selectedTitleIndex, titles, generatedTitles, topicType, userTag, contentType, keywords, analysisTarget, analysisTargetInput, contentDepth, focusDirections, contentSubType, platformCompare, includeExample, includeResearch, videoDuration, videoStyle, titleStyles, customTitleStyle, personaType, customPersona, enableRiskWarning, customRequirement, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, userEdited]);
 
+  // 统一生成入口（向后兼容）
+  const handleGenerate = useCallback(async () => {
+    // 先调用标题生成
+    await handleGenerateTitles();
+  }, [handleGenerateTitles]);
   // 选中标题并生成完整内容（分步预览第二步）
   const handleSelectTitle = useCallback((index: number) => {
     setSelectedTitleIndex(index);
@@ -568,6 +681,10 @@ export default function Home() {
     const text = `【标题】${selectedTitle}\n\n【正文】\n${textToCopy}`;
     navigator.clipboard.writeText(text);
     toast.success('内容已复制到剪贴板');
+  };
+
+  const handlePublish = () => {
+    handleCopyForXHS();
   };
 
   const handleExport = () => {
@@ -1547,6 +1664,23 @@ export default function Home() {
                                 </button>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {/* 标题生成完毕后的提示和生成内容按钮 */}
+                        {!isGenerating && titles.length > 0 && !content && (
+                          <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                            <div className="text-xs text-blue-700 mb-2">
+                              已生成 {titles.length} 个标题候选，请选择一个后点击下方按钮生成正文内容
+                            </div>
+                            <Button
+                              onClick={handleGenerateContent}
+                              disabled={selectedTitleIndex === null}
+                              className="w-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white text-xs h-9"
+                            >
+                              <WandSparkles className="h-3 w-3 mr-1" />
+                              根据所选标题生成正文内容
+                            </Button>
                           </div>
                         )}
 
