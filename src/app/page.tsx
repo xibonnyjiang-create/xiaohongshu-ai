@@ -227,7 +227,7 @@ export default function Home() {
 
   // ==================== 生成内容 ====================
   // 生成标题候选（分步预览第一步）
-  const handleGenerateTitles = useCallback(async () => {
+  const handleGenerateTitles = useCallback(async (onComplete?: () => void) => {
     setIsGenerating(true);
     setGeneratedTitles([]);
     setSelectedTitleIndex(null);
@@ -296,7 +296,12 @@ export default function Home() {
             }
           }
         }
-        toast.success('标题已生成，请选择一个并生成完整内容');
+        // 标题生成完成后，如果提供了回调则执行
+        if (onComplete) {
+          onComplete();
+        } else {
+          toast.success('标题已生成，请选择一个并生成完整内容');
+        }
       }
     } catch (error) {
       console.error('生成错误:', error);
@@ -428,40 +433,14 @@ export default function Home() {
 
   // 保留原来的handleGenerate用于直接生成（兼容旧逻辑）
   const handleGenerate = useCallback(async () => {
-    // 如果没有标题预览，直接生成完整内容
-    if (!showTitlePreview) {
-      setIsGenerating(true);
-      setCurrentStep('生成中...');
-      
-      try {
-        await handleGenerateTitles();
-        
-        // 等待标题生成完成后再触发完整内容生成
-        const maxWaitTime = 30000; // 最多等待30秒
-        const startTime = Date.now();
-        
-        const checkAndGenerate = () => {
-          if (generatedTitles.length > 0 && selectedTitleIndex !== null) {
-            // 标题已生成，生成完整内容
-            handleGenerateFullContent();
-          } else if (Date.now() - startTime < maxWaitTime) {
-            // 继续等待
-            setTimeout(checkAndGenerate, 500);
-          } else {
-            // 超时
-            toast.error('生成超时，请重试');
-            setIsGenerating(false);
-          }
-        };
-        
-        setTimeout(checkAndGenerate, 500);
-      } catch (error) {
-        console.error('生成错误:', error);
-        toast.error('生成失败，请重试');
-        setIsGenerating(false);
-      }
-    }
-  }, [showTitlePreview, generatedTitles, selectedTitleIndex, handleGenerateTitles, handleGenerateFullContent]);
+    // 先生成标题，标题生成完成后自动生成完整内容
+    await handleGenerateTitles(() => {
+      // 标题生成完成后，等待状态更新后生成完整内容
+      setTimeout(() => {
+        handleGenerateFullContent();
+      }, 500);
+    });
+  }, [handleGenerateTitles, handleGenerateFullContent]);
 
   // ==================== 自定义生图 ====================
   const handleCustomImageGenerate = async () => {
@@ -1472,10 +1451,10 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent className="px-4 sm:px-5 pb-4">
-                {titles.length === 0 && !content ? (
+                {titles.length === 0 && generatedTitles.length === 0 && !content ? (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                     <FileText className="h-10 w-10 mb-2" />
-                    <p className="text-sm">点击"生成内容"开始创作</p>
+                    <p className="text-sm">点击"一键生成爆款内容"开始创作</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -1499,15 +1478,15 @@ export default function Home() {
                     {/* 整合视图 */}
                     {viewMode === 'integrated' && (
                       <div className="space-y-3">
-                        {/* 标题 */}
-                        {titles.length > 0 && (
+                        {/* 标题 - 优先使用titles，否则使用generatedTitles */}
+                        {(titles.length > 0 || generatedTitles.length > 0) && (
                           <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
                             <div className="text-base font-semibold text-gray-900">
-                              {titles[selectedTitleIndex]?.title}
+                              {titles.length > 0 ? titles[selectedTitleIndex]?.title : generatedTitles[selectedTitleIndex || 0]}
                             </div>
-                            {titles.length > 1 && (
+                            {(titles.length > 1 || generatedTitles.length > 1) && (
                               <div className="flex gap-1.5 mt-2">
-                                {titles.map((t, i) => (
+                                {(titles.length > 0 ? titles : generatedTitles).map((t, i) => (
                                   <button
                                     key={i}
                                     onClick={() => setSelectedTitleIndex(i)}
@@ -1656,8 +1635,8 @@ export default function Home() {
                     {/* 拆分视图 */}
                     {viewMode === 'split' && (
                       <div className="space-y-3">
-                        {/* 标题模块 */}
-                        {titles.length > 0 && (
+                        {/* 标题模块 - 优先使用titles，否则使用generatedTitles */}
+                        {(titles.length > 0 || generatedTitles.length > 0) && (
                           <div className="p-3 border rounded-xl">
                             <div className="flex items-center justify-between mb-2">
                               <Label className="text-xs font-medium text-gray-700 flex items-center gap-1">
@@ -1674,7 +1653,7 @@ export default function Home() {
                               </div>
                             </div>
                             <div className="space-y-1.5">
-                              {titles.map((t, i) => (
+                              {(titles.length > 0 ? titles : generatedTitles.map((t, i) => ({ title: t, id: i }))).map((t, i) => (
                                 <button
                                   key={i}
                                   onClick={() => setSelectedTitleIndex(i)}
