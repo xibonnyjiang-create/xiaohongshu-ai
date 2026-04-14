@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
       hotTopicInfo, titleStyles, personaType,
       enableImageSuggestion, titles: inputTitles,
       hotTop3Tags, // 接收热点Top3标签
-      selectedTitle // 用户选择的标题
+      selectedTitle, // 用户选择的标题
+      generateOnlyTitles, // 是否只生成标题
+      regenerateContent, // 是否重新生成内容（基于选中的标题）
     } = body;
 
     const isVideo = contentType === 'video_script';
@@ -101,6 +103,15 @@ export async function POST(request: NextRequest) {
             hotTopicTags, inputTitles, personaType
           );
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`));
+
+          // 如果只是生成标题（分步模式），在这里结束
+          if (generateOnlyTitles) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '标题已生成，请选择标题' })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles_end', data: true })}\n\n`));
+            return new Response(stream.read(), {
+              headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+            });
+          }
 
           // 2. 生成正文（使用结构化指令流 - 内置合规检测）
           // 如果用户选择了标题，使用用户选择的标题；否则使用第一个生成的标题

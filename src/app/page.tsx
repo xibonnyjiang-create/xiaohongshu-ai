@@ -227,7 +227,7 @@ export default function Home() {
 
   // ==================== 生成内容 ====================
   // 生成标题候选（分步预览第一步）
-  const handleGenerateTitles = useCallback(async (onComplete?: () => void) => {
+  const handleGenerateTitles = useCallback(async () => {
     setIsGenerating(true);
     setGeneratedTitles([]);
     setSelectedTitleIndex(null);
@@ -248,7 +248,7 @@ export default function Home() {
           topicType, userTag, contentType, keywords,
           analysisTarget, analysisTargetInput, contentDepth, focusDirections,
           contentSubType, platformCompare, includeExample, includeResearch,
-          videoDuration, videoStyle: videoStyle, enableImageSuggestion: enableImageSuggestion,
+          videoDuration, videoStyle: videoStyle, enableImageSuggestion: false,
           titleStyles, customTitleStyle, personaType, customPersona,
           additionalRequirements: enableRiskWarning ? ['risk_warning'] : [],
           customRequirement,
@@ -259,10 +259,8 @@ export default function Home() {
           toneStyle,
           emojiDensity,
           enableRiskWarning,
-          // 一次性生成标题和内容，不再分步
-          generateOnlyTitles: false,
-          // 传递当前选择的标题索引（如果已有）
-          selectedTitleIndex: selectedTitleIndex,
+          // 只生成标题，不生成内容
+          generateOnlyTitles: true,
         }),
       });
 
@@ -290,12 +288,19 @@ export default function Home() {
                     break;
                   case 'titles':
                     setGeneratedTitles(data.data.map((t: any) => t.title || t));
-                    // 同时更新titles数组（兼容不同的标题格式）
+                    // 同时更新titles数组
                     setTitles(data.data.map((t: any) => typeof t === 'string' ? { title: t, style: 'suspense' } : t));
                     // 默认选中第一个
                     if (data.data.length > 0) {
                       setSelectedTitleIndex(0);
                     }
+                    break;
+                  case 'titles_end':
+                    // 标题生成完成，等待用户选择
+                    setCurrentStep('');
+                    setIsGenerating(false);
+                    setShowTitlePreview(true);
+                    toast.success('标题已生成，请选择标题');
                     break;
                   case 'content':
                     setContent(prev => prev + data.data);
@@ -365,7 +370,10 @@ export default function Home() {
     setCompliance({ isCompliant: true, warnings: [] });
     setShowGuide(true);
 
-    const selectedTitle = generatedTitles[selectedTitleIndex];
+    // 获取选中的标题 - 优先使用titles数组，否则使用generatedTitles
+    const selectedTitleObj = titles.length > 0 
+      ? titles[selectedTitleIndex]?.title 
+      : generatedTitles[selectedTitleIndex];
 
     try {
       const response = await fetch('/api/generate', {
@@ -386,8 +394,8 @@ export default function Home() {
           toneStyle,
           emojiDensity,
           enableRiskWarning,
-          // 指定标题
-          selectedTitle,
+          // 指定标题（使用选中的标题）
+          selectedTitle: selectedTitleObj,
         }),
       });
 
@@ -1477,7 +1485,26 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent className="px-4 sm:px-5 pb-4">
-                {titles.length === 0 && generatedTitles.length === 0 && !content ? (
+                {/* 加载状态 */}
+                {isGenerating && (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <div className="relative mb-4">
+                      <div className="w-16 h-16 rounded-full border-4 border-rose-100"></div>
+                      <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-rose-500 animate-spin"></div>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">{currentStep || '正在生成...'}</p>
+                    <p className="text-xs text-gray-400">AI正在为你创作内容，请稍候</p>
+                    {/* 进度指示器 */}
+                    <div className="flex gap-1 mt-4">
+                      <div className="w-2 h-2 rounded-full bg-rose-500 animate-bounce" style={{animationDelay: '0ms'}}></div>
+                      <div className="w-2 h-2 rounded-full bg-rose-400 animate-bounce" style={{animationDelay: '150ms'}}></div>
+                      <div className="w-2 h-2 rounded-full bg-rose-300 animate-bounce" style={{animationDelay: '300ms'}}></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 初始空状态（无加载、无内容） */}
+                {!isGenerating && titles.length === 0 && generatedTitles.length === 0 && !content ? (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                     <FileText className="h-10 w-10 mb-2" />
                     <p className="text-sm">点击"一键生成爆款内容"开始创作</p>
