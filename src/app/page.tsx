@@ -234,6 +234,11 @@ export default function Home() {
     setShowTitlePreview(true);
     setCurrentStep('生成标题中...');
     setViewMode('split');
+    setContent(''); // 清空之前的内容
+    setTitles([]);
+    setTags([]);
+    setImageUrls([]);
+    setEngagementScore(null);
 
     try {
       const response = await fetch('/api/generate', {
@@ -243,7 +248,7 @@ export default function Home() {
           topicType, userTag, contentType, keywords,
           analysisTarget, analysisTargetInput, contentDepth, focusDirections,
           contentSubType, platformCompare, includeExample, includeResearch,
-          videoDuration, videoStyle: videoStyle, enableImageSuggestion: false,
+          videoDuration, videoStyle: videoStyle, enableImageSuggestion: enableImageSuggestion,
           titleStyles, customTitleStyle, personaType, customPersona,
           additionalRequirements: enableRiskWarning ? ['risk_warning'] : [],
           customRequirement,
@@ -254,8 +259,10 @@ export default function Home() {
           toneStyle,
           emojiDensity,
           enableRiskWarning,
-          // 只生成标题
-          generateOnlyTitles: true,
+          // 一次性生成标题和内容，不再分步
+          generateOnlyTitles: false,
+          // 传递当前选择的标题索引（如果已有）
+          selectedTitleIndex: selectedTitleIndex,
         }),
       });
 
@@ -282,26 +289,50 @@ export default function Home() {
                     setCurrentStep(data.data);
                     break;
                   case 'titles':
-                    setGeneratedTitles(data.data.map((t: any) => t.title));
+                    setGeneratedTitles(data.data.map((t: any) => t.title || t));
+                    // 同时更新titles数组（兼容不同的标题格式）
+                    setTitles(data.data.map((t: any) => typeof t === 'string' ? { title: t, style: 'suspense' } : t));
                     // 默认选中第一个
                     if (data.data.length > 0) {
                       setSelectedTitleIndex(0);
                     }
                     break;
+                  case 'content':
+                    setContent(prev => prev + data.data);
+                    break;
+                  case 'content_end':
+                    // 内容结束标记
+                    break;
+                  case 'tags':
+                    setTags(data.data);
+                    break;
+                  case 'images':
+                    setImageUrls(data.data);
+                    break;
+                  case 'music':
+                    setRecommendedMusic(data.data);
+                    break;
+                  case 'compliance':
+                    setCompliance(data.data);
+                    if (!data.data.isCompliant && !userEdited && data.data.fixedContent) {
+                      setEditableContent(data.data.fixedContent);
+                      setContent(data.data.fixedContent);
+                      setCompliance(prev => ({ ...prev, fixed: true }));
+                    }
+                    break;
                   case 'engagement_score':
+                    setEngagementScore(data.data);
                     setCurrentStep('');
+                    setShowTitlePreview(false);
+                    toast.success('生成完成！');
                     break;
                 }
               } catch (e) {}
             }
           }
         }
-        // 标题生成完成后，如果提供了回调则执行
-        if (onComplete) {
-          onComplete();
-        } else {
-          toast.success('标题已生成，请选择一个并生成完整内容');
-        }
+        // 生成完成
+        toast.success('生成完成！');
       }
     } catch (error) {
       console.error('生成错误:', error);
@@ -431,16 +462,11 @@ export default function Home() {
     }
   }, [selectedTitleIndex, generatedTitles, topicType, userTag, contentType, keywords, selectedHotTopic, hotTop3Tags, analysisLogic, toneStyle, emojiDensity, enableRiskWarning, personaType, lockedModules, userEdited]);
 
-  // 保留原来的handleGenerate用于直接生成（兼容旧逻辑）
+  // 保留原来的handleGenerate用于直接生成
   const handleGenerate = useCallback(async () => {
-    // 先生成标题，标题生成完成后自动生成完整内容
-    await handleGenerateTitles(() => {
-      // 标题生成完成后，等待状态更新后生成完整内容
-      setTimeout(() => {
-        handleGenerateFullContent();
-      }, 500);
-    });
-  }, [handleGenerateTitles, handleGenerateFullContent]);
+    // 直接调用handleGenerateTitles，它会一次性生成标题和内容
+    await handleGenerateTitles();
+  }, [handleGenerateTitles]);
 
   // ==================== 自定义生图 ====================
   const handleCustomImageGenerate = async () => {

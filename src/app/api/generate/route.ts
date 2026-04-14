@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`));
           const titles = await generateStructuredTitles(
             topicType, userTag, contentType, keywords, hotTopicInfo,
-            hotTopicTags, inputTitles
+            hotTopicTags, inputTitles, personaType
           );
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`));
 
@@ -198,15 +198,29 @@ async function generateStructuredTitles(
   keywords?: string,
   hotTopicInfo?: string,
   hotTopicTags?: string[],
-  inputTitles?: TitleCandidate[]
+  inputTitles?: TitleCandidate[],
+  personaType?: string
 ): Promise<TitleCandidate[]> {
   
   const userLevel = USER_LEVEL_REQUIREMENTS[userTag];
+  
+  // 人设风格对应的标题要求
+  const personaTitleStyles = {
+    hardcore_uncle: `语气沉稳老练，自带权威感，可用中年男人睿智风格`,
+    sweet_girl: `语气甜美亲切，像闺蜜聊天，可用"姐妹们"、"小可爱们"`,
+    veteran_trader: `实战派老股民风格，直接干脆，有多年市场经验感`,
+    finance_scholar: `学术气息，理性严谨，喜欢引用数据和研报`,
+    roaster: `幽默犀利，敢于吐槽，用吐槽方式吸引眼球`,
+    custom: `根据用户自定义人设调整语气`,
+  };
   
   // 如果有预设标题，直接返回
   if (inputTitles && inputTitles.length > 0) {
     return inputTitles;
   }
+
+  const selectedPersona = personaType || 'custom';
+  const personaStyle = personaTitleStyles[selectedPersona as keyof typeof personaTitleStyles] || personaTitleStyles.custom;
 
   const prompt = `【结构化标题生成】
 
@@ -215,6 +229,7 @@ async function generateStructuredTitles(
 【选题信息】
 选题类型：${TOPIC_TYPE_PROMPTS[topicType]}
 目标用户层级：${USER_TAG_CONTENT_MAP[userTag]}
+人设风格：${selectedPersona}
 内容形式：${contentType === 'article' ? '图文内容' : '视频脚本'}
 ${keywords ? `用户输入关键词：${keywords}` : ''}
 ${hotTopicTags && hotTopicTags.length > 0 ? `热点标签（选其一融入标题）：${hotTopicTags.join('、')}` : ''}
@@ -223,13 +238,8 @@ ${hotTopicInfo ? `热点背景：\n${hotTopicInfo.substring(0, 300)}` : ''}
 【标题规范 - 必须严格遵守】
 1. 长度：≤20字（不含Emoji）
 2. 必须包含：1-3个Emoji
-3. 必须体现：用户层级风格（${userLevel.style}）
+3. 必须体现：${personaStyle}
 4. 必须可二次编辑
-
-【用户层级风格示例】
-- 新手：📈姐妹们！这个信号出现就要注意了
-- 进阶：🔥机构都在抄底这个板块
-- 专业：📊宏观数据超预期，如何配置？
 
 【输出格式】
 直接输出3个标题，每行一个，格式为"emoji 标题内容"：
