@@ -21,7 +21,7 @@ import {
   Flame, X, Edit3, Save, Wand2, Lock, Unlock, History,
   Trash2, FileEdit, Lightbulb, Target, Layers, Star,
   ImagePlus, Music, User, ShieldAlert, Users, MessageSquare,
-  Smile, WandSparkles, Tag
+  Smile, WandSparkles, Tag, Rocket
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
