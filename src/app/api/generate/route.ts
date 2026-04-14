@@ -108,9 +108,8 @@ export async function POST(request: NextRequest) {
           if (generateOnlyTitles) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '标题已生成，请选择标题' })}\n\n`));
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles_end', data: true })}\n\n`));
-            return new Response(stream.read(), {
-              headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-            });
+            controller.close();
+            return;
           }
 
           // 2. 生成正文（使用结构化指令流 - 内置合规检测）
