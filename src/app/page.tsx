@@ -19,7 +19,7 @@ import {
 } from '@/lib/types';
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
-  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC
+  KEYWORD_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC
 } from '@/lib/constants';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar,
@@ -72,7 +72,6 @@ export default function Home() {
   // ==================== 计算属性 ====================
   const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
   const keywordsByScene = KEYWORD_RECOMMENDATIONS[topicType];
-  const topicRecommendations = TOPIC_RECOMMENDATIONS[topicType];
   const personaStyleConfig = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
 
   // ==================== 内容评价雷达图数据 ====================
@@ -452,39 +451,7 @@ export default function Home() {
                   </Card>
                 )}
 
-                {/* 小白科普 - 推荐主题 */}
-                {topicType === 'beginner_guide' && (
-                  <Card className="mb-4 border-0 shadow-lg bg-white/90">
-                    <CardHeader className="pb-3 pt-4 px-5">
-                      <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                        <WandSparkles className="w-5 h-5 text-green-500" />
-                        推荐主题
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 pb-5 space-y-4">
-                      {topicRecommendations.map((rec, index) => (
-                        <div key={index} className="space-y-2">
-                          <p className="text-sm font-medium text-gray-700">{rec.label}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {rec.keywords.map((kw, i) => (
-                              <button
-                                key={i}
-                                onClick={() => setKeywords(kw)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                  keywords === kw
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {kw}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
+
 
                 {/* 关键词输入 */}
                 <Card className="mb-4 border-0 shadow-lg bg-white/90">
