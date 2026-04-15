@@ -52,12 +52,11 @@ export const PERSONA_OPTIONS: { value: PersonaType; label: string; description: 
 ];
 
 // 视频时长选项
-export const VIDEO_DURATION_OPTIONS: { value: VideoDuration; label: string }[] = [
-  { value: '15s', label: '15秒' },
-  { value: '30s', label: '30秒' },
-  { value: '60s', label: '60秒' },
-  { value: '90s', label: '90秒' },
-  { value: '120s', label: '120秒' },
+export const VIDEO_DURATION_OPTIONS: { value: VideoDuration; label: string; description: string }[] = [
+  { value: '30s', label: '30秒', description: '短平快，干货精炼' },
+  { value: '60s', label: '60秒', description: '适中长度，内容丰富' },
+  { value: '90s', label: '90秒', description: '较长时间，深入讲解' },
+  { value: '2min', label: '2分钟及以上', description: '深度内容，完整叙事' },
 ];
 
 // 视频风格选项

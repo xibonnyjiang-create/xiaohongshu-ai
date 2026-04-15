@@ -14,12 +14,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  TopicType, TitleCandidate, HotTopic, EngagementScore, OutputFormat
+  TopicType, TitleCandidate, HotTopic, EngagementScore, OutputFormat, VideoDuration
 } from '@/lib/types';
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
   KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
-  OUTPUT_FORMAT_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING
+  OUTPUT_FORMAT_OPTIONS, VIDEO_DURATION_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING
 } from '@/lib/constants';
 
 export default function Home() {
@@ -30,6 +30,7 @@ export default function Home() {
 
   // ==================== 输出形式选择 ====================
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('image_text');
+  const [videoDuration, setVideoDuration] = useState<VideoDuration>('60s');
 
   // ==================== 人设选择 ====================
   const [personaType, setPersonaType] = useState<string>('hardcore_uncle');
@@ -171,6 +172,7 @@ export default function Home() {
           keywords,
           deepAnalysis,
           outputFormat,
+          videoDuration,
           personaType,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
           hotTop3Tags,
@@ -360,6 +362,42 @@ export default function Home() {
                           </button>
                         ))}
                       </div>
+                    </div>
+
+                    {/* 视频时长选择 - 仅视频模式显示 */}
+                    {outputFormat === 'video' && (
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500 mb-2">视频时长</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {VIDEO_DURATION_OPTIONS.map(option => (
+                            <button
+                              key={option.value}
+                              onClick={() => setVideoDuration(option.value)}
+                              className={`p-2 rounded-lg text-center transition-all ${
+                                videoDuration === option.value
+                                  ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-md'
+                                  : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                              }`}
+                            >
+                              <span className="text-sm font-medium">{option.label}</span>
+                              <p className={`text-[9px] mt-0.5 ${videoDuration === option.value ? 'text-orange-100' : 'text-gray-400'}`}>
+                                {option.description}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 字数提示 */}
+                    <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+                      <p className="text-[10px] text-gray-500">
+                        {outputFormat === 'image_text' ? (
+                          <>📝 图文内容：标题不超过20字，正文控制在400-500字</>
+                        ) : (
+                          <>🎬 视频脚本：根据时长自动调整，一般3-5个分镜</>
+                        )}
+                      </p>
                     </div>
 
                     {/* 深度分析开关 */}

@@ -5,7 +5,7 @@ export type TopicType = 'market_hot' | 'beginner_guide' | 'life_lifestyle' | 'to
 export type OutputFormat = 'image_text' | 'video';
 
 // 视频时长
-export type VideoDuration = '15s' | '30s' | '60s' | '90s' | '120s';
+export type VideoDuration = '30s' | '60s' | '90s' | '2min';
 
 // 视频风格
 export type VideoStyle = 'popular_science' | 'science' | 'drama' | 'talk' | 'mixed' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo' | 'custom';

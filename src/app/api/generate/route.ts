@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { TopicType, PersonaType, TitleCandidate, OutputFormat } from '@/lib/types';
+import { TopicType, PersonaType, TitleCandidate, OutputFormat, VideoDuration } from '@/lib/types';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
 import { PERSONA_STYLE_CONFIG, WEIXIN_SECURITY_MAPPING } from '@/lib/constants';
 
@@ -11,6 +11,14 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   tool_review: '工具测评',
 };
 
+// 视频时长配置
+const VIDEO_DURATION_CONFIG: Record<VideoDuration, { totalSeconds: number; segmentCount: number; description: string }> = {
+  '30s': { totalSeconds: 30, segmentCount: 2, description: '短平快，干货精炼' },
+  '60s': { totalSeconds: 60, segmentCount: 3, description: '适中长度，内容丰富' },
+  '90s': { totalSeconds: 90, segmentCount: 4, description: '较长时间，深入讲解' },
+  '2min': { totalSeconds: 120, segmentCount: 5, description: '深度内容，完整叙事' },
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -19,6 +27,7 @@ export async function POST(request: NextRequest) {
       keywords,
       deepAnalysis,
       outputFormat,
+      videoDuration,
       personaType,
       hotTopicInfo,
       hotTop3Tags,
@@ -29,6 +38,7 @@ export async function POST(request: NextRequest) {
       keywords?: string;
       deepAnalysis?: boolean;
       outputFormat?: OutputFormat;
+      videoDuration?: VideoDuration;
       personaType?: string;
       hotTopicInfo?: string;
       hotTop3Tags?: string[];
@@ -37,6 +47,7 @@ export async function POST(request: NextRequest) {
     };
 
     const isVideo = outputFormat === 'video';
+    const durationConfig = VIDEO_DURATION_CONFIG[videoDuration || '60s'];
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -91,7 +102,7 @@ export async function POST(request: NextRequest) {
             // 视频脚本模式
             safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成视频脚本...' })}\n\n`);
             const videoScript = await generateVideoScript(
-              topicType, keywords, usedTitle, personaType, styleConfig, weixinMapping
+              topicType, keywords, usedTitle, personaType, styleConfig, weixinMapping, durationConfig
             );
             safeEnqueue(`data: ${JSON.stringify({ type: 'video_script', data: videoScript })}\n\n`);
 
@@ -132,14 +143,23 @@ export async function POST(request: NextRequest) {
             // 图文模式
             safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`);
 
+            const MAX_CONTENT_LENGTH = 480; // 最大字数限制（留20字余量）
+
             const contentStream = await generateContentStream(
               topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig, weixinMapping
             );
 
             for await (const chunk of contentStream) {
               if (isClosed) break;
-              accumulatedContent += chunk;
-              if (!safeEnqueue(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`)) {
+              // 检查是否超过字数限制
+              if (accumulatedContent.length >= MAX_CONTENT_LENGTH) {
+                break; // 停止接收新内容
+              }
+              // 计算剩余可接收字数
+              const remaining = MAX_CONTENT_LENGTH - accumulatedContent.length;
+              const chunkToSend = chunk.length > remaining ? chunk.substring(0, remaining) : chunk;
+              accumulatedContent += chunkToSend;
+              if (chunkToSend && !safeEnqueue(`data: ${JSON.stringify({ type: 'content', data: chunkToSend })}\n\n`)) {
                 break;
               }
             }
@@ -226,14 +246,15 @@ async function generateTitles(
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
 ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
 
-【标题要求】
-1. 长度：≤20字
-2. 必须包含：1-3个Emoji
+【标题要求】严格遵守！
+1. 总长度：≤20字（emoji+符号+汉字全部算在内）
+2. 必须包含：1-2个Emoji
 3. 标题风格：${config.titleStyle}
 4. 语气：${config.tone}
+5. 不要使用任何Markdown格式
 
 【输出格式】
-直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号：
+直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号，不要加引号：
 
 `;
 
@@ -275,43 +296,29 @@ async function generateContentStream(
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
 
-  let prompt = `你是专业的小红书内容创作者，擅长生成高转化、高合规的爆款内容。
+  let prompt = `【重要】请严格控制字数：400-500字（全文含emoji总计）
 
-【创作场景】${topicLabel}
-【分析深度】${analysisLevel}
-【人设】${personaType || 'custom'}
-【风格配置】语气：${config.tone}，表情密度：${config.emojiDensity}
+标题：${selectedTitle || '待定'}
+关键词：${keywords || ''}
+${hotTop3Tags?.length ? `标签：${hotTop3Tags.join('、')}` : ''}
+${mappingStr}
 
-【内容要素】
-- 标题：${selectedTitle || '待定'}
-- 关键词：${keywords || '未指定'}
-${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
-${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 300)}` : ''}
+风格：${config.tone}，${config.emojiDensity}
 
-${mappingStr ? `【微证券功能植入点】\n${mappingStr}\n` : ''}
+必须包含：
+- 投资风险提示
+- 微信搜索微证券
+- 纯文本格式，无Markdown
 
-【强制要求】
-1. 投资有风险，入市需谨慎 - 必须包含投资风险提示
-2. 结尾必须引导"微信搜索微证券"（唯一转化路径）
-3. 语气风格：${config.tone}
-4. 表情符号：${config.emojiDensity}
-5. 严禁荐股、承诺收益
-6. 【严格禁止Markdown】绝对不能使用任何Markdown语法，包括但不限于：
-   - 不能使用 **文字** 这种加粗格式
-   - 不能使用 # 标题符号
-   - 不能使用 - 或 * 列表符号（可以用序号代替）
-   - 不能使用 [链接](url) 格式
-   - 必须输出纯文本格式
+结构（约450字）：
+💰 开头1-2句
+⭐ 要点1，3-4句
+⭐ 要点2，3-4句
+✨ 总结1句
+⚠️ 风险提示
+👉 微信搜索微证券
 
-【内容结构】（清单式正文，Emoji视觉分段）
-1. 吸引眼球的标题
-2. 引人入胜的开头（带emoji）
-3. 干货满满的主体（用emoji分段）
-4. 总结升华
-5. 风险提示（必须）
-6. 引导关注：微信搜索微证券（必须）
-
-要求：800-1500字，语言生动有趣，符合小红书风格，去术语化、强共鸣。输出纯文本，不要任何Markdown格式。`;
+现在生成，正好400-500字：`;
 
   const stream = await callLLMStream(prompt);
   return stream;
@@ -324,10 +331,13 @@ async function generateVideoScript(
   selectedTitle?: string,
   personaType?: string,
   styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
-  weixinMapping?: { feature: string; highlight: string }[]
+  weixinMapping?: { feature: string; highlight: string }[],
+  durationConfig?: { totalSeconds: number; segmentCount: number; description: string }
 ): Promise<{ hook: string; segments: { visual: string; voiceover: string; duration: string }[]; cta: string }> {
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
+  const duration = durationConfig || VIDEO_DURATION_CONFIG['60s'];
+  const avgSegmentDuration = Math.floor(duration.totalSeconds / duration.segmentCount);
 
   const prompt = `【视频脚本生成】
 请为以下内容生成小红书视频脚本。
@@ -343,20 +353,22 @@ ${mappingStr ? `【微证券功能植入点】\n${mappingStr}\n` : ''}
 【脚本要求】
 1. 黄金3秒钩子：制造悬念/冲突/共鸣，吸引用户停留
 2. 分镜脚本：每个镜头包含画面描述+口播文案+时长
-3. 总时长：60-90秒
-4. 结尾CTA：引导微信搜索微证券
+3. 总时长：${duration.totalSeconds}秒（${duration.description}）
+4. 分镜数量：${duration.segmentCount}个（平均每个${avgSegmentDuration}秒左右）
+5. 结尾CTA：引导微信搜索微证券
+6. 口播语速：自然流畅，符合小红书风格
 
 【输出格式】JSON
 {
-  "hook": "黄金3秒钩子文案",
+  "hook": "黄金3秒钩子文案（制造悬念）",
   "segments": [
-    {"visual": "画面描述", "voiceover": "口播文案", "duration": "3-5秒"},
+    {"visual": "画面描述", "voiceover": "口播文案", "duration": "${avgSegmentDuration}秒"},
     ...
   ],
   "cta": "结尾行动号召"
 }
 
-只输出JSON，不要其他内容。`;
+只输出JSON，不要其他内容。纯文本输出，不要Markdown格式。`;
 
   const response = await callLLM(prompt);
 
