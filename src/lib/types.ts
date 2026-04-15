@@ -1,11 +1,8 @@
 // 选题类型（四大场景矩阵）
 export type TopicType = 'market_hot' | 'beginner_guide' | 'life_lifestyle' | 'tool_review';
 
-// 目标用户
-export type UserTag = 'newbie' | 'active_trader' | 'professional';
-
-// 内容类型
-export type ContentType = 'article' | 'video_script';
+// 输出形式
+export type OutputFormat = 'image_text' | 'video';
 
 // 视频时长
 export type VideoDuration = '15s' | '30s' | '60s' | '90s' | '120s';

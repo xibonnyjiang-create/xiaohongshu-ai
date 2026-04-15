@@ -3,11 +3,19 @@ import {
   TitleStyle, PersonaType, HotTopicTimeRange
 } from './types';
 
+// ==================== 输出形式选项 ====================
+export type OutputFormat = 'image_text' | 'video';
+
+export const OUTPUT_FORMAT_OPTIONS: { value: OutputFormat; label: string; description: string; emoji: string }[] = [
+  { value: 'image_text', label: '图文内容', description: '清单式正文，Emoji视觉分段', emoji: '📝' },
+  { value: 'video', label: '视频脚本', description: '黄金3秒钩子+分镜描述+口播文案', emoji: '🎬' },
+];
+
 // 四大场景矩阵（基于MECE原则，相互独立、完全穷尽）
 export const SCENE_OPTIONS: { value: TopicType; label: string; description: string; emoji: string }[] = [
   { value: 'market_hot', label: '市场热点', description: '追踪AI、机器人等热点事件与市场动态', emoji: '🔥' },
   { value: 'beginner_guide', label: '小白科普', description: '投资入门知识与基础认知扫盲', emoji: '🌱' },
-  { value: 'life_lifestyle', label: '生活化种草', description: '将投资融入日常生活场景的种草内容', emoji: '🏠' },
+  { value: 'life_lifestyle', label: '生活化种草', description: '职场与生活种草，将投资融入日常场景', emoji: '🏠' },
   { value: 'tool_review', label: '工具测评', description: '券商APP、基金工具等产品评测', emoji: '🛠️' },
 ];
 
@@ -91,6 +99,34 @@ export const KEYWORD_RECOMMENDATIONS: Record<TopicType, string[]> = {
   'beginner_guide': ['ETF基金', '理财认知', '基金定投', '国债', '货币基金'],
   'life_lifestyle': ['存钱', '副业', '消费观', '极简生活', '财务自由'],
   'tool_review': ['券商APP', '基金筛选器', '智能投顾', '记账软件'],
+};
+
+// ==================== 生活化种草专属词库（PRD要求）====================
+export const LIFE_STYLE_KEYWORDS: string[] = [
+  '办公室摸鱼', '开会间隙', '排队等餐', '一键转发姐妹',
+  '摸鱼必备', '微信直接看', '姐妹讨论', '告别焦虑',
+  '通勤路上', '午休理财', '碎片时间', '偷偷变富',
+];
+
+// ==================== 微证券功能场景映射表（PRD要求）====================
+export const WEIXIN_SECURITY_MAPPING: Record<TopicType, { feature: string; highlight: string }[]> = {
+  'market_hot': [
+    { feature: '问元宝AI', highlight: '大白话拆解复杂行情' },
+    { feature: '实时行情', highlight: '上班也能盯盘' },
+  ],
+  'beginner_guide': [
+    { feature: '极简UI', highlight: '像刷朋友圈一样开户' },
+    { feature: '微信直达', highlight: '免下载，开户3分钟' },
+  ],
+  'life_lifestyle': [
+    { feature: '波动提醒', highlight: '微信弹窗通知，上班忙也不漏行情' },
+    { feature: '双端浮窗', highlight: '摸鱼隐蔽、社交分享无缝' },
+    { feature: '一键分享', highlight: '转发姐妹一起看' },
+  ],
+  'tool_review': [
+    { feature: '基金筛选器', highlight: '智能推荐适合的产品' },
+    { feature: '收益看板', highlight: '一键查看持仓收益' },
+  ],
 };
 
 // 推荐切入点

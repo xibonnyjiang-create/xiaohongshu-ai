@@ -10,15 +10,16 @@ import { Switch } from '@/components/ui/switch';
 import {
   Sparkles, Loader2, Copy, Heart, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
-  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon
+  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  TopicType, TitleCandidate, HotTopic, EngagementScore
+  TopicType, TitleCandidate, HotTopic, EngagementScore, OutputFormat
 } from '@/lib/types';
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
-  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC
+  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
+  OUTPUT_FORMAT_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING
 } from '@/lib/constants';
 
 export default function Home() {
@@ -26,6 +27,9 @@ export default function Home() {
   const [topicType, setTopicType] = useState<TopicType>('market_hot');
   const [keywords, setKeywords] = useState('');
   const [deepAnalysis, setDeepAnalysis] = useState(false);
+
+  // ==================== 输出形式选择 ====================
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>('image_text');
 
   // ==================== 人设选择 ====================
   const [personaType, setPersonaType] = useState<string>('hardcore_uncle');
@@ -63,6 +67,7 @@ export default function Home() {
   const [editableContent, setEditableContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string }[]; cta: string } | null>(null);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean }>({ isCompliant: true, warnings: [] });
   const [engagementScore, setEngagementScore] = useState<EngagementScore | null>(null);
 
@@ -71,6 +76,7 @@ export default function Home() {
   const keywordsByScene = KEYWORD_RECOMMENDATIONS[topicType];
   const topicRecommendations = TOPIC_RECOMMENDATIONS[topicType];
   const personaStyleConfig = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
+  const weixinMapping = WEIXIN_SECURITY_MAPPING[topicType] || [];
 
   // ==================== 加载热搜 ====================
   const loadHotTopics = useCallback(async () => {
@@ -152,6 +158,7 @@ export default function Home() {
     setStep('content');
     setContent('');
     setEditableContent('');
+    setVideoScript(null);
 
     const selectedTitle = generatedTitles[selectedTitleIndex].title;
 
@@ -163,6 +170,7 @@ export default function Home() {
           topicType,
           keywords,
           deepAnalysis,
+          outputFormat,
           personaType,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
           hotTop3Tags,
@@ -198,6 +206,9 @@ export default function Home() {
                     accumulatedContent += data.data;
                     setContent(accumulatedContent);
                     setEditableContent(accumulatedContent);
+                    break;
+                  case 'video_script':
+                    setVideoScript(data.data);
                     break;
                   case 'tags':
                     setTags(data.data);
@@ -327,6 +338,30 @@ export default function Home() {
                       ))}
                     </div>
 
+                    {/* 输出形式选择 */}
+                    <div className="mt-4">
+                      <p className="text-xs text-gray-500 mb-2">输出形式</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {OUTPUT_FORMAT_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            onClick={() => setOutputFormat(option.value)}
+                            className={`p-3 rounded-xl text-left transition-all ${
+                              outputFormat === option.value
+                                ? 'bg-gradient-to-br from-purple-500 to-indigo-500 text-white shadow-md'
+                                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                          >
+                            <span className="text-lg mr-2">{option.emoji}</span>
+                            <span className="text-sm font-medium">{option.label}</span>
+                            <p className={`text-[10px] mt-1 ${outputFormat === option.value ? 'text-purple-100' : 'text-gray-400'}`}>
+                              {option.description}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* 深度分析开关 */}
                     <div className="flex items-center justify-between p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
                       <div className="flex items-center gap-2">
@@ -338,6 +373,20 @@ export default function Home() {
                       </div>
                       <Switch checked={deepAnalysis} onCheckedChange={setDeepAnalysis} />
                     </div>
+
+                    {/* 微证券功能映射提示 */}
+                    {weixinMapping.length > 0 && (
+                      <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                        <p className="text-xs font-medium text-gray-700 mb-2">微证券功能植入点</p>
+                        <div className="flex flex-wrap gap-2">
+                          {weixinMapping.map((item, i) => (
+                            <Badge key={i} variant="outline" className="bg-white text-xs">
+                              {item.feature}：{item.highlight}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -462,6 +511,35 @@ export default function Home() {
                   </Card>
                 )}
 
+                {/* 生活化种草 - 专属词库 */}
+                {topicType === 'life_lifestyle' && (
+                  <Card className="mb-4 border-0 shadow-lg bg-gradient-to-br from-green-50 to-teal-50">
+                    <CardHeader className="pb-3 pt-4 px-5">
+                      <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-green-500" />
+                        生活化种草专属词库
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-5 pb-5">
+                      <div className="flex flex-wrap gap-2">
+                        {LIFE_STYLE_KEYWORDS.map((kw, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setKeywords(kw)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              keywords === kw
+                                ? 'bg-green-500 text-white'
+                                : 'bg-white text-gray-600 hover:bg-green-100 border border-green-200'
+                            }`}
+                          >
+                            {kw}
+                          </button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* 关键词输入 */}
                 <Card className="mb-4 border-0 shadow-lg bg-white/90">
                   <CardHeader className="pb-3 pt-4 px-5">
@@ -476,7 +554,7 @@ export default function Home() {
                       <Input
                         value={keywords}
                         onChange={(e) => setKeywords(e.target.value)}
-                        placeholder={topicType === 'beginner_guide' ? '或输入自定义主题...' : '输入内容关键词，如：AI概念、机器人、半导体...'}
+                        placeholder={topicType === 'beginner_guide' ? '或输入自定义主题...' : topicType === 'life_lifestyle' ? '选择词库或输入自定义主题...' : '输入内容关键词，如：AI概念、机器人、半导体...'}
                         className="pl-10 border-rose-200 focus:border-rose-400"
                       />
                     </div>
@@ -693,6 +771,46 @@ export default function Home() {
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 视频脚本预览 */}
+              {videoScript && (
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-indigo-50">
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      <Video className="w-4 h-4 text-purple-500" />
+                      视频脚本
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-4">
+                    {/* 黄金3秒钩子 */}
+                    <div className="p-3 bg-white rounded-xl border border-purple-200">
+                      <p className="text-xs font-medium text-purple-600 mb-1">🎬 黄金3秒钩子</p>
+                      <p className="text-sm text-gray-700">{videoScript.hook}</p>
+                    </div>
+
+                    {/* 分镜脚本 */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500">分镜脚本</p>
+                      {videoScript.segments.map((seg, i) => (
+                        <div key={i} className="p-3 bg-white rounded-xl border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge variant="outline" className="text-xs">镜头 {i + 1}</Badge>
+                            <span className="text-xs text-gray-400">{seg.duration}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mb-1">📷 画面：{seg.visual}</p>
+                          <p className="text-sm text-gray-700">🎤 口播：{seg.voiceover}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 行动号召 */}
+                    <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl text-white">
+                      <p className="text-xs font-medium mb-1">📢 行动号召 (CTA)</p>
+                      <p className="text-sm">{videoScript.cta}</p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
