@@ -40,6 +40,19 @@ export async function POST(request: NextRequest) {
         let accumulatedContent = '';
         let isClosed = false;
 
+        const safeEnqueue = (data: string) => {
+          if (!isClosed) {
+            try {
+              controller.enqueue(encoder.encode(data));
+              return true;
+            } catch (e) {
+              isClosed = true;
+              return false;
+            }
+          }
+          return false;
+        };
+
         const closeStream = () => {
           if (!isClosed) {
             isClosed = true;
@@ -54,22 +67,22 @@ export async function POST(request: NextRequest) {
           const styleConfig = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
 
           // 1. 生成标题
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`);
           const titles = await generateTitles(
             topicType, keywords, hotTop3Tags, hotTopicInfo, personaType, styleConfig
           );
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`);
 
           // 如果只是生成标题
           if (generateOnlyTitles) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '标题已生成，请选择标题' })}\n\n`));
+            safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '标题已生成，请选择标题' })}\n\n`);
             closeStream();
             return;
           }
 
           // 2. 生成正文
           const usedTitle = selectedTitle || titles[0]?.title || '';
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`);
 
           const contentStream = await generateContentStream(
             topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig
@@ -78,10 +91,7 @@ export async function POST(request: NextRequest) {
           for await (const chunk of contentStream) {
             if (isClosed) break;
             accumulatedContent += chunk;
-            try {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`));
-            } catch (e) {
-              isClosed = true;
+            if (!safeEnqueue(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`)) {
               break;
             }
           }
@@ -92,36 +102,36 @@ export async function POST(request: NextRequest) {
           }
 
           // 3. 生成标签
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成标签...' })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成标签...' })}\n\n`);
           const tags = await generateTags(topicType, keywords, usedTitle, accumulatedContent);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`);
 
           // 4. 生成配图
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图建议...' })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图建议...' })}\n\n`);
           const imageUrls = await generateImages(usedTitle, accumulatedContent);
           if (imageUrls.length > 0) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`));
+            safeEnqueue(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`);
           }
 
           // 5. 合规审查
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', data: '正在进行合规审查...' })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在进行合规审查...' })}\n\n`);
           const complianceResult = await callComplianceCheck(usedTitle, accumulatedContent, tags.join(' '));
 
           if (complianceResult.fixedContent) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            safeEnqueue(`data: ${JSON.stringify({
               type: 'compliance',
               data: {
                 ...complianceResult,
                 autoFixed: true
               }
-            })}\n\n`));
+            })}\n\n`);
           } else {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'compliance', data: complianceResult })}\n\n`));
+            safeEnqueue(`data: ${JSON.stringify({ type: 'compliance', data: complianceResult })}\n\n`);
           }
 
           // 6. 种草力评分
           const engagementScore = await calculateEngagementScore(titles[0]?.title || '', accumulatedContent, tags);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'engagement_score', data: engagementScore })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ type: 'engagement_score', data: engagementScore })}\n\n`);
 
           closeStream();
         } catch (error) {
