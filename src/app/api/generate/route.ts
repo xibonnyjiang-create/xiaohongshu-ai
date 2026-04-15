@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
-import { TopicType, PersonaType, TitleCandidate } from '@/lib/types';
+import { TopicType, PersonaType, TitleCandidate, ContentType } from '@/lib/types';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
 import { PERSONA_STYLE_CONFIG } from '@/lib/constants';
 import { buildScenarioPrompt, buildToolReviewContent, SCENARIO_PROMPTS } from '@/lib/scenario-prompts';
+import { toXiaoHongShuFormat } from '@/lib/format-adapter';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -12,11 +13,18 @@ const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   tool_review: '工具测评',
 };
 
+// 内容类型映射
+const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
+  article: '图文内容',
+  video_script: '视频脚本',
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
       topicType,
+      contentType,
       keywords,
       deepAnalysis,
       personaType,
@@ -26,6 +34,7 @@ export async function POST(request: NextRequest) {
       generateOnlyTitles,
     } = body as {
       topicType: TopicType;
+      contentType?: ContentType;
       keywords?: string;
       deepAnalysis?: boolean;
       personaType?: string;
@@ -84,16 +93,19 @@ export async function POST(request: NextRequest) {
 
           // 2. 生成正文
           const usedTitle = selectedTitle || titles[0]?.title || '';
+          const effectiveContentType = contentType || 'article';
           safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`);
 
           const contentStream = await generateContentStream(
-            topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig
+            topicType, effectiveContentType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig
           );
 
           for await (const chunk of contentStream) {
             if (isClosed) break;
-            accumulatedContent += chunk;
-            if (!safeEnqueue(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`)) {
+            // 应用小红书格式过滤（去除 Markdown 符号）
+            const filteredChunk = toXiaoHongShuFormat(chunk);
+            accumulatedContent += filteredChunk;
+            if (!safeEnqueue(`data: ${JSON.stringify({ type: 'content', data: filteredChunk })}\n\n`)) {
               break;
             }
           }
@@ -232,6 +244,7 @@ ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
 // 生成内容（流式）
 async function generateContentStream(
   topicType: TopicType,
+  contentType: ContentType,
   keywords?: string,
   deepAnalysis?: boolean,
   hotTopicInfo?: string,
@@ -240,9 +253,10 @@ async function generateContentStream(
   personaType?: string,
   styleConfig?: { tone: string; emojiDensity: string; titleStyle: string }
 ): Promise<AsyncGenerator<string>> {
-  // 使用场景化Prompt
+  // 使用场景化Prompt，并根据内容类型调整
   const prompt = buildScenarioPrompt({
     topicType,
+    contentType,
     keywords,
     deepAnalysis,
     selectedTitle,

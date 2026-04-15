@@ -1,4 +1,4 @@
-import { TopicType, PersonaType } from './types';
+import { TopicType, PersonaType, ContentType } from './types';
 
 /**
  * 场景化Prompt模板
@@ -140,6 +140,7 @@ export const TOOL_REVIEW_DEEP_CONTENT = {
 
 export function buildScenarioPrompt(params: {
   topicType: TopicType;
+  contentType?: ContentType;
   keywords?: string;
   deepAnalysis?: boolean;
   selectedTitle?: string;
@@ -147,10 +148,63 @@ export function buildScenarioPrompt(params: {
   hotTopicInfo?: string;
   hotTop3Tags?: string[];
 }): string {
-  const { topicType, keywords, deepAnalysis, selectedTitle, personaType, hotTopicInfo, hotTop3Tags } = params;
+  const { topicType, contentType, keywords, deepAnalysis, selectedTitle, personaType, hotTopicInfo, hotTop3Tags } = params;
   
   const scenario = SCENARIO_PROMPTS[topicType];
   const isDeepAnalysis = deepAnalysis === true;
+  const isVideoScript = contentType === 'video_script';
+  const contentTypeLabel = isVideoScript ? '视频脚本' : '图文内容';
+  
+  // 根据内容类型构建不同的输出格式要求
+  const articleFormat = `## 【图文内容输出格式】
+生成小红书图文风格内容，包括：
+1. 吸引眼球的标题（带emoji）
+2. 引人入胜的开头（引发共鸣）
+3. 干货满满的主体（分段清晰）
+4. 总结升华
+5. 风险提示（必须）
+6. 引导关注（必须：微信搜索微证券）
+
+要求：
+- 语言生动有趣，符合小红书风格
+- 结构清晰，段落分明
+- 使用空行和emoji（📍、✅、🚀）替代Markdown符号
+- 字数在800-1500字之间
+- 禁止使用**加粗**、###标题、*斜体*等Markdown符号`;
+
+  const videoScriptFormat = `## 【视频脚本输出格式】
+生成小红书视频脚本，包括：
+
+### 【封面设计】
+- 封面标题（3-5秒，震撼吸睛）
+- 封面文字建议
+
+### 【黄金3秒钩子】
+- 前3秒必须抓住观众
+- 设计一个悬念或共鸣点
+
+### 【画面描述】
+- 分镜设计
+- B-roll素材建议
+- 文字贴片位置
+
+### 【旁白口播稿】
+- 完整台词
+- 语速提示（慢-中-快）
+- 停顿标记（P=停顿1秒，PP=停顿2秒）
+
+### 【结尾引导】
+- 互动话术
+- 关注引导
+- 风险提示（必须）
+
+要求：
+- 语速适中，便于口播
+- 画面与旁白节奏配合
+- 总时长控制在60-120秒
+- 禁止使用**加粗**、###标题等Markdown符号`;
+
+  const outputFormat = isVideoScript ? videoScriptFormat : articleFormat;
   
   // 构建基础Prompt
   let prompt = `【小红书爆款内容生成】
@@ -197,27 +251,24 @@ ${scenario.deepAnalysisConfig.complianceOutlook}
 ` : ''}
 
 ## 【强制合规要求】
-1. **投资有风险，入市需谨慎** - 所有内容必须包含此风险提示
-2. **结尾引导** - 必须引导用户"微信搜索微证券"
-3. **严禁承诺收益** - 禁止"稳赚"、"翻倍"、"必涨"等词汇
-4. **去荐股化** - 不给"买入/卖出"指令，改为"关注行业逻辑"
-5. **理性分析** - 避免制造FOMO焦虑
+1. 投资有风险，入市需谨慎 - 所有内容必须包含此风险提示
+2. 结尾引导 - 必须引导用户"微信搜索微证券"
+3. 严禁承诺收益 - 禁止"稳赚"、"翻倍"、"必涨"等词汇
+4. 去荐股化 - 不给"买入/卖出"指令，改为"关注行业逻辑"
+5. 理性分析 - 避免制造FOMO焦虑
 
-## 【输出格式】
-生成小红书风格内容，包括：
-1. 吸引眼球的标题
-2. 引人入胜的开头
-3. 干货满满的主体
-4. 总结升华
-5. 风险提示（必须）
-6. 引导关注（必须：微信搜索微证券）
+## 【内容类型】
+${contentTypeLabel}
 
-要求：
-- 语言生动有趣，符合小红书风格
-- 结构清晰，段落分明
-- 适当使用emoji增加趣味性
-- 字数在800-1500字之间
-- 必须包含相关标签建议`;
+${outputFormat}
+
+${isVideoScript ? '\n## 【视频脚本附加要求】\n- 旁白稿要口语化，便于朗读\n- 每个段落标注建议时长\n- 黄金钩子部分用【】框出' : ''}
+
+## 【最终格式检查】
+生成完成后，请确保：
+- 去除所有Markdown符号（**、###、*、>、-列表符号）
+- 使用emoji（📍、✅、🚀、💡）替代标题层级
+- 空行分隔段落，便于手机端复制`;
 
   return prompt;
 }

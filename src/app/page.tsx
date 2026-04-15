@@ -10,7 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import {
   Sparkles, Loader2, Copy, Heart, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
-  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon
+  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon,
+  ChevronLeft, Undo2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -18,14 +19,30 @@ import {
 } from '@/lib/types';
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
-  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC
+  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
+  CONTENT_TYPE_OPTIONS
 } from '@/lib/constants';
+import { ContentType } from '@/lib/types';
 
 export default function Home() {
   // ==================== 场景选择 ====================
   const [topicType, setTopicType] = useState<TopicType>('market_hot');
   const [keywords, setKeywords] = useState('');
   const [deepAnalysis, setDeepAnalysis] = useState(false);
+
+  // ==================== 内容类型选择 ====================
+  const [contentType, setContentType] = useState<ContentType>('article');
+
+  // ==================== 参数回溯状态管理 ====================
+  const [savedParams, setSavedParams] = useState<{
+    topicType: TopicType;
+    keywords: string;
+    deepAnalysis: boolean;
+    contentType: ContentType;
+    personaType: string;
+    selectedHotTopic: HotTopic | null;
+    hotTop3Tags: string[];
+  } | null>(null);
 
   // ==================== 人设选择 ====================
   const [personaType, setPersonaType] = useState<string>('hardcore_uncle');
@@ -105,6 +122,17 @@ export default function Home() {
       return;
     }
 
+    // 保存当前参数，以便后续回溯修改
+    setSavedParams({
+      topicType,
+      keywords,
+      deepAnalysis,
+      contentType,
+      personaType,
+      selectedHotTopic,
+      hotTop3Tags,
+    });
+
     setIsGenerating(true);
     setCurrentStep('正在生成标题...');
     setStep('titles');
@@ -115,6 +143,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topicType,
+          contentType,
           keywords: keywords || selectedHotTopic?.title,
           personaType,
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
@@ -138,7 +167,7 @@ export default function Home() {
       setIsGenerating(false);
       setCurrentStep('');
     }
-  }, [topicType, keywords, personaType, selectedHotTopic, hotTop3Tags]);
+  }, [topicType, keywords, personaType, selectedHotTopic, hotTop3Tags, contentType]);
 
   // ==================== 内容生成 ====================
   const handleGenerateContent = useCallback(async () => {
@@ -161,6 +190,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topicType,
+          contentType,
           keywords,
           deepAnalysis,
           personaType,
@@ -229,7 +259,7 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTitleIndex, generatedTitles, topicType, keywords, deepAnalysis, personaType, selectedHotTopic, hotTop3Tags, userEdited]);
+  }, [selectedTitleIndex, generatedTitles, topicType, keywords, deepAnalysis, personaType, selectedHotTopic, hotTop3Tags, userEdited, contentType]);
 
   // ==================== 复制内容 ====================
   const handleCopyContent = useCallback(() => {
@@ -242,6 +272,30 @@ export default function Home() {
   // ==================== 返回修改标题 ====================
   const handleBackToTitles = () => {
     setStep('titles');
+    setContent('');
+    setEditableContent('');
+    setTags([]);
+    setImageUrls([]);
+    setCompliance({ isCompliant: true, warnings: [] });
+    setEngagementScore(null);
+  };
+
+  // ==================== 返回修改参数 ====================
+  const handleBackToInput = () => {
+    // 恢复保存的参数
+    if (savedParams) {
+      setTopicType(savedParams.topicType);
+      setKeywords(savedParams.keywords);
+      setDeepAnalysis(savedParams.deepAnalysis);
+      setContentType(savedParams.contentType);
+      setPersonaType(savedParams.personaType);
+      setSelectedHotTopic(savedParams.selectedHotTopic);
+      setHotTop3Tags(savedParams.hotTop3Tags);
+    }
+    // 重置生成状态
+    setStep('input');
+    setGeneratedTitles([]);
+    setSelectedTitleIndex(null);
     setContent('');
     setEditableContent('');
     setTags([]);
@@ -337,6 +391,35 @@ export default function Home() {
                         </div>
                       </div>
                       <Switch checked={deepAnalysis} onCheckedChange={setDeepAnalysis} />
+                    </div>
+
+                    {/* 内容类型选择 */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-rose-500" />
+                        <span className="text-sm font-medium text-gray-700">内容类型</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {CONTENT_TYPE_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            onClick={() => setContentType(option.value as ContentType)}
+                            className={`p-4 rounded-xl text-left transition-all ${
+                              contentType === option.value
+                                ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md'
+                                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                          >
+                            <span className="text-2xl mb-2 block">{option.emoji}</span>
+                            <span className={`text-sm font-bold block ${contentType === option.value ? 'text-white' : 'text-gray-800'}`}>
+                              {option.label}
+                            </span>
+                            <span className={`text-[10px] block mt-1 ${contentType === option.value ? 'text-rose-100' : 'text-gray-400'}`}>
+                              {option.description}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -594,9 +677,29 @@ export default function Home() {
                     <CardTitle className="text-sm font-bold text-gray-800">
                       选择标题
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setStep('input')}>
-                      <X className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={handleBackToInput} className="text-xs">
+                        <Undo2 className="w-3 h-3 mr-1" />
+                        修改参数
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setStep('input')}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* 当前参数摘要 */}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <Badge variant="outline" className="text-[10px] bg-white">
+                      {SCENE_OPTIONS.find(s => s.value === topicType)?.label}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] bg-white">
+                      {CONTENT_TYPE_OPTIONS.find(c => c.value === contentType)?.emoji} {CONTENT_TYPE_OPTIONS.find(c => c.value === contentType)?.label}
+                    </Badge>
+                    {keywords && (
+                      <Badge variant="outline" className="text-[10px] bg-white">
+                        {keywords.slice(0, 10)}
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">

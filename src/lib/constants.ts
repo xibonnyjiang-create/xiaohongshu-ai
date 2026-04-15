@@ -78,6 +78,12 @@ export const PERSONA_STYLE_CONFIG: Record<PersonaType, { tone: string; emojiDens
   'custom': { tone: '自定义', emojiDensity: '适中', titleStyle: 'suspense' },
 };
 
+// 内容类型选项（图文/视频脚本）
+export const CONTENT_TYPE_OPTIONS = [
+  { value: 'article', label: '图文内容', emoji: '📝', description: '封面标题 + 五感正文 + 爆款话题' },
+  { value: 'video_script', label: '视频脚本', emoji: '🎬', description: '黄金3秒钩子 + 画面描述 + 旁白口播' },
+];
+
 // 内容子类型选项（简化）
 export const CONTENT_SUBTYPE_OPTIONS = [
   { value: 'beginner_start', label: '新手入门', keywords: ['开户', '第一步', '基础'] },
