@@ -1,5 +1,5 @@
-// 选题类型
-export type TopicType = 'market_hot' | 'beginner_guide' | 'advanced_invest' | 'professional_analysis';
+// 选题类型（四大场景矩阵）
+export type TopicType = 'market_hot' | 'beginner_guide' | 'life_lifestyle' | 'tool_review';
 
 // 目标用户
 export type UserTag = 'newbie' | 'active_trader' | 'professional';
@@ -8,10 +8,10 @@ export type UserTag = 'newbie' | 'active_trader' | 'professional';
 export type ContentType = 'article' | 'video_script';
 
 // 视频时长
-export type VideoDuration = '15s' | '30s' | '60s' | '90s';
+export type VideoDuration = '15s' | '30s' | '60s' | '90s' | '120s';
 
 // 视频风格
-export type VideoStyle = 'popular_science' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo' | 'custom';
+export type VideoStyle = 'popular_science' | 'science' | 'drama' | 'talk' | 'mixed' | 'fast_cut' | 'deep_dive' | 'funny_roast' | 'demo' | 'custom';
 
 // 标题风格
 export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' | 'contrast' | 'custom';

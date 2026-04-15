@@ -6,8 +6,8 @@ import { callLLM } from '@/lib/llm';
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
   market_hot: '市场热点追踪',
   beginner_guide: '小白科普',
-  advanced_invest: '进阶投资',
-  professional_analysis: '专业分析',
+  life_lifestyle: '生活化种草',
+  tool_review: '工具测评',
 };
 
 export async function POST(request: NextRequest) {
