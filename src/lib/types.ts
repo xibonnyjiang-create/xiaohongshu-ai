@@ -41,10 +41,14 @@ export type ContentSubType = 'beginner_start' | 'tool_knowledge' | 'platform_com
 export interface HotTopic {
   id: number;
   title: string;
-  source: string;
+  source?: string;
   snippet: string;
   url?: string;
   publishTime?: string;
+  hot?: number;
+  // 敏感信息字段
+  isSensitive?: boolean;
+  sensitivityReason?: string;
 }
 
 // 标题候选

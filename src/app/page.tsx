@@ -384,6 +384,19 @@ export default function Home() {
                         ))}
                       </div>
 
+                      {/* 敏感话题警告 */}
+                      {hotCategory === 'crypto' && (
+                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-xs text-amber-700">
+                              <p className="font-medium mb-1">高风险内容提示</p>
+                              <p>数字货币波动较大，请理性投资，注意风险管控。</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* 热搜列表 */}
                       {hotTopicsLoading ? (
                         <div className="flex items-center justify-center py-8">
@@ -401,7 +414,9 @@ export default function Home() {
                               className={`w-full p-3 rounded-xl text-left transition-all ${
                                 selectedHotTopic?.id === topic.id
                                   ? 'bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-400'
-                                  : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                                  : topic.isSensitive
+                                    ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                                    : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
                               }`}
                             >
                               <div className="flex items-center gap-3">
@@ -411,7 +426,14 @@ export default function Home() {
                                   {index + 1}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-800 truncate">{topic.title}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-gray-800 truncate flex-1">{topic.title}</p>
+                                    {topic.isSensitive && (
+                                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-600 border-amber-300">
+                                        已脱敏
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-[10px] text-gray-400 truncate">{topic.snippet}</p>
                                 </div>
                                 {topic.source && (
