@@ -8,10 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
-  Sparkles, Loader2, Copy, Heart, AlertTriangle,
-  Edit3, Save, Rocket, Tag, WandSparkles,
-  Flame, X, Clock, RefreshCw, FileText, ImageIcon,
-  ArrowLeft, ShieldCheck, TrendingUp, MessageCircle
+  Sparkles, Loader2, Copy, Heart, Check, AlertTriangle,
+  Edit3, Save, History, Rocket, Tag, WandSparkles,
+  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -19,12 +18,8 @@ import {
 } from '@/lib/types';
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
-  KEYWORD_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC
+  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC
 } from '@/lib/constants';
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar,
-  ResponsiveContainer
-} from 'recharts';
 
 export default function Home() {
   // ==================== 场景选择 ====================
@@ -34,6 +29,7 @@ export default function Home() {
 
   // ==================== 人设选择 ====================
   const [personaType, setPersonaType] = useState<string>('hardcore_uncle');
+  const [customPersona, setCustomPersona] = useState('');
 
   // ==================== 热榜数据 ====================
   const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
@@ -55,9 +51,10 @@ export default function Home() {
   const [step, setStep] = useState<'input' | 'titles' | 'content'>('input');
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
-  const [viewMode, setViewMode] = useState<'split' | 'integrated'>('split');
+  const [viewMode, setViewMode] = useState<'integrated' | 'split'>('split');
   const [isEditing, setIsEditing] = useState(false);
   const [userEdited, setUserEdited] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
 
   // ==================== 输出状态 ====================
   const [generatedTitles, setGeneratedTitles] = useState<TitleCandidate[]>([]);
@@ -72,20 +69,8 @@ export default function Home() {
   // ==================== 计算属性 ====================
   const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
   const keywordsByScene = KEYWORD_RECOMMENDATIONS[topicType];
+  const topicRecommendations = TOPIC_RECOMMENDATIONS[topicType];
   const personaStyleConfig = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
-
-  // ==================== 内容评价雷达图数据 ====================
-  const getRadarData = () => {
-    if (!engagementScore) return [];
-    const score = engagementScore.score;
-    return [
-      { subject: '合规性', value: compliance.isCompliant ? 95 : 60, fullMark: 100 },
-      { subject: '种草力', value: score, fullMark: 10 },
-      { subject: '专业度', value: Math.min(10, score - 0.5 + Math.random() * 1), fullMark: 10 },
-      { subject: '吸引力', value: Math.min(10, score + Math.random() * 0.5), fullMark: 10 },
-      { subject: '传播力', value: Math.min(10, score - 0.3 + Math.random() * 0.8), fullMark: 10 },
-    ];
-  };
 
   // ==================== 加载热搜 ====================
   const loadHotTopics = useCallback(async () => {
@@ -254,19 +239,15 @@ export default function Home() {
     }
   }, [editableContent]);
 
-  // ==================== 返回上一步 ====================
-  const handleBack = () => {
-    if (step === 'content') {
-      setStep('titles');
-      setContent('');
-      setEditableContent('');
-      setTags([]);
-      setImageUrls([]);
-      setCompliance({ isCompliant: true, warnings: [] });
-      setEngagementScore(null);
-    } else if (step === 'titles') {
-      setStep('input');
-    }
+  // ==================== 返回修改标题 ====================
+  const handleBackToTitles = () => {
+    setStep('titles');
+    setContent('');
+    setEditableContent('');
+    setTags([]);
+    setImageUrls([]);
+    setCompliance({ isCompliant: true, warnings: [] });
+    setEngagementScore(null);
   };
 
   // ==================== 渲染 ====================
@@ -274,7 +255,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50">
       {/* 顶部导航 */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-rose-100">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
@@ -289,7 +270,7 @@ export default function Home() {
                   viewMode === 'split' ? 'bg-white shadow text-gray-800' : 'text-gray-500'
                 }`}
               >
-                左右分栏
+                拆分
               </button>
               <button
                 onClick={() => setViewMode('integrated')}
@@ -297,26 +278,17 @@ export default function Home() {
                   viewMode === 'integrated' ? 'bg-white shadow text-gray-800' : 'text-gray-500'
                 }`}
               >
-                上下滚动
+                整合
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* 响应式布局：PC端左右分栏，移动端上下滚动 */}
-        <div className={`${viewMode === 'split' ? 'lg:grid lg:grid-cols-2 lg:gap-6' : ''}`}>
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        <div className={viewMode === 'split' ? 'grid grid-cols-2 gap-6' : ''}>
           {/* 左侧：输入区域 */}
-          <div className={viewMode === 'split' ? '' : 'max-w-3xl mx-auto'}>
-            
-            {/* 返回按钮 */}
-            {step !== 'input' && (
-              <Button variant="ghost" onClick={handleBack} className="mb-4 text-gray-500">
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                返回上一步
-              </Button>
-            )}
+          <div className={viewMode === 'split' ? '' : 'max-w-2xl mx-auto'}>
             
             {/* Step 1: 场景选择 */}
             {step === 'input' && (
@@ -378,7 +350,12 @@ export default function Home() {
                           <Flame className="w-5 h-5 text-orange-500" />
                           实时热搜榜
                         </CardTitle>
-                        <Button variant="ghost" size="sm" onClick={loadHotTopics} disabled={hotTopicsLoading}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={loadHotTopics}
+                          disabled={hotTopicsLoading}
+                        >
                           <RefreshCw className={`w-4 h-4 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
                         </Button>
                       </div>
@@ -451,7 +428,39 @@ export default function Home() {
                   </Card>
                 )}
 
-
+                {/* 小白科普 - 推荐主题 */}
+                {topicType === 'beginner_guide' && (
+                  <Card className="mb-4 border-0 shadow-lg bg-white/90">
+                    <CardHeader className="pb-3 pt-4 px-5">
+                      <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                        <WandSparkles className="w-5 h-5 text-green-500" />
+                        推荐主题
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-5 pb-5 space-y-4">
+                      {topicRecommendations.map((rec, index) => (
+                        <div key={index} className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">{rec.label}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {rec.keywords.map((kw, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setKeywords(kw)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                  keywords === kw
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {kw}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* 关键词输入 */}
                 <Card className="mb-4 border-0 shadow-lg bg-white/90">
@@ -627,11 +636,27 @@ export default function Home() {
                 </CardContent>
               </Card>
             )}
+
+            {/* 当前步骤提示 */}
+            {isGenerating && currentStep && step === 'content' && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                <span className="text-sm text-blue-600">{currentStep}</span>
+              </div>
+            )}
           </div>
 
           {/* 右侧：输出预览 */}
           {viewMode === 'split' && (
-            <div className="mt-6 lg:mt-0 space-y-4">
+            <div className="space-y-4">
+              {/* 回到标题选择 */}
+              {step === 'content' && content && (
+                <Button variant="outline" onClick={handleBackToTitles} className="w-full">
+                  <X className="w-4 h-4 mr-1" />
+                  重新选择标题
+                </Button>
+              )}
+
               {/* 内容预览 */}
               {content && (
                 <Card className="border-0 shadow-lg bg-white/90">
@@ -659,11 +684,11 @@ export default function Home() {
                           setEditableContent(e.target.value);
                           setUserEdited(true);
                         }}
-                        className="min-h-[300px] border-rose-200"
+                        className="min-h-[400px] border-rose-200"
                       />
                     ) : (
                       <div className="prose prose-sm max-w-none">
-                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed max-h-96 overflow-y-auto">
+                        <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
                           {content}
                         </div>
                       </div>
@@ -731,120 +756,27 @@ export default function Home() {
                 </Card>
               )}
 
-              {/* 内容评价体系 - 合规雷达图 */}
+              {/* 种草力评分 */}
               {engagementScore && (
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-rose-50 to-pink-50">
                   <CardHeader className="pb-2 pt-3 px-4">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-cyan-400" />
-                      内容评价体系
+                    <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      <Heart className="w-4 h-4 text-rose-500" />
+                      种草力评分
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    {/* 雷达图 */}
-                    <div className="h-48 mb-4">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={getRadarData()}>
-                          <PolarGrid stroke="rgba(255,255,255,0.2)" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fill: 'white', fontSize: 11 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
-                          <RechartsRadar
-                            name="内容评分"
-                            dataKey="value"
-                            stroke="#06b6d4"
-                            fill="#06b6d4"
-                            fillOpacity={0.4}
-                          />
-                        </RadarChart>
-                      </ResponsiveContainer>
+                    <div className="text-4xl font-bold text-rose-500 mb-2">
+                      {engagementScore.score.toFixed(1)}
+                      <span className="text-sm text-gray-400">/10</span>
                     </div>
-
-                    {/* 评分详情 */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* 合规性 */}
-                      <div className="bg-white/10 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <ShieldCheck className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-gray-300">合规性</span>
+                    <div className="space-y-1">
+                      {engagementScore.reasons.map((reason, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                          <Check className="w-3 h-3 text-green-500" />
+                          {reason}
                         </div>
-                        <div className="text-xl font-bold text-green-400">
-                          {compliance.isCompliant ? '95' : '60'}
-                          <span className="text-xs text-gray-400 ml-1">/100</span>
-                        </div>
-                        <div className="mt-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-green-400 rounded-full"
-                            style={{ width: compliance.isCompliant ? '95%' : '60%' }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* 种草力 */}
-                      <div className="bg-white/10 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Heart className="w-4 h-4 text-pink-400" />
-                          <span className="text-xs text-gray-300">种草力</span>
-                        </div>
-                        <div className="text-xl font-bold text-pink-400">
-                          {engagementScore.score.toFixed(1)}
-                          <span className="text-xs text-gray-400 ml-1">/10</span>
-                        </div>
-                        <div className="mt-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-pink-400 rounded-full"
-                            style={{ width: `${engagementScore.score * 10}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* 专业度 */}
-                      <div className="bg-white/10 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <TrendingUp className="w-4 h-4 text-blue-400" />
-                          <span className="text-xs text-gray-300">专业度</span>
-                        </div>
-                        <div className="text-xl font-bold text-blue-400">
-                          {(engagementScore.score - 0.3).toFixed(1)}
-                          <span className="text-xs text-gray-400 ml-1">/10</span>
-                        </div>
-                        <div className="mt-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-400 rounded-full"
-                            style={{ width: `${(engagementScore.score - 0.3) * 10}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* 互动性 */}
-                      <div className="bg-white/10 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <MessageCircle className="w-4 h-4 text-purple-400" />
-                          <span className="text-xs text-gray-300">传播力</span>
-                        </div>
-                        <div className="text-xl font-bold text-purple-400">
-                          {(engagementScore.score + 0.2).toFixed(1)}
-                          <span className="text-xs text-gray-400 ml-1">/10</span>
-                        </div>
-                        <div className="mt-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-purple-400 rounded-full"
-                            style={{ width: `${(engagementScore.score + 0.2) * 10}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 评分理由 */}
-                    <div className="mt-4 pt-3 border-t border-white/20">
-                      <p className="text-xs text-gray-400 mb-2">评分依据</p>
-                      <div className="space-y-1">
-                        {engagementScore.reasons.map((reason, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs text-gray-300">
-                            <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
-                            {reason}
-                          </div>
-                        ))}
-                      </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -853,64 +785,9 @@ export default function Home() {
           )}
         </div>
 
-        {/* 上下滚动视图 - 内容评价体系 */}
-        {viewMode === 'integrated' && engagementScore && (
-          <Card className="mt-6 max-w-3xl mx-auto border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-cyan-400" />
-                内容评价体系
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {/* 雷达图 */}
-              <div className="h-48 mb-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={getRadarData()}>
-                    <PolarGrid stroke="rgba(255,255,255,0.2)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'white', fontSize: 11 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 9 }} />
-                    <RechartsRadar
-                      name="内容评分"
-                      dataKey="value"
-                      stroke="#06b6d4"
-                      fill="#06b6d4"
-                      fillOpacity={0.4}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* 评分网格 */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-white/10 rounded-lg p-3 text-center">
-                  <ShieldCheck className="w-5 h-5 text-green-400 mx-auto mb-1" />
-                  <div className="text-lg font-bold text-green-400">{compliance.isCompliant ? '95' : '60'}</div>
-                  <div className="text-xs text-gray-400">合规性</div>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3 text-center">
-                  <Heart className="w-5 h-5 text-pink-400 mx-auto mb-1" />
-                  <div className="text-lg font-bold text-pink-400">{engagementScore.score.toFixed(1)}</div>
-                  <div className="text-xs text-gray-400">种草力</div>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3 text-center">
-                  <TrendingUp className="w-5 h-5 text-blue-400 mx-auto mb-1" />
-                  <div className="text-lg font-bold text-blue-400">{(engagementScore.score - 0.3).toFixed(1)}</div>
-                  <div className="text-xs text-gray-400">专业度</div>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3 text-center">
-                  <MessageCircle className="w-5 h-5 text-purple-400 mx-auto mb-1" />
-                  <div className="text-lg font-bold text-purple-400">{(engagementScore.score + 0.2).toFixed(1)}</div>
-                  <div className="text-xs text-gray-400">传播力</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 整合视图 - 内容 */}
+        {/* 整合视图 */}
         {viewMode === 'integrated' && content && (
-          <Card className="mt-6 max-w-3xl mx-auto border-0 shadow-lg bg-white/90">
+          <Card className="mt-6 max-w-2xl mx-auto border-0 shadow-lg bg-white/90">
             <CardContent className="p-6">
               <div className="prose prose-sm max-w-none">
                 <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
