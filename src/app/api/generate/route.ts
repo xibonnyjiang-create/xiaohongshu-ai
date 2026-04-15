@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { TopicType, PersonaType, TitleCandidate } from '@/lib/types';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
 import { PERSONA_STYLE_CONFIG } from '@/lib/constants';
+import { buildScenarioPrompt, buildToolReviewContent, SCENARIO_PROMPTS } from '@/lib/scenario-prompts';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -65,11 +66,12 @@ export async function POST(request: NextRequest) {
         try {
           // 获取人设风格配置
           const styleConfig = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
+          const scenario = SCENARIO_PROMPTS[topicType];
 
           // 1. 生成标题
           safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`);
           const titles = await generateTitles(
-            topicType, keywords, hotTop3Tags, hotTopicInfo, personaType, styleConfig
+            topicType, keywords, hotTop3Tags, hotTopicInfo, personaType, styleConfig, scenario
           );
           safeEnqueue(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`);
 
@@ -161,30 +163,43 @@ async function generateTitles(
   hotTop3Tags?: string[],
   hotTopicInfo?: string,
   personaType?: string,
-  styleConfig?: { titleStyle: string; tone: string; emojiDensity: string }
+  styleConfig?: { titleStyle: string; tone: string; emojiDensity: string },
+  scenario?: typeof SCENARIO_PROMPTS[keyof typeof SCENARIO_PROMPTS]
 ): Promise<TitleCandidate[]> {
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const persona = personaType || 'custom';
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
+  const scenarioConfig = scenario || SCENARIO_PROMPTS[topicType];
 
-  const prompt = `【标题生成】
-请为以下场景生成3个小红书爆款标题。
+  // 根据场景构建标题生成的特殊指导
+  const hookGuide = scenarioConfig?.hook || '吸引眼球的标题';
 
-【场景信息】
+  const prompt = `【小红书标题生成】
+
+请为以下场景生成3个符合要求的爆款标题。
+
+## 场景信息
 - 选题类型：${topicLabel}
-- 人设：${persona}
+- 创作者人设：${persona}
+- 标题风格：${config.titleStyle}
+- 语气：${config.tone}
+
+## Hook设计指导
+${hookGuide}
+
+## 内容要素
 - 关键词：${keywords || '未指定'}
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
 ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
 
-【标题要求】
-1. 长度：≤20字
-2. 必须包含：1-3个Emoji
-3. 标题风格：${config.titleStyle}
-4. 语气：${config.tone}
+## 标题要求
+1. 长度：≤20字（不含emoji）
+2. 必须包含：1-3个emoji
+3. 风格类型：${config.titleStyle}
+4. 必须有吸引力，引发好奇或共鸣
 
-【输出格式】
-直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号：
+## 输出格式
+直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号，不要其他说明：
 
 `;
 
@@ -203,10 +218,15 @@ ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
     if (titles.length >= 3) break;
   }
 
-  return titles.length > 0 ? titles.slice(0, 3) : [{
-    title: `📈 ${keywords || '市场热点解读'}`,
-    style: config.titleStyle as TitleCandidate['style'],
-  }];
+  // 如果没有生成足够标题，提供默认
+  if (titles.length === 0) {
+    titles.push({
+      title: `📈 ${keywords || '市场热点解读'}`,
+      style: config.titleStyle as TitleCandidate['style'],
+    });
+  }
+
+  return titles.slice(0, 3);
 }
 
 // 生成内容（流式）
@@ -220,38 +240,16 @@ async function generateContentStream(
   personaType?: string,
   styleConfig?: { tone: string; emojiDensity: string; titleStyle: string }
 ): Promise<AsyncGenerator<string>> {
-  const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
-  const analysisLevel = deepAnalysis ? '深度分析：专业数据支撑、机构观点引用' : '标准分析：简洁易懂';
-  const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
-
-  let prompt = `你是专业的小红书内容创作者。
-
-【创作场景】${topicLabel}
-【分析深度】${analysisLevel}
-【人设】${personaType || 'custom'}
-【风格配置】语气：${config.tone}，表情密度：${config.emojiDensity}
-
-【内容要素】
-- 标题：${selectedTitle || '待定'}
-- 关键词：${keywords || '未指定'}
-${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
-${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 300)}` : ''}
-
-【强制要求】
-1. 投资有风险，入市需谨慎 - 必须包含投资风险提示
-2. 结尾必须引导"微信搜索微证券"
-3. 语气风格：${config.tone}
-4. 表情符号：${config.emojiDensity}
-
-【内容结构】
-1. 吸引眼球的标题
-2. 引人入胜的开头
-3. 干货满满的主体
-4. 总结升华
-5. 风险提示（必须）
-6. 引导关注：微信搜索微证券（必须）
-
-要求：800-1500字，语言生动，符合小红书风格`;
+  // 使用场景化Prompt
+  const prompt = buildScenarioPrompt({
+    topicType,
+    keywords,
+    deepAnalysis,
+    selectedTitle,
+    personaType,
+    hotTopicInfo,
+    hotTop3Tags,
+  });
 
   const stream = await callLLMStream(prompt);
   return stream;
@@ -296,15 +294,15 @@ async function calculateEngagementScore(
   tags: string[]
 ): Promise<{ score: number; reasons: string[] }> {
   const reasons: string[] = [];
-  let score = 7; // 默认7分，符合要求
+  let score = 7; // 默认7分
 
   // 标题评估
   if (title.length <= 20) {
     reasons.push('标题长度适中');
     score += 0.5;
   }
-  if (title.includes('#') || /[\u{1F300}-\u{1F9FF}]/u.test(title)) {
-    reasons.push('标题包含emoji/标签');
+  if (/[\u{1F300}-\u{1F9FF}]/u.test(title)) {
+    reasons.push('标题包含emoji');
     score += 0.5;
   }
 
