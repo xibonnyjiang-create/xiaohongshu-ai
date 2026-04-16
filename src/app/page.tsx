@@ -530,17 +530,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* 字数提示 */}
-                    <div className="mt-3 p-2 bg-gray-50 rounded-lg">
-                      <p className="text-[10px] text-gray-500">
-                        {outputFormat === 'image_text' ? (
-                          <>📝 图文内容：标题不超过20字，正文控制在400-500字</>
-                        ) : (
-                          <>🎬 视频脚本：根据时长自动调整，一般3-5个分镜</>
-                        )}
-                      </p>
-                    </div>
-
                     {/* 深度分析开关 */}
                     <div className="flex items-center justify-between p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
                       <div className="flex items-center gap-2">

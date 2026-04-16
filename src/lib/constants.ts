@@ -141,8 +141,6 @@ export const CONTENT_REQUIREMENT_OPTIONS: { value: string; label: string; emoji:
   { value: 'long_term', label: '侧重长期价值', emoji: '🏆', description: '分析方向' },
   { value: 'examples', label: '举例说明', emoji: '📓', description: '呈现形式' },
   { value: 'story_style', label: '故事化表达', emoji: '📚', description: '呈现形式' },
-  { value: 'risk_warning', label: '加风险提示', emoji: '⚠️', description: '风险提示' },
-  { value: 'recommend_weixin', label: '推荐微证券', emoji: '💰', description: '功能推荐' },
 ];
 
 // 关键词推荐（按场景分类）
