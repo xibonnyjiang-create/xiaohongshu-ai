@@ -68,6 +68,7 @@ export default function Home() {
   const [editableContent, setEditableContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [imagePrompt, setImagePrompt] = useState<string>(''); // 生图口令
   const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } | null>(null);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean }>({ isCompliant: true, warnings: [] });
   const [engagementScore, setEngagementScore] = useState<EngagementScore | null>(null);
@@ -214,6 +215,9 @@ export default function Home() {
                     break;
                   case 'tags':
                     setTags(data.data);
+                    break;
+                  case 'image_prompt':
+                    setImagePrompt(data.data);
                     break;
                   case 'images':
                     setImageUrls(data.data);
@@ -946,6 +950,43 @@ export default function Home() {
                 </Card>
               )}
 
+              {/* 生图口令 */}
+              {imagePrompt && (
+                <Card className="border-0 shadow-lg bg-gradient-to-r from-indigo-50 to-purple-50">
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-purple-500" />
+                        AI生图口令
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(imagePrompt).then(() => {
+                            toast.success('生图口令已复制！');
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        复制
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      比例3:4，支持Midjourney、DALL-E等AI绘图工具
+                    </p>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <div className="p-3 bg-white rounded-lg border border-purple-200">
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {imagePrompt}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* 标签 */}
               {tags.length > 0 && (
                 <Card className="border-0 shadow-lg bg-white/90">
@@ -953,6 +994,7 @@ export default function Home() {
                     <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
                       <Tag className="w-4 h-4" />
                       推荐标签
+                      <span className="text-[10px] text-gray-400 font-normal">（{tags.length}/10）</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">

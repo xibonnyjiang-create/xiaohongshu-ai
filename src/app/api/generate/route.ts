@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
             // 图文模式
             safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`);
 
-            const MAX_CONTENT_LENGTH = 480; // 最大字数限制（留20字余量）
+            const MAX_CONTENT_LENGTH = 1000; // 最大字数限制（1000字以内）
 
             const contentStream = await generateContentStream(
               topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig, weixinMapping
@@ -169,14 +169,25 @@ export async function POST(request: NextRequest) {
               return;
             }
 
-            // 3. 生成标签
-            safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成标签...' })}\n\n`);
-            const tags = await generateTags(topicType, keywords, usedTitle, accumulatedContent);
-            safeEnqueue(`data: ${JSON.stringify({ type: 'tags', data: tags })}\n\n`);
+            // 3. 并行生成：标签 + 生图口令
+            safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成标签和配图...' })}\n\n`);
+            
+            // 并行执行标签和生图口令生成
+            const [tags, imagePrompt] = await Promise.all([
+              generateTags(topicType, keywords, usedTitle, accumulatedContent),
+              generateImagePrompt(usedTitle, accumulatedContent, keywords),
+            ]);
+            
+            // 发送标签（限制10个以内）
+            const limitedTags = tags.slice(0, 10);
+            safeEnqueue(`data: ${JSON.stringify({ type: 'tags', data: limitedTags })}\n\n`);
+            
+            // 发送生图口令
+            safeEnqueue(`data: ${JSON.stringify({ type: 'image_prompt', data: imagePrompt })}\n\n`);
 
-            // 4. 生成配图
+            // 4. 生成配图（使用3:4比例）
             safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成配图建议...' })}\n\n`);
-            const imageUrls = await generateImages(usedTitle, accumulatedContent);
+            const imageUrls = await generateImages(usedTitle, accumulatedContent, '3:4');
             if (imageUrls.length > 0) {
               safeEnqueue(`data: ${JSON.stringify({ type: 'images', data: imageUrls })}\n\n`);
             }
@@ -553,35 +564,73 @@ ${mappingStr ? `- 微证券功能植入点：${mappingStr}` : ''}
   }
 }
 
-// 生成标签
+// 生成标签（限制10个以内）
 async function generateTags(
   topicType: TopicType,
   keywords?: string,
   title?: string,
   content?: string
 ): Promise<string[]> {
-  const prompt = `根据以下内容生成5个小红书标签（不含#号）：
+  const prompt = `根据以下内容生成小红书标签（不超过10个，不含#号）：
 
 类型：${TOPIC_TYPE_PROMPTS[topicType]}
 关键词：${keywords || ''}
 标题：${title || ''}
 内容摘要：${content?.substring(0, 200) || ''}
 
-要求：简洁、有热度、符合小红书风格。直接输出5个标签，用逗号分隔，不要其他内容。`;
+要求：简洁、有热度、符合小红书风格。直接输出6-8个标签，用逗号分隔，不要其他内容。`;
 
   const response = await callLLM(prompt);
   return response.split(/[,，、\n]/)
     .map(t => t.trim())
     .filter(t => t && t.length <= 10)
-    .slice(0, 5);
+    .slice(0, 10); // 最多10个标签
 }
 
-// 生成配图建议
-async function generateImages(title: string, content: string): Promise<string[]> {
-  // 返回占位图片，实际使用时可调用图片生成服务
+// 生成生图口令
+async function generateImagePrompt(title: string, content: string, keywords?: string): Promise<string> {
+  const prompt = `根据以下小红书内容生成一张高质量配图的AI生图口令：
+
+标题：${title || ''}
+内容：${content?.substring(0, 300) || ''}
+关键词：${keywords || ''}
+
+要求：
+1. 风格：小红书清新插画风格，温暖治愈
+2. 色调：明亮柔和，符合理财/生活主题
+3. 构图：简洁大方，留白充足
+4. 比例：3:4竖版
+5. 不要包含文字和中文
+
+直接输出生图口令，不要其他内容，中文描述即可。`;
+
+  const response = await callLLM(prompt);
+  return response.trim();
+}
+
+// 生成配图建议（支持不同比例）
+async function generateImages(title: string, content: string, ratio: string = '3:4'): Promise<string[]> {
+  // 根据比例计算尺寸
+  let width = 400;
+  let height = 533;
+  if (ratio === '3:4') {
+    width = 450;
+    height = 600;
+  } else if (ratio === '1:1') {
+    width = 500;
+    height = 500;
+  } else if (ratio === '16:9') {
+    width = 600;
+    height = 338;
+  }
+  
+  // 生成与内容相关的种子
+  const seed1 = encodeURIComponent(title.substring(0, 20) + '理财');
+  const seed2 = encodeURIComponent(title.substring(0, 20) + '生活');
+  
   return [
-    `https://picsum.photos/seed/${encodeURIComponent(title)}/400/300`,
-    `https://picsum.photos/seed/${encodeURIComponent(title + '2')}/400/300`,
+    `https://picsum.photos/seed/${seed1}/${width}/${height}`,
+    `https://picsum.photos/seed/${seed2}/${width}/${height}`,
   ];
 }
 
