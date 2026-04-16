@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Sparkles, Loader2, Copy, Heart, Check, AlertTriangle,
+  Sparkles, Loader2, Copy, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
   Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video
 } from 'lucide-react';
@@ -81,7 +81,6 @@ export default function Home() {
   const [imagePrompt, setImagePrompt] = useState<string>(''); // 生图口令
   const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } | null>(null);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean }>({ isCompliant: true, warnings: [] });
-  const [engagementScore, setEngagementScore] = useState<EngagementScore | null>(null);
 
   // ==================== 计算属性 ====================
   const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
@@ -238,9 +237,6 @@ export default function Home() {
                       setEditableContent(data.data.fixedContent);
                       setContent(data.data.fixedContent);
                     }
-                    break;
-                  case 'engagement_score':
-                    setEngagementScore(data.data);
                     setCurrentStep('');
                     break;
                 }
@@ -301,7 +297,6 @@ export default function Home() {
     setTags([]);
     setImageUrls([]);
     setCompliance({ isCompliant: true, warnings: [] });
-    setEngagementScore(null);
   };
 
   // ==================== 生成视频脚本复制文本 ====================
@@ -1180,32 +1175,6 @@ export default function Home() {
                         <Badge key={i} variant="secondary" className="bg-rose-100 text-rose-700">
                           #{tag}
                         </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 种草力评分 */}
-              {engagementScore && (
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-rose-50 to-pink-50">
-                  <CardHeader className="pb-2 pt-3 px-4">
-                    <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                      <Heart className="w-4 h-4 text-rose-500" />
-                      种草力评分
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4">
-                    <div className="text-4xl font-bold text-rose-500 mb-2">
-                      {engagementScore.score.toFixed(1)}
-                      <span className="text-sm text-gray-400">/10</span>
-                    </div>
-                    <div className="space-y-1">
-                      {engagementScore.reasons.map((reason, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
-                          <Check className="w-3 h-3 text-green-500" />
-                          {reason}
-                        </div>
                       ))}
                     </div>
                   </CardContent>
