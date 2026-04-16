@@ -13,7 +13,8 @@ import {
 import {
   Sparkles, Loader2, Copy, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
-  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video
+  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video,
+  ChevronLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -1022,11 +1023,11 @@ export default function Home() {
           {/* 右侧：输出预览 */}
           {viewMode === 'split' && (
             <div className="space-y-4">
-              {/* 回到标题选择 */}
+              {/* 返回整合视图 */}
               {step === 'content' && content && (
-                <Button variant="outline" onClick={handleBackToTitles} className="w-full">
-                  <X className="w-4 h-4 mr-1" />
-                  重新选择标题
+                <Button variant="outline" onClick={() => { setViewMode('integrated'); }} className="w-full">
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  返回整合视图
                 </Button>
               )}
 
@@ -1040,7 +1041,20 @@ export default function Home() {
                         生成内容
                       </CardTitle>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            if (isEditing) {
+                              // 保存编辑内容
+                              setContent(editableContent);
+                              setIsEditing(false);
+                              setUserEdited(true);
+                            } else {
+                              setIsEditing(true);
+                            }
+                          }}
+                        >
                           {isEditing ? <Save className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={handleCopyContent}>
