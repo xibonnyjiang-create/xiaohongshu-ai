@@ -11,6 +11,48 @@ export const OUTPUT_FORMAT_OPTIONS: { value: OutputFormat; label: string; descri
   { value: 'video', label: '视频脚本', description: '黄金3秒钩子+分镜描述+口播文案', emoji: '🎬' },
 ];
 
+// ==================== 敏感词过滤列表 ====================
+// 市场热点场景下禁止出现的敏感词汇
+export const MARKET_HOT_SENSITIVE_WORDS = [
+  // 虚拟货币相关
+  '数字货币', '加密货币', '虚拟货币', '虚拟币', '比特币', 'BTC', '以太坊', 'ETH',
+  '狗狗币', 'SHIB', '柴犬币', '元宇宙', 'NFT', '区块链虚拟', '炒币', '币圈',
+  '虚拟货币交易', '数字资产交易', '虚拟币投资', '炒虚拟币', '区块链投资',
+  // 高风险金融衍生品
+  '期货交易', '外汇杠杆', '保证金交易', '杠杆交易', '做空机制',
+  // 非法集资相关
+  '原始股', '返本销售', '资金盘', '传销币', '空气币', 'ICO', 'IEO', 'STO',
+  // 其他高风险
+  '配资交易', '荐股', '代客理财', '老鼠仓',
+];
+
+// 检查文本是否包含敏感词
+export function containsSensitiveWords(text: string, sensitiveWords: string[] = MARKET_HOT_SENSITIVE_WORDS): { hasSensitive: boolean; foundWords: string[] } {
+  const foundWords: string[] = [];
+  const lowerText = text.toLowerCase();
+  
+  for (const word of sensitiveWords) {
+    if (lowerText.includes(word.toLowerCase())) {
+      foundWords.push(word);
+    }
+  }
+  
+  return {
+    hasSensitive: foundWords.length > 0,
+    foundWords,
+  };
+}
+
+// 过滤敏感词后的替换策略
+export function filterSensitiveWords(text: string, replacement: string = '[合规内容]'): string {
+  let filteredText = text;
+  for (const word of MARKET_HOT_SENSITIVE_WORDS) {
+    const regex = new RegExp(word, 'gi');
+    filteredText = filteredText.replace(regex, replacement);
+  }
+  return filteredText;
+}
+
 // 四大场景矩阵（基于MECE原则，相互独立、完全穷尽）
 export const SCENE_OPTIONS: { value: TopicType; label: string; description: string; emoji: string }[] = [
   { value: 'market_hot', label: '市场热点', description: '追踪AI、机器人等热点事件与市场动态', emoji: '🔥' },

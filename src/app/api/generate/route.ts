@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { TopicType, PersonaType, TitleCandidate, OutputFormat, VideoDuration } from '@/lib/types';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
-import { PERSONA_STYLE_CONFIG, WEIXIN_SECURITY_MAPPING } from '@/lib/constants';
+import { PERSONA_STYLE_CONFIG, WEIXIN_SECURITY_MAPPING, MARKET_HOT_SENSITIVE_WORDS, containsSensitiveWords } from '@/lib/constants';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -235,6 +235,16 @@ async function generateTitles(
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const persona = personaType || 'custom';
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
+  const isMarketHot = topicType === 'market_hot';
+
+  // 市场热点场景添加敏感词过滤说明
+  const sensitiveWordWarning = isMarketHot 
+    ? `\n\n【重要】市场热点场景禁止提及以下内容：
+- 虚拟货币相关：数字货币、加密货币、虚拟币、比特币、以太坊、狗狗币、NFT、元宇宙、区块链虚拟货币、炒币、币圈等
+- 高风险衍生品：期货、外汇杠杆、保证金交易、杠杆交易等
+- 非法集资相关：原始股、原始股投资、资金盘、传销币、ICO等
+请确保生成的标题不包含上述任何敏感词汇！`
+    : '';
 
   const prompt = `【标题生成】
 请为以下场景生成3个小红书爆款标题。
@@ -245,6 +255,7 @@ async function generateTitles(
 - 关键词：${keywords || '未指定'}
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
 ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
+${sensitiveWordWarning}
 
 【标题要求】严格遵守！
 1. 总长度：≤20字（emoji+符号+汉字全部算在内）
@@ -252,6 +263,7 @@ ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
 3. 标题风格：${config.titleStyle}
 4. 语气：${config.tone}
 5. 不要使用任何Markdown格式
+${isMarketHot ? '6. 严禁包含任何敏感词汇！' : ''}
 
 【输出格式】
 直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号，不要加引号：
@@ -265,6 +277,14 @@ ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
   for (const line of lines) {
     const cleaned = line.trim();
     if (cleaned && cleaned.length > 0) {
+      // 市场热点场景进行敏感词检查
+      if (isMarketHot) {
+        const check = containsSensitiveWords(cleaned);
+        if (check.hasSensitive) {
+          console.log(`[敏感词过滤] 标题 "${cleaned}" 包含敏感词: ${check.foundWords.join(', ')}，跳过`);
+          continue;
+        }
+      }
       titles.push({
         title: cleaned,
         style: config.titleStyle as TitleCandidate['style'],
@@ -273,10 +293,26 @@ ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
     if (titles.length >= 3) break;
   }
 
-  return titles.length > 0 ? titles.slice(0, 3) : [{
-    title: `📈 ${keywords || '市场热点解读'}`,
-    style: config.titleStyle as TitleCandidate['style'],
-  }];
+  // 如果过滤后标题不足3个，补充默认标题
+  while (titles.length < 3) {
+    const fallbackTitle = isMarketHot 
+      ? `📈 ${keywords || '市场热点解读'}`
+      : `📈 ${keywords || '内容解读'}`;
+    // 再次检查
+    if (!isMarketHot || !containsSensitiveWords(fallbackTitle).hasSensitive) {
+      titles.push({
+        title: fallbackTitle,
+        style: config.titleStyle as TitleCandidate['style'],
+      });
+    } else {
+      titles.push({
+        title: `📊 ${keywords || '财经解读'}`,
+        style: config.titleStyle as TitleCandidate['style'],
+      });
+    }
+  }
+
+  return titles.slice(0, 3);
 }
 
 // 生成内容（流式）
@@ -295,8 +331,19 @@ async function generateContentStream(
   const analysisLevel = deepAnalysis ? '深度分析：专业数据支撑、机构观点引用' : '标准分析：简洁易懂';
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
+  const isMarketHot = topicType === 'market_hot';
 
-  let prompt = `【重要】请严格控制字数：400-500字（全文含emoji总计）
+  // 市场热点场景添加敏感词过滤说明
+  const sensitiveWordWarning = isMarketHot 
+    ? `\n\n【重要】市场热点场景禁止提及以下内容：
+- 虚拟货币相关：数字货币、加密货币、虚拟币、比特币、以太坊、狗狗币、NFT、元宇宙、区块链虚拟货币、炒币、币圈等
+- 高风险衍生品：期货、外汇杠杆、保证金交易、杠杆交易等
+- 非法集资相关：原始股、原始股投资、资金盘、传销币、ICO等
+- 绝对禁止荐股、承诺收益、夸大宣传
+请确保生成的内容不包含上述任何敏感词汇！`
+    : '';
+
+  let prompt = `【重要】请严格控制字数：400-500字（全文含emoji总计）${sensitiveWordWarning}
 
 标题：${selectedTitle || '待定'}
 关键词：${keywords || ''}
@@ -309,6 +356,7 @@ ${mappingStr}
 - 投资风险提示
 - 微信搜索微证券
 - 纯文本格式，无Markdown
+${isMarketHot ? '- 严禁提及任何虚拟货币或高风险投资内容' : ''}
 
 结构（约450字）：
 💰 开头1-2句
@@ -347,8 +395,14 @@ async function generateVideoScript(
     tool_review: { style: '沉稳的科技感背景音/轻电子', reason: '体现专业性，增强工具测评的可信度' },
   };
   const bgmInfo = bgmStyleMap[topicType] || { style: '轻快背景音乐', reason: '营造轻松氛围' };
+  const isMarketHot = topicType === 'market_hot';
 
-  const prompt = `【视频脚本生成 - 严格格式】
+  // 市场热点场景添加敏感词过滤说明
+  const sensitiveWordWarning = isMarketHot 
+    ? `\n\n【重要-市场热点专项】严禁提及：虚拟货币/加密货币/比特币/以太坊/NFT/元宇宙/炒币/币圈、期货/杠杆/保证金、原始股/资金盘/ICO等！`
+    : '';
+
+  const prompt = `【视频脚本生成 - 严格格式】${sensitiveWordWarning}
 请为以下内容生成小红书视频脚本，必须严格遵守格式要求。
 
 【基本信息】
