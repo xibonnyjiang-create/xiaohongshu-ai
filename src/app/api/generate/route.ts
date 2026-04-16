@@ -333,63 +333,170 @@ async function generateVideoScript(
   styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
   weixinMapping?: { feature: string; highlight: string }[],
   durationConfig?: { totalSeconds: number; segmentCount: number; description: string }
-): Promise<{ hook: string; segments: { visual: string; voiceover: string; duration: string }[]; cta: string }> {
+): Promise<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } }> {
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
   const duration = durationConfig || VIDEO_DURATION_CONFIG['60s'];
   const avgSegmentDuration = Math.floor(duration.totalSeconds / duration.segmentCount);
 
-  const prompt = `【视频脚本生成】
-请为以下内容生成小红书视频脚本。
+  // 根据场景确定BGM风格
+  const bgmStyleMap: Record<string, { style: string; reason: string }> = {
+    market_hot: { style: '节奏感强的电子音乐/赛博朋克风', reason: '配合热点话题的紧迫感和信息密度' },
+    beginner_guide: { style: '亲和力强的钢琴曲/轻爵士', reason: '营造轻松学习氛围，降低理财焦虑感' },
+    life_lifestyle: { style: '轻快的Lo-fi/流行背景音乐', reason: '配合生活化场景，增加亲切感和代入感' },
+    tool_review: { style: '沉稳的科技感背景音/轻电子', reason: '体现专业性，增强工具测评的可信度' },
+  };
+  const bgmInfo = bgmStyleMap[topicType] || { style: '轻快背景音乐', reason: '营造轻松氛围' };
+
+  const prompt = `【视频脚本生成 - 严格格式】
+请为以下内容生成小红书视频脚本，必须严格遵守格式要求。
 
 【基本信息】
 - 场景：${TOPIC_TYPE_PROMPTS[topicType]}
 - 人设：${personaType || 'custom'}
 - 标题：${selectedTitle || '待定'}
 - 关键词：${keywords || '未指定'}
+${mappingStr ? `- 微证券功能植入点：${mappingStr}` : ''}
 
-${mappingStr ? `【微证券功能植入点】\n${mappingStr}\n` : ''}
+【硬性要求】
+1. 【前置合规】严禁出现以下内容：
+   - 个股推荐（如"买入XX股票"）
+   - 收益承诺（如"稳赚"、"必涨"、"保证盈利"）
+   - 夸大宣传（如"一夜暴富"、"躺赚"）
+   - 绝对化用语（如"一定"、"肯定"、"百分百"）
+2. 黄金3秒钩子：制造悬念/冲突/共鸣，吸引用户停留
+3. 分镜数量：${duration.segmentCount}个，每个${avgSegmentDuration}秒左右
+4. 总时长：${duration.totalSeconds}秒
+5. 风险提示必须融入内容，不能只在结尾
 
-【脚本要求】
-1. 黄金3秒钩子：制造悬念/冲突/共鸣，吸引用户停留
-2. 分镜脚本：每个镜头包含画面描述+口播文案+时长
-3. 总时长：${duration.totalSeconds}秒（${duration.description}）
-4. 分镜数量：${duration.segmentCount}个（平均每个${avgSegmentDuration}秒左右）
-5. 结尾CTA：引导微信搜索微证券
-6. 口播语速：自然流畅，符合小红书风格
+【分镜格式 - 强制使用以下格式，每行一个分镜】
+【镜头1】画面：[具体画面描述] | 口播：[对应的口播台词，3-5句] | 时长：${avgSegmentDuration}秒
+【镜头2】画面：... | 口播：... | 时长：...
+...（共${duration.segmentCount}个分镜）
 
-【输出格式】JSON
-{
-  "hook": "黄金3秒钩子文案（制造悬念）",
-  "segments": [
-    {"visual": "画面描述", "voiceover": "口播文案", "duration": "${avgSegmentDuration}秒"},
-    ...
-  ],
-  "cta": "结尾行动号召"
-}
+【必须包含的元素】
+1. 开头钩子：制造悬念或冲突（如痛点提问、反差数据）
+2. 内容主体：2-3个实用要点，每个要点有画面+口播
+3. 风险融入：在中间或结尾自然插入风险提示（如"虽然工具方便，但大家要根据自己风险偏好来定"）
+4. CTA结尾：引导微信搜索微证券
 
-只输出JSON，不要其他内容。纯文本输出，不要Markdown格式。`;
+【BGM推荐】
+风格：${bgmInfo.style}
+理由：${bgmInfo.reason}
+
+【输出格式】纯文本，严格按以下格式输出，不要JSON：
+【黄金3秒钩子】
+[钩子文案，制造悬念]
+
+【分镜脚本】
+【镜头1】画面：[描述] | 口播：[台词] | 时长：${avgSegmentDuration}秒
+【镜头2】画面：[描述] | 口播：[台词] | 时长：${avgSegmentDuration}秒
+...
+
+【结尾CTA】
+[行动号召]
+
+【BGM推荐】
+🎵 曲风/名称：${bgmInfo.style}
+💡 推荐理由：${bgmInfo.reason}
+
+禁止使用Markdown格式，禁止使用**加粗，禁止使用#标题符号。`;
 
   const response = await callLLM(prompt);
 
-  // 解析JSON
+  // 解析结构化文本
   try {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    const result: { hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } = {
+      hook: '',
+      segments: [],
+      cta: '',
+      bgm: { name: bgmInfo.style, reason: bgmInfo.reason }
+    };
+
+    // 提取黄金3秒钩子
+    const hookMatch = response.match(/【黄金3秒钩子】\s*([\s\S]*?)(?=\n【分镜脚本】|$)/);
+    if (hookMatch) {
+      result.hook = hookMatch[1].trim();
     }
+
+    // 提取分镜
+    const segmentRegex = /【镜头\d+】画面：([^|]+)\s*\|\s*口播：([^|]+)\s*\|\s*时长：(\d+秒)/g;
+    let segmentMatch;
+    while ((segmentMatch = segmentRegex.exec(response)) !== null) {
+      result.segments.push({
+        visual: segmentMatch[1].trim(),
+        voiceover: segmentMatch[2].trim(),
+        duration: segmentMatch[3].trim(),
+      });
+    }
+
+    // 如果解析失败，使用备用方案
+    if (result.segments.length === 0) {
+      const lines = response.split('\n').filter(l => l.trim());
+      for (const line of lines) {
+        if (line.includes('画面') && line.includes('口播')) {
+          const parts = line.split('|');
+          if (parts.length >= 2) {
+            const visualMatch = parts[0].match(/画面[：:]\s*(.+)/);
+            const voiceoverMatch = parts[1].match(/口播[：:]\s*(.+)/);
+            const durationMatch = parts[2]?.match(/(\d+秒)/);
+            if (visualMatch && voiceoverMatch) {
+              result.segments.push({
+                visual: visualMatch[1].trim(),
+                voiceover: voiceoverMatch[1].trim(),
+                duration: durationMatch ? durationMatch[1] : `${avgSegmentDuration}秒`,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 提取CTA
+    const ctaMatch = response.match(/【结尾CTA】\s*([\s\S]*?)(?=\n【BGM|$$)/);
+    if (ctaMatch) {
+      result.cta = ctaMatch[1].trim();
+    }
+
+    // 提取BGM
+    const bgmNameMatch = response.match(/曲风[：:]\s*([^\n]+)/);
+    const bgmReasonMatch = response.match(/推荐理由[：:]\s*([^\n]+)/);
+    if (bgmNameMatch) {
+      result.bgm = {
+        name: bgmNameMatch[1].trim(),
+        reason: bgmReasonMatch ? bgmReasonMatch[1].trim() : bgmInfo.reason
+      };
+    }
+
+    // 如果解析结果不完整，使用默认值
+    if (!result.hook) {
+      result.hook = selectedTitle || '这个理财技巧你一定要知道！';
+    }
+    if (result.segments.length === 0) {
+      result.segments = [{
+        visual: '博主近景，表情真诚',
+        voiceover: '大家好，今天分享一个实用的理财方法。',
+        duration: `${avgSegmentDuration}秒`
+      }];
+    }
+    if (!result.cta) {
+      result.cta = '想了解更多？微信搜索【微证券】！';
+    }
+
+    return result;
   } catch (e) {
     console.error('Video script parse error:', e);
+    return {
+      hook: selectedTitle || '这个理财技巧你一定要知道！',
+      segments: [{
+        visual: '博主近景，表情真诚',
+        voiceover: '大家好，今天分享一个实用的理财方法。',
+        duration: `${avgSegmentDuration}秒`
+      }],
+      cta: '想了解更多？微信搜索【微证券】！',
+      bgm: { name: bgmInfo.style, reason: bgmInfo.reason }
+    };
   }
-
-  // 默认值
-  return {
-    hook: selectedTitle || '这个投资技巧你一定要知道！',
-    segments: [
-      { visual: '特写表情', voiceover: '大家好，今天分享一个实用的投资方法。', duration: '5秒' },
-    ],
-    cta: '想了解更多？微信搜索【微证券】！',
-  };
 }
 
 // 生成标签

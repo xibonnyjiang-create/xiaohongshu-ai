@@ -68,7 +68,7 @@ export default function Home() {
   const [editableContent, setEditableContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string }[]; cta: string } | null>(null);
+  const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } | null>(null);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean }>({ isCompliant: true, warnings: [] });
   const [engagementScore, setEngagementScore] = useState<EngagementScore | null>(null);
 
@@ -262,6 +262,43 @@ export default function Home() {
     setCompliance({ isCompliant: true, warnings: [] });
     setEngagementScore(null);
   };
+
+  // ==================== 生成视频脚本复制文本 ====================
+  const generateVideoCopyText = useCallback(() => {
+    if (!videoScript) return '';
+    
+    const title = selectedTitleIndex !== null && generatedTitles[selectedTitleIndex] 
+      ? generatedTitles[selectedTitleIndex].title 
+      : '';
+    let text = `${title}\n\n`;
+    
+    // 黄金钩子
+    text += `【黄金3秒钩子】\n${videoScript.hook}\n\n`;
+    
+    // 分镜脚本
+    text += `【完整脚本】\n`;
+    videoScript.segments.forEach((seg, i) => {
+      text += `【镜头${i + 1}】${seg.duration}\n`;
+      text += `📷 ${seg.visual}\n`;
+      text += `🎤 ${seg.voiceover}\n\n`;
+    });
+    
+    // CTA
+    text += `【结尾行动号召】\n${videoScript.cta}\n\n`;
+    
+    // BGM
+    if (videoScript.bgm) {
+      text += `【BGM推荐】\n`;
+      text += `🎧 ${videoScript.bgm.name}\n`;
+      text += `💡 ${videoScript.bgm.reason}\n\n`;
+    }
+    
+    // 标签
+    text += `【话题标签】\n`;
+    text += tags.map(t => `#${t}`).join(' ');
+    
+    return text;
+  }, [videoScript, generatedTitles, selectedTitleIndex, tags]);
 
   // ==================== 渲染 ====================
   return (
@@ -849,6 +886,18 @@ export default function Home() {
                       <p className="text-xs font-medium mb-1">📢 行动号召 (CTA)</p>
                       <p className="text-sm">{videoScript.cta}</p>
                     </div>
+
+                    {/* BGM推荐 */}
+                    {videoScript.bgm && (
+                      <div className="p-3 bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl border border-pink-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🎵</span>
+                          <p className="text-xs font-medium text-pink-600">BGM推荐</p>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-1">🎧 {videoScript.bgm.name}</p>
+                        <p className="text-xs text-gray-500">💡 {videoScript.bgm.reason}</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -941,30 +990,117 @@ export default function Home() {
           )}
         </div>
 
-        {/* 整合视图 */}
-        {viewMode === 'integrated' && content && (
+        {/* 整合视图 - 一键复制发布版 */}
+        {viewMode === 'integrated' && (
           <Card className="mt-6 max-w-2xl mx-auto border-0 shadow-lg bg-white/90">
-            <CardContent className="p-6">
-              <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-                  {content}
-                </div>
+            <CardHeader className="pb-3 pt-4 px-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-rose-500" />
+                  {outputFormat === 'video' ? '视频脚本发布稿' : '图文发布稿'}
+                </CardTitle>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => {
+                    const textToCopy = outputFormat === 'video' 
+                      ? generateVideoCopyText() 
+                      : content;
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                      toast.success('已复制到剪贴板，可直接发布！');
+                    });
+                  }}
+                  className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                >
+                  <Copy className="w-4 h-4 mr-1" />
+                  一键复制发布
+                </Button>
               </div>
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {tags.map((tag, i) => (
-                    <Badge key={i} variant="secondary" className="bg-rose-100 text-rose-700">
-                      #{tag}
-                    </Badge>
-                  ))}
+              <p className="text-xs text-gray-400 mt-1">
+                {outputFormat === 'video' 
+                  ? '标题 + 完整脚本 + BGM建议，点击即可复制完整发布稿' 
+                  : '正文内容 + 标签，可直接复制到小红书发布'}
+              </p>
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              {/* 图文模式 */}
+              {outputFormat === 'image_text' && content && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <p className="text-xs font-medium text-gray-500 mb-2">📝 正文内容</p>
+                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                      {content}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <p className="text-xs font-medium text-gray-500 mb-2">🏷️ 话题标签</p>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="bg-rose-100 text-rose-700">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleCopyContent}>
-                    <Copy className="w-4 h-4 mr-1" />
-                    复制内容
-                  </Button>
+              )}
+
+              {/* 视频脚本模式 */}
+              {outputFormat === 'video' && videoScript && (
+                <div className="space-y-4">
+                  {/* 标题 */}
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl">
+                    <p className="text-xs font-medium text-purple-600 mb-2">📌 视频标题</p>
+                    <p className="text-base font-bold text-gray-800">{selectedTitleIndex !== null && generatedTitles[selectedTitleIndex] ? generatedTitles[selectedTitleIndex].title : ''}</p>
+                  </div>
+
+                  {/* 完整脚本 */}
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <p className="text-xs font-medium text-gray-500 mb-2">🎬 完整视频脚本</p>
+                    <div className="space-y-3 text-sm text-gray-700">
+                      {/* 黄金钩子 */}
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <p className="text-xs text-purple-600 mb-1">【黄金3秒钩子】</p>
+                        <p>{videoScript.hook}</p>
+                      </div>
+                      {/* 分镜 */}
+                      {videoScript.segments.map((seg, i) => (
+                        <div key={i} className="p-2 border border-gray-200 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">【镜头{i + 1}】{seg.duration}</p>
+                          <p className="mb-1"><span className="text-gray-400">📷</span> {seg.visual}</p>
+                          <p><span className="text-gray-400">🎤</span> {seg.voiceover}</p>
+                        </div>
+                      ))}
+                      {/* CTA */}
+                      <div className="p-2 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg text-white">
+                        <p className="text-xs mb-1">【结尾CTA】</p>
+                        <p>{videoScript.cta}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BGM推荐 */}
+                  {videoScript.bgm && (
+                    <div className="p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl">
+                      <p className="text-xs font-medium text-pink-600 mb-2">🎵 BGM推荐</p>
+                      <p className="text-sm text-gray-700 mb-1">🎧 {videoScript.bgm.name}</p>
+                      <p className="text-xs text-gray-500">{videoScript.bgm.reason}</p>
+                    </div>
+                  )}
+
+                  {/* 标签 */}
+                  <div className="p-4 bg-gray-50 rounded-xl">
+                    <p className="text-xs font-medium text-gray-500 mb-2">🏷️ 话题标签</p>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="bg-rose-100 text-rose-700">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         )}
