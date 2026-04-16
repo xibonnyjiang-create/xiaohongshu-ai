@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Sparkles, Loader2, Copy, Heart, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
   Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video
@@ -19,7 +22,8 @@ import {
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
   KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
-  OUTPUT_FORMAT_OPTIONS, VIDEO_DURATION_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING
+  OUTPUT_FORMAT_OPTIONS, VIDEO_DURATION_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING,
+  CONTENT_REQUIREMENT_OPTIONS
 } from '@/lib/constants';
 
 export default function Home() {
@@ -35,6 +39,12 @@ export default function Home() {
   // ==================== 人设选择 ====================
   const [personaType, setPersonaType] = useState<string>('hardcore_uncle');
   const [customPersona, setCustomPersona] = useState('');
+  const [showPersonaDialog, setShowPersonaDialog] = useState(false);
+
+  // ==================== 补充要求 ====================
+  const [contentRequirements, setContentRequirements] = useState<string[]>([]);
+  const [customRequirement, setCustomRequirement] = useState('');
+  const [showRequirementDialog, setShowRequirementDialog] = useState(false);
 
   // ==================== 热榜数据 ====================
   const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
@@ -378,7 +388,7 @@ export default function Home() {
                   <CardHeader className="pb-3 pt-4 px-5">
                     <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">1</span>
-                      选择创作场景
+                      选择创作主题
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-5 pb-5 space-y-4">
@@ -456,6 +466,69 @@ export default function Home() {
                         </div>
                       </div>
                     )}
+
+                    {/* 补充要求 */}
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-500">补充要求</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowRequirementDialog(true)}
+                          className="h-6 px-2 text-xs text-gray-500 hover:text-rose-500"
+                        >
+                          <Edit3 className="w-3 h-3 mr-1" />
+                          自定义
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {CONTENT_REQUIREMENT_OPTIONS.map(option => {
+                          const isSelected = contentRequirements.includes(option.value);
+                          return (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setContentRequirements(contentRequirements.filter(r => r !== option.value));
+                                } else {
+                                  setContentRequirements([...contentRequirements, option.value]);
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
+                                  : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200'
+                              }`}
+                            >
+                              <span>{option.emoji}</span>
+                              <span>{option.label}</span>
+                              {isSelected && (
+                                <X 
+                                  className="w-3 h-3 ml-1 cursor-pointer hover:opacity-80" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setContentRequirements(contentRequirements.filter(r => r !== option.value));
+                                  }}
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {/* 自定义要求标签 */}
+                      {customRequirement && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm">
+                            <span>✏️</span>
+                            <span>{customRequirement}</span>
+                            <X 
+                              className="w-3 h-3 ml-1 cursor-pointer hover:opacity-80" 
+                              onClick={() => setCustomRequirement('')}
+                            />
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     {/* 字数提示 */}
                     <div className="mt-3 p-2 bg-gray-50 rounded-lg">
@@ -732,7 +805,7 @@ export default function Home() {
                 <Card className="mb-4 border-0 shadow-lg bg-white/90">
                   <CardHeader className="pb-3 pt-4 px-5">
                     <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
+                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">2</span>
                       选择创作人设
                     </CardTitle>
                   </CardHeader>
@@ -741,7 +814,13 @@ export default function Home() {
                       {PERSONA_OPTIONS.map(option => (
                         <button
                           key={option.value}
-                          onClick={() => setPersonaType(option.value)}
+                          onClick={() => {
+                            if (option.value === 'custom') {
+                              setShowPersonaDialog(true);
+                            } else {
+                              setPersonaType(option.value);
+                            }
+                          }}
                           className={`p-3 rounded-xl text-center transition-all ${
                             personaType === option.value
                               ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md'
@@ -770,6 +849,88 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* 自定义人设弹窗 */}
+                <Dialog open={showPersonaDialog} onOpenChange={setShowPersonaDialog}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Edit3 className="w-4 h-4" />
+                        自定义创作人设
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <p className="text-sm text-gray-600">
+                        请描述您的自定义人设风格，包括：
+                      </p>
+                      <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
+                        <li>语气特点（如：亲切、专业、幽默）</li>
+                        <li>表达习惯（如：喜欢用emoji、常用短语）</li>
+                        <li>内容风格（如：数据导向、故事性强）</li>
+                      </ul>
+                      <Textarea
+                        value={customPersona}
+                        onChange={(e) => setCustomPersona(e.target.value)}
+                        placeholder="例如：我是90后职场女性，说话亲切幽默，喜欢用接地气的例子..."
+                        className="min-h-[120px]"
+                      />
+                    </div>
+                    <DialogFooter className="flex gap-2">
+                      <Button variant="outline" onClick={() => setShowPersonaDialog(false)}>
+                        取消
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          if (customPersona.trim()) {
+                            setPersonaType('custom');
+                            setShowPersonaDialog(false);
+                          }
+                        }}
+                        className="bg-gradient-to-r from-rose-500 to-pink-500"
+                      >
+                        确认人设
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* 补充要求自定义弹窗 */}
+                <Dialog open={showRequirementDialog} onOpenChange={setShowRequirementDialog}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Edit3 className="w-4 h-4" />
+                        添加自定义要求
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <p className="text-sm text-gray-600">
+                        请输入您对创作内容的额外要求：
+                      </p>
+                      <Textarea
+                        value={customRequirement}
+                        onChange={(e) => setCustomRequirement(e.target.value)}
+                        placeholder="例如：增加互动性提问、使用网络流行语..."
+                        className="min-h-[80px]"
+                      />
+                    </div>
+                    <DialogFooter className="flex gap-2">
+                      <Button variant="outline" onClick={() => setShowRequirementDialog(false)}>
+                        取消
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          if (customRequirement.trim()) {
+                            setShowRequirementDialog(false);
+                          }
+                        }}
+                        className="bg-gradient-to-r from-purple-500 to-indigo-500"
+                      >
+                        添加要求
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {/* 生成按钮 */}
                 <Button

@@ -134,6 +134,17 @@ export const CONTENT_SUBTYPE_OPTIONS = [
   { value: 'platform_compare', label: '平台对比', keywords: ['券商', '对比', '差异'] },
 ];
 
+// 补充要求预设选项
+export const CONTENT_REQUIREMENT_OPTIONS: { value: string; label: string; emoji: string; description: string }[] = [
+  { value: '300_words', label: '控制在300字', emoji: '📄', description: '字数限制' },
+  { value: 'short_term', label: '侧重短期分析', emoji: '⚡', description: '分析方向' },
+  { value: 'long_term', label: '侧重长期价值', emoji: '🏆', description: '分析方向' },
+  { value: 'examples', label: '举例说明', emoji: '📓', description: '呈现形式' },
+  { value: 'story_style', label: '故事化表达', emoji: '📚', description: '呈现形式' },
+  { value: 'risk_warning', label: '加风险提示', emoji: '⚠️', description: '风险提示' },
+  { value: 'recommend_weixin', label: '推荐微证券', emoji: '💰', description: '功能推荐' },
+];
+
 // 关键词推荐（按场景分类）
 export const KEYWORD_RECOMMENDATIONS: Record<TopicType, string[]> = {
   'market_hot': ['AI概念', '机器人', '半导体', '新能源', '政策利好'],
