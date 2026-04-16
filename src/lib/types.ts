@@ -42,6 +42,7 @@ export interface HotTopic {
   snippet: string;
   url?: string;
   publishTime?: string;
+  hot?: number; // 热度值
 }
 
 // 标题候选

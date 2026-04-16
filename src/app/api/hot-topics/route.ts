@@ -27,11 +27,10 @@ function filterSensitiveTopics(topics: { title: string; snippet?: string; tags?:
   return { filteredTopics, filteredCount: topics.length - filteredTopics.length, filteredReasons };
 }
 
-// 热点板块配置
+// 热点板块配置 - 已移除敏感分类
 const HOT_CATEGORIES = [
   { id: 'finance', name: '财经热搜', keywords: 'A股 港股 美股 基金 理财 投资 经济 最新新闻', icon: '📈' },
   { id: 'tech', name: '科技前沿', keywords: 'AI 人工智能 互联网 科技 芯片 新能源 最新动态', icon: '🚀' },
-  { id: 'crypto', name: '数字货币', keywords: '比特币 以太坊 加密货币 区块链 Web3 最新行情', icon: '₿' },
   { id: 'global', name: '环球财经', keywords: '美联储 美股 国际经济 全球市场 财经新闻', icon: '🌍' },
 ];
 
@@ -39,6 +38,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || 'finance';
+    // filter=true 表示启用敏感词过滤，filter=false 表示关闭
+    const enableFilter = searchParams.get('filter') !== 'false';
     
     // 找到对应的板块配置
     const categoryConfig = HOT_CATEGORIES.find(c => c.id === category) || HOT_CATEGORIES[0];
@@ -65,13 +66,17 @@ export async function GET(request: NextRequest) {
         hot: Math.floor(Math.random() * 50) + 50, // 模拟热度值
       }));
 
-      // 【硬性屏蔽】过滤敏感词内容
-      const filterResult = filterSensitiveTopics(hotTopics);
-      if (filterResult.filteredCount > 0) {
-        console.log(`[敏感词过滤] 屏蔽 ${filterResult.filteredCount} 条热搜:`, filterResult.filteredReasons);
-        hotTopics = filterResult.filteredTopics as typeof hotTopics;
-        // 重新编号
-        hotTopics = hotTopics.map((t, i) => ({ ...t, id: i + 1 }));
+      // 【条件过滤】根据filter参数决定是否启用敏感词过滤
+      if (enableFilter) {
+        const filterResult = filterSensitiveTopics(hotTopics);
+        if (filterResult.filteredCount > 0) {
+          console.log(`[敏感词过滤] 屏蔽 ${filterResult.filteredCount} 条热搜:`, filterResult.filteredReasons);
+          hotTopics = filterResult.filteredTopics as typeof hotTopics;
+          // 重新编号
+          hotTopics = hotTopics.map((t, i) => ({ ...t, id: i + 1 }));
+        }
+      } else {
+        console.log('[敏感词过滤] 已关闭，保留原始热搜数据');
       }
 
       const finalTopics = hotTopics.length > 0 ? hotTopics : getMockTopics(category);
@@ -102,12 +107,14 @@ export async function GET(request: NextRequest) {
       console.warn('搜索API调用失败，使用模拟数据:', searchError);
       let mockTopics = getMockTopics(category);
       
-      // 【硬性屏蔽】模拟数据也必须过滤敏感词
-      const filterResult = filterSensitiveTopics(mockTopics);
-      if (filterResult.filteredCount > 0) {
-        console.log(`[敏感词过滤] 模拟数据屏蔽 ${filterResult.filteredCount} 条热搜`);
-        mockTopics = filterResult.filteredTopics as typeof mockTopics;
-        mockTopics = mockTopics.map((t, i) => ({ ...t, id: i + 1 }));
+      // 【条件过滤】模拟数据也根据filter参数决定是否过滤
+      if (enableFilter) {
+        const filterResult = filterSensitiveTopics(mockTopics);
+        if (filterResult.filteredCount > 0) {
+          console.log(`[敏感词过滤] 模拟数据屏蔽 ${filterResult.filteredCount} 条热搜`);
+          mockTopics = filterResult.filteredTopics as typeof mockTopics;
+          mockTopics = mockTopics.map((t, i) => ({ ...t, id: i + 1 }));
+        }
       }
       
       // 模拟数据也提取Top3标签

@@ -43,13 +43,13 @@ export default function Home() {
   const [hotTop3Tags, setHotTop3Tags] = useState<string[]>([]);
   const [hotCategory, setHotCategory] = useState<string>('finance');
   const [hotUpdateTime, setHotUpdateTime] = useState<string>('');
+  const [filterSensitive, setFilterSensitive] = useState(true); // 过滤敏感内容开关
 
   // 热点板块配置
   const HOT_CATEGORIES = [
-    { id: 'finance', name: '财经热搜', icon: '📈', sensitive: false },
-    { id: 'tech', name: '科技前沿', icon: '🚀', sensitive: false },
-    { id: 'crypto', name: '数字货币', icon: '₿', sensitive: true },
-    { id: 'global', name: '环球财经', icon: '🌍', sensitive: false },
+    { id: 'finance', name: '财经热搜', icon: '📈' },
+    { id: 'tech', name: '科技前沿', icon: '🚀' },
+    { id: 'global', name: '环球财经', icon: '🌍' },
   ];
 
   // ==================== 生成状态 ====================
@@ -83,7 +83,7 @@ export default function Home() {
   const loadHotTopics = useCallback(async () => {
     setHotTopicsLoading(true);
     try {
-      const res = await fetch(`/api/hot-topics?category=${hotCategory}`);
+      const res = await fetch(`/api/hot-topics?category=${hotCategory}&filter=${filterSensitive}`);
       if (res.ok) {
         const data = await res.json();
         setHotTopics(data.topics || []);
@@ -97,13 +97,13 @@ export default function Home() {
     } finally {
       setHotTopicsLoading(false);
     }
-  }, [hotCategory]);
+  }, [hotCategory, filterSensitive]);
 
   useEffect(() => {
     if (showHotTopics && topicType === 'market_hot') {
       loadHotTopics();
     }
-  }, [showHotTopics, topicType, hotCategory, loadHotTopics]);
+  }, [showHotTopics, topicType, hotCategory, filterSensitive, loadHotTopics]);
 
   // ==================== 标题生成 ====================
   const handleGenerateTitles = useCallback(async () => {
@@ -468,31 +468,44 @@ export default function Home() {
                 {/* 市场热点 - 热搜榜 */}
                 {showHotTopics && topicType === 'market_hot' && (
                   <Card className="mb-4 border-0 shadow-lg bg-white/90">
-                    <CardHeader className="pb-3 pt-4 px-5">
+                    <CardHeader className="pb-2 pt-4 px-5">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                           <Flame className="w-5 h-5 text-orange-500" />
-                          实时热搜榜
+                          实时热搜
+                          {hotUpdateTime && (
+                            <span className="text-[10px] text-gray-400 font-normal">{hotUpdateTime}</span>
+                          )}
                         </CardTitle>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={loadHotTopics}
-                          disabled={hotTopicsLoading}
-                        >
-                          <RefreshCw className={`w-4 h-4 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {/* 过滤敏感开关 */}
+                          <span className="text-xs text-gray-500">过滤敏感</span>
+                          <button
+                            onClick={() => setFilterSensitive(!filterSensitive)}
+                            className={`relative w-9 h-5 rounded-full transition-colors ${
+                              filterSensitive ? 'bg-orange-500' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                filterSensitive ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={loadHotTopics}
+                            disabled={hotTopicsLoading}
+                            className="h-8 w-8 p-0"
+                          >
+                            <RefreshCw className={`w-4 h-4 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
                       </div>
-                      {hotUpdateTime && (
-                        <p className="text-xs text-gray-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          更新时间：{hotUpdateTime}
-                        </p>
-                      )}
-                    </CardHeader>
-                    <CardContent className="px-5 pb-5">
-                      {/* 热搜分类 */}
-                      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+
+                      {/* 分类切换 */}
+                      <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
                         {HOT_CATEGORIES.map(cat => (
                           <button
                             key={cat.id}
@@ -507,6 +520,31 @@ export default function Home() {
                           </button>
                         ))}
                       </div>
+                    </CardHeader>
+
+                    <CardContent className="px-5 pb-5">
+                      {/* TOP3主题标签 */}
+                      {hotTop3Tags.length > 0 && (
+                        <div className="mb-3 p-2.5 bg-gradient-to-r from-rose-50 to-orange-50 rounded-xl">
+                          <p className="text-[10px] text-gray-500 mb-2 flex items-center gap-1">
+                            <Flame className="w-3 h-3 text-orange-500" />
+                            热点Top3标签
+                          </p>
+                          <div className="flex gap-2">
+                            {hotTop3Tags.slice(0, 3).map((tag, i) => (
+                              <Badge
+                                key={i}
+                                variant="outline"
+                                className="bg-white border-orange-200 text-orange-700 text-[10px] px-2.5 py-1 cursor-pointer hover:bg-orange-50"
+                                onClick={() => setKeywords(tag.replace('#', ''))}
+                              >
+                                <Flame className="w-2.5 h-2.5 mr-1 text-orange-500" />
+                                {tag.replace('#', '')}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* 热搜列表 */}
                       {hotTopicsLoading ? (
@@ -514,35 +552,41 @@ export default function Home() {
                           <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
                         </div>
                       ) : hotTopics.length > 0 ? (
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {hotTopics.slice(0, 10).map((topic, index) => (
-                            <button
+                        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                          {hotTopics.slice(0, 8).map((topic, index) => (
+                            <div
                               key={topic.id}
                               onClick={() => {
                                 setSelectedHotTopic(topic);
                                 setKeywords(topic.title);
                               }}
-                              className={`w-full p-3 rounded-xl text-left transition-all ${
+                              className={`flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer transition-all ${
                                 selectedHotTopic?.id === topic.id
                                   ? 'bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-400'
                                   : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
                               }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <span className={`w-5 h-5 rounded flex items-center justify-center text-xs font-bold ${
-                                  index < 3 ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'
-                                }`}>
-                                  {index + 1}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-800 truncate">{topic.title}</p>
-                                  <p className="text-[10px] text-gray-400 truncate">{topic.snippet}</p>
-                                </div>
-                                {topic.source && (
-                                  <Badge variant="outline" className="text-[10px]">{topic.source}</Badge>
-                                )}
+                              {/* 序号 */}
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                index < 3 ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'
+                              }`}>
+                                {index + 1}
                               </div>
-                            </button>
+                              {/* 内容 */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-800 font-medium truncate">{topic.title}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] text-gray-400">{topic.source}</span>
+                                  <span className="flex items-center text-[10px] text-orange-500">
+                                    <Flame className="w-3 h-3 mr-0.5" />
+                                    {topic.hot}
+                                  </span>
+                                </div>
+                              </div>
+                              {selectedHotTopic?.id === topic.id && (
+                                <Check className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                              )}
+                            </div>
                           ))}
                         </div>
                       ) : (
