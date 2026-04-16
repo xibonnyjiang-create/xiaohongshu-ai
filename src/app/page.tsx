@@ -794,8 +794,8 @@ export default function Home() {
                 <Card className="mb-4 border-0 shadow-lg bg-white/90">
                   <CardHeader className="pb-3 pt-4 px-5">
                     <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">2</span>
-                      选择创作主题
+                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
+                      选择创作人设
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-5 pb-5 space-y-4">
