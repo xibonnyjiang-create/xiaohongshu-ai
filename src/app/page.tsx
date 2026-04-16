@@ -256,6 +256,33 @@ export default function Home() {
     }
   }, [editableContent]);
 
+  // ==================== 生成图文复制文本 ====================
+  const generateImageTextCopyText = useCallback(() => {
+    if (!editableContent) return '';
+    
+    // 获取用户选择的标题
+    const title = selectedTitleIndex !== null && generatedTitles[selectedTitleIndex] 
+      ? generatedTitles[selectedTitleIndex].title 
+      : '';
+    
+    let text = '';
+    
+    // 标题
+    if (title) {
+      text += `${title}\n\n`;
+    }
+    
+    // 正文内容
+    text += `${editableContent}\n\n`;
+    
+    // 标签
+    if (tags.length > 0) {
+      text += tags.map(t => `#${t}`).join(' ');
+    }
+    
+    return text.trim();
+  }, [editableContent, generatedTitles, selectedTitleIndex, tags]);
+
   // ==================== 返回修改标题 ====================
   const handleBackToTitles = () => {
     setStep('titles');
@@ -1091,7 +1118,7 @@ export default function Home() {
                   onClick={() => {
                     const textToCopy = outputFormat === 'video' 
                       ? generateVideoCopyText() 
-                      : content;
+                      : generateImageTextCopyText();
                     navigator.clipboard.writeText(textToCopy).then(() => {
                       toast.success('已复制到剪贴板，可直接发布！');
                     });
@@ -1105,7 +1132,7 @@ export default function Home() {
               <p className="text-xs text-gray-400 mt-1">
                 {outputFormat === 'video' 
                   ? '标题 + 完整脚本 + BGM建议，点击即可复制完整发布稿' 
-                  : '正文内容 + 标签，可直接复制到小红书发布'}
+                  : '标题 + 正文内容 + 标签，可直接复制到小红书发布'}
               </p>
             </CardHeader>
             <CardContent className="px-5 pb-5">
