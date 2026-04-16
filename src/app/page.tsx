@@ -1186,44 +1186,6 @@ export default function Home() {
                 </Card>
               )}
 
-              {/* 配图建议 */}
-              {imageUrls.length > 0 && (
-                <Card className="border-0 shadow-lg bg-white/90">
-                  <CardHeader className="pb-2 pt-3 px-4">
-                    <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4" />
-                      配图建议
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      {imageUrls.map((url, i) => (
-                        <img key={i} src={url} alt={`配图${i + 1}`} className="rounded-lg w-full h-32 object-cover" />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 合规检查 */}
-              {compliance && !compliance.isCompliant && (
-                <Card className="border border-amber-300 bg-amber-50">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">合规提醒</p>
-                        <ul className="text-xs text-amber-600 mt-1 space-y-1">
-                          {compliance.warnings.map((w, i) => (
-                            <li key={i}>{w}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {/* 种草力评分 */}
               {engagementScore && (
                 <Card className="border-0 shadow-lg bg-gradient-to-br from-rose-50 to-pink-50">
@@ -1289,6 +1251,15 @@ export default function Home() {
               {/* 图文模式 */}
               {outputFormat === 'image_text' && content && (
                 <div className="space-y-4">
+                  {/* 标题 */}
+                  {selectedTitleIndex !== null && generatedTitles[selectedTitleIndex] && (
+                    <div className="p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
+                      <p className="text-xs font-medium text-rose-500 mb-2">📌 标题</p>
+                      <h3 className="text-lg font-bold text-gray-800">
+                        {generatedTitles[selectedTitleIndex].title}
+                      </h3>
+                    </div>
+                  )}
                   <div className="p-4 bg-gray-50 rounded-xl">
                     <p className="text-xs font-medium text-gray-500 mb-2">📝 正文内容</p>
                     <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
