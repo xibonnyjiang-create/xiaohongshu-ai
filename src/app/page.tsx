@@ -1027,7 +1027,7 @@ export default function Home() {
               {step === 'content' && content && (
                 <Button variant="outline" onClick={() => { setViewMode('integrated'); }} className="w-full">
                   <ChevronLeft className="w-4 h-4 mr-1" />
-                  返回整合视图
+                  返回标题选择
                 </Button>
               )}
 
