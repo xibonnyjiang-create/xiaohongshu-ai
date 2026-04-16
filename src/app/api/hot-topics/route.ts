@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchWeb, extractHeaders } from '@/lib/web-search';
 import { extractHotTopicTags } from '@/lib/llm';
+import { MARKET_HOT_SENSITIVE_WORDS, containsSensitiveWords } from '@/lib/constants';
+
+// 过滤函数：移除包含敏感词的热点
+function filterSensitiveTopics(topics: { title: string; snippet?: string; tags?: string[] }[]): { 
+  filteredTopics: typeof topics; 
+  filteredCount: number; 
+  filteredReasons: string[] 
+} {
+  const filteredTopics: typeof topics = [];
+  const filteredReasons: string[] = [];
+  
+  for (const topic of topics) {
+    // 检查标题和摘要
+    const titleCheck = containsSensitiveWords(topic.title, MARKET_HOT_SENSITIVE_WORDS);
+    const snippetCheck = containsSensitiveWords(topic.snippet || '', MARKET_HOT_SENSITIVE_WORDS);
+    
+    if (titleCheck.hasSensitive || snippetCheck.hasSensitive) {
+      filteredReasons.push(`"${topic.title.substring(0, 20)}..." → ${titleCheck.foundWords.concat(snippetCheck.foundWords).join(', ')}`);
+    } else {
+      filteredTopics.push(topic);
+    }
+  }
+  
+  return { filteredTopics, filteredCount: topics.length - filteredTopics.length, filteredReasons };
+}
 
 // 热点板块配置
 const HOT_CATEGORIES = [
@@ -30,7 +55,7 @@ export async function GET(request: NextRequest) {
       });
 
       // 格式化热点数据
-      const hotTopics = searchResults.map((item, index) => ({
+      let hotTopics = searchResults.map((item, index) => ({
         id: index + 1,
         title: item.title,
         source: item.source,
@@ -39,6 +64,15 @@ export async function GET(request: NextRequest) {
         publishTime: item.publishTime,
         hot: Math.floor(Math.random() * 50) + 50, // 模拟热度值
       }));
+
+      // 【硬性屏蔽】过滤敏感词内容
+      const filterResult = filterSensitiveTopics(hotTopics);
+      if (filterResult.filteredCount > 0) {
+        console.log(`[敏感词过滤] 屏蔽 ${filterResult.filteredCount} 条热搜:`, filterResult.filteredReasons);
+        hotTopics = filterResult.filteredTopics as typeof hotTopics;
+        // 重新编号
+        hotTopics = hotTopics.map((t, i) => ({ ...t, id: i + 1 }));
+      }
 
       const finalTopics = hotTopics.length > 0 ? hotTopics : getMockTopics(category);
 
@@ -66,7 +100,15 @@ export async function GET(request: NextRequest) {
     } catch (searchError) {
       // 搜索API出错时返回模拟数据
       console.warn('搜索API调用失败，使用模拟数据:', searchError);
-      const mockTopics = getMockTopics(category);
+      let mockTopics = getMockTopics(category);
+      
+      // 【硬性屏蔽】模拟数据也必须过滤敏感词
+      const filterResult = filterSensitiveTopics(mockTopics);
+      if (filterResult.filteredCount > 0) {
+        console.log(`[敏感词过滤] 模拟数据屏蔽 ${filterResult.filteredCount} 条热搜`);
+        mockTopics = filterResult.filteredTopics as typeof mockTopics;
+        mockTopics = mockTopics.map((t, i) => ({ ...t, id: i + 1 }));
+      }
       
       // 模拟数据也提取Top3标签
       let top3Tags: string[] = [];
@@ -105,18 +147,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 根据分类获取默认标签
+// 根据分类获取默认标签（已过滤敏感词）
 function getDefaultTags(category: string): string[] {
   const defaultTags: Record<string, string[]> = {
     finance: ['市场热点', '投资机会', '财经解读'],
     tech: ['科技前沿', '行业动态', '技术创新'],
-    crypto: ['加密货币', '区块链', '数字资产'],
+    crypto: ['数字经济', '互联网金融', '理财新趋势'], // 已替换敏感标签
     global: ['全球经济', '国际市场', '财经要闻'],
   };
   return defaultTags[category] || defaultTags.finance;
 }
 
-// 模拟热点数据（作为备用）
+// 模拟热点数据（作为备用）- 已过滤敏感词内容
 function getMockTopics(category: string): any[] {
   const mockData: Record<string, any[]> = {
     finance: [
@@ -139,15 +181,16 @@ function getMockTopics(category: string): any[] {
       { id: 7, title: '量子计算商业化进程加速', source: '量子位', hot: 79, snippet: '科技巨头加大研发投入' },
       { id: 8, title: '新能源电池技术突破 续航翻倍', source: '电池网', hot: 76, snippet: '固态电池量产在即' },
     ],
+    // crypto分类使用合规的理财内容替代
     crypto: [
-      { id: 1, title: '比特币突破10万美元 创历史新高', source: '金色财经', hot: 99, snippet: '机构资金持续流入，市场情绪高涨' },
-      { id: 2, title: '以太坊ETF获批 资金大举入场', source: '链闻', hot: 94, snippet: '传统金融与加密市场融合加速' },
-      { id: 3, title: 'Web3游戏赛道爆发 多个项目融资过亿', source: '深潮', hot: 88, snippet: 'GameFi生态迎来新一轮繁荣' },
-      { id: 4, title: 'Layer2生态持续扩展 Gas费大幅降低', source: '巴比特', hot: 85, snippet: '以太坊扩容解决方案日趋成熟' },
-      { id: 5, title: '央行数字货币跨境支付试点扩大', source: '移动支付网', hot: 82, snippet: '数字人民币国际化进程加快' },
-      { id: 6, title: 'DeFi锁仓量创新高 总量突破千亿', source: 'DeFi之道', hot: 80, snippet: '去中心化金融生态持续发展' },
-      { id: 7, title: 'NFT市场回暖 蓝筹项目交易活跃', source: 'NFT中文站', hot: 77, snippet: '优质项目价值回归' },
-      { id: 8, title: '多国加速制定加密货币监管框架', source: '区块链日报', hot: 74, snippet: '合规化进程稳步推进' },
+      { id: 1, title: '数字人民币APP全新升级 功能更强大', source: '移动支付网', hot: 92, snippet: '数字人民币国际化进程加快' },
+      { id: 2, title: '互联网理财用户突破5亿 年轻人成主力', source: '金融科技', hot: 88, snippet: '理财习惯年轻化趋势明显' },
+      { id: 3, title: '智能投顾服务受追捧 基金组合表现亮眼', source: '理财周刊', hot: 85, snippet: 'AI技术赋能财富管理' },
+      { id: 4, title: '银行理财产品创新 稳健收益受青睐', source: '银行家杂志', hot: 82, snippet: '低风险理财需求旺盛' },
+      { id: 5, title: '年轻人理财意识觉醒 月光族转型攒钱族', source: '财经观察', hot: 79, snippet: '储蓄率创近年新高' },
+      { id: 6, title: '基金定投持续火热 小额定投成趋势', source: '基金时报', hot: 76, snippet: '长期投资理念深入人心' },
+      { id: 7, title: '固收+产品走红 兼顾收益与稳健', source: '资产管理', hot: 74, snippet: '资产配置需求增加' },
+      { id: 8, title: '养老金融迎来发展机遇 第三支柱建设提速', source: '社会保障', hot: 71, snippet: '个人养老金账户加速普及' },
     ],
     global: [
       { id: 1, title: '美联储宣布维持利率不变 市场解读偏鸽', source: '华尔街日报', hot: 97, snippet: '年内降息预期升温，全球市场反弹' },
