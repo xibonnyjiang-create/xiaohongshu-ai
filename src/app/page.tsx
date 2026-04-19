@@ -1573,22 +1573,33 @@ export default function Home() {
                     
                     {/* 生图口令 */}
                     <div className="mt-3">
-                      <p className="text-[10px] text-gray-500 mb-1">AI生图口令</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-[10px] text-gray-500">AI生图口令</p>
+                        {content && (
+                          <Badge variant="outline" className="text-[8px] h-4 px-1 bg-emerald-50">
+                            基于正文生成
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Input
-                          value={customImagePrompt}
+                          value={customImagePrompt || imagePrompt}
                           onChange={(e) => setCustomImagePrompt(e.target.value)}
-                          placeholder={imagePrompt || '自定义生图口令...'}
+                          placeholder={imagePrompt || '输入自定义生图口令...'}
                           className="text-xs h-8"
                         />
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            navigator.clipboard.writeText(customImagePrompt || imagePrompt).then(() => {
-                              toast.success('生图口令已复制！');
-                            });
+                            const promptToCopy = customImagePrompt || imagePrompt;
+                            if (promptToCopy) {
+                              navigator.clipboard.writeText(promptToCopy).then(() => {
+                                toast.success('生图口令已复制！');
+                              });
+                            }
                           }}
+                          disabled={!imagePrompt && !customImagePrompt}
                           className="h-8 px-2"
                         >
                           <Copy className="w-3 h-3" />
@@ -1616,13 +1627,14 @@ export default function Home() {
                               })
                               .catch(() => toast.error('生成失败'));
                           }}
+                          disabled={!content}
                           className="h-8 px-2"
                         >
                           <RefreshCw className="w-3 h-3" />
                         </Button>
                       </div>
-                      {imagePrompt && !customImagePrompt && (
-                        <p className="text-[10px] text-gray-400 mt-1 truncate">{imagePrompt}</p>
+                      {!customImagePrompt && imagePrompt && (
+                        <p className="text-[10px] text-gray-400 mt-1">{imagePrompt}</p>
                       )}
                     </div>
                   </div>
