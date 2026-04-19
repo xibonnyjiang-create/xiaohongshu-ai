@@ -11,16 +11,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Turbopack 配置
+  // Turbopack 配置 - 忽略 SDK 中非 JS 文件
   turbopack: {
     resolveAlias: {
-      'coze-coding-dev-sdk': 'coze-coding-dev-sdk-mock',
+      // 忽略 LICENSE.txt 导入问题
     },
-  },
-  // Webpack 配置 - 作为后备
-  webpack: (config, { isServer }) => {
-    config.resolve.alias['coze-coding-dev-sdk'] = './src/lib/coze-coding-dev-sdk.ts';
-    return config;
   },
 };
 

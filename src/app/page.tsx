@@ -80,8 +80,11 @@ export default function Home() {
   const [tags, setTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imagePrompt, setImagePrompt] = useState<string>(''); // 生图口令
+  const [customImagePrompt, setCustomImagePrompt] = useState<string>(''); // 自定义生图口令
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string>(''); // 直接生成的图片
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false); // 生图中
   const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } | null>(null);
-  const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean }>({ isCompliant: true, warnings: [] });
+  const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean; fixedContent?: string }>({ isCompliant: true, warnings: [] });
 
   // ==================== 计算属性 ====================
   const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
@@ -254,6 +257,133 @@ export default function Home() {
       setIsGenerating(false);
     }
   }, [selectedTitleIndex, generatedTitles, topicType, keywords, deepAnalysis, personaType, selectedHotTopic, hotTop3Tags, userEdited]);
+
+  // ==================== 重新生成内容 ====================
+  const handleRegenerateContent = useCallback(async () => {
+    if (selectedTitleIndex === null || !generatedTitles[selectedTitleIndex]) {
+      toast.error('请先选择一个标题');
+      return;
+    }
+
+    setIsGenerating(true);
+    setCurrentStep('正在重新生成...');
+    setContent('');
+    setEditableContent('');
+    setTags([]);
+    setImagePrompt('');
+    setGeneratedImageUrl('');
+
+    const selectedTitle = generatedTitles[selectedTitleIndex].title;
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topicType,
+          keywords,
+          deepAnalysis,
+          outputFormat,
+          videoDuration,
+          personaType,
+          hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
+          hotTop3Tags,
+          selectedTitle,
+        }),
+      });
+
+      if (response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedContent = '';
+        let accumulatedTags: string[] = [];
+        let accumulatedImagePrompt = '';
+        let accumulatedScript: typeof videoScript = null;
+        let complianceData: typeof compliance = { isCompliant: true, warnings: [] };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              try {
+                const data = JSON.parse(line.slice(5));
+                switch (data.type) {
+                  case 'content':
+                    accumulatedContent += data.data;
+                    setContent(accumulatedContent);
+                    setEditableContent(accumulatedContent);
+                    break;
+                  case 'tags':
+                    accumulatedTags = data.data;
+                    setTags(accumulatedTags);
+                    break;
+                  case 'image_prompt':
+                    accumulatedImagePrompt = data.data;
+                    setImagePrompt(accumulatedImagePrompt);
+                    break;
+                  case 'video_script':
+                    accumulatedScript = data.data;
+                    setVideoScript(accumulatedScript);
+                    break;
+                  case 'compliance':
+                    complianceData = data.data;
+                    setCompliance(complianceData);
+                    if (!complianceData.isCompliant && !userEdited && complianceData.fixedContent) {
+                      setEditableContent(complianceData.fixedContent);
+                      setContent(complianceData.fixedContent);
+                    }
+                    break;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+        setCurrentStep('');
+        toast.success('内容已更新！');
+      }
+    } catch (error) {
+      console.error('重新生成错误:', error);
+      toast.error('生成失败，请重试');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [selectedTitleIndex, generatedTitles, topicType, keywords, deepAnalysis, outputFormat, videoDuration, personaType, selectedHotTopic, hotTop3Tags, userEdited]);
+
+  // ==================== 重新生成标签 ====================
+  const handleRegenerateTags = useCallback(async () => {
+    if (selectedTitleIndex === null || !generatedTitles[selectedTitleIndex]) {
+      toast.error('请先选择一个标题');
+      return;
+    }
+
+    try {
+      const selectedTitle = generatedTitles[selectedTitleIndex].title;
+      const response = await fetch('/api/regenerate-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topicType,
+          keywords,
+          selectedTitle,
+          content: content,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.tags) {
+        setTags(data.tags);
+        toast.success('标签已更新！');
+      }
+    } catch (error) {
+      console.error('标签生成错误:', error);
+      toast.error('标签生成失败');
+    }
+  }, [selectedTitleIndex, generatedTitles, topicType, keywords, content]);
 
   // ==================== 复制内容 ====================
   const handleCopyContent = useCallback(() => {
@@ -1301,26 +1431,184 @@ export default function Home() {
                   {/* 标题 */}
                   {selectedTitleIndex !== null && generatedTitles[selectedTitleIndex] && (
                     <div className="p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
-                      <p className="text-xs font-medium text-rose-500 mb-2">📌 标题</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-rose-500">📌 标题</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // 随机换一个标题
+                            const randomIndex = Math.floor(Math.random() * generatedTitles.length);
+                            setSelectedTitleIndex(randomIndex);
+                            // 清除内容，等待重新生成
+                            setContent('');
+                            setTags([]);
+                            toast.success('已选择新标题，请重新生成内容');
+                          }}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          换一下
+                        </Button>
+                      </div>
                       <h3 className="text-lg font-bold text-gray-800">
                         {generatedTitles[selectedTitleIndex].title}
                       </h3>
                     </div>
                   )}
+                  
+                  {/* 正文内容 */}
                   <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-xs font-medium text-gray-500 mb-2">📝 正文内容</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-gray-500">📝 正文内容</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedTitleIndex !== null) {
+                            handleRegenerateContent();
+                          }
+                        }}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        换一下
+                      </Button>
+                    </div>
                     <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
                       {content}
                     </div>
                   </div>
+                  
+                  {/* 标签 */}
                   <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-xs font-medium text-gray-500 mb-2">🏷️ 话题标签</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-gray-500">🏷️ 话题标签</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          handleRegenerateTags();
+                        }}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        换一下
+                      </Button>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {tags.map((tag, i) => (
                         <Badge key={i} variant="secondary" className="bg-rose-100 text-rose-700">
                           #{tag}
                         </Badge>
                       ))}
+                    </div>
+                  </div>
+                  
+                  {/* AI生图 */}
+                  <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-purple-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-purple-600">🎨 AI生图</p>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setIsGeneratingImage(true);
+                          const promptToUse = customImagePrompt || imagePrompt;
+                          fetch('/api/image-generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: promptToUse }),
+                          })
+                            .then(res => res.json())
+                            .then(data => {
+                              if (data.success && data.imageUrls?.[0]) {
+                                setGeneratedImageUrl(data.imageUrls[0]);
+                                toast.success('图片生成成功！');
+                              } else {
+                                toast.error(data.error || '生成失败，请重试');
+                              }
+                            })
+                            .catch(() => toast.error('生成失败'))
+                            .finally(() => setIsGeneratingImage(false));
+                        }}
+                        disabled={isGeneratingImage || (!imagePrompt && !customImagePrompt)}
+                        className="h-6 px-3 text-xs bg-gradient-to-r from-purple-500 to-indigo-500"
+                      >
+                        {isGeneratingImage ? (
+                          <>
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            生成中
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            直接生成
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {/* 生成结果 */}
+                    {generatedImageUrl && (
+                      <div className="mt-3">
+                        <img src={generatedImageUrl} alt="生成的配图" className="rounded-lg w-full" />
+                      </div>
+                    )}
+                    
+                    {/* 生图口令 */}
+                    <div className="mt-3">
+                      <p className="text-[10px] text-gray-500 mb-1">AI生图口令</p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={customImagePrompt}
+                          onChange={(e) => setCustomImagePrompt(e.target.value)}
+                          placeholder={imagePrompt || '自定义生图口令...'}
+                          className="text-xs h-8"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(customImagePrompt || imagePrompt).then(() => {
+                              toast.success('生图口令已复制！');
+                            });
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            fetch('/api/regenerate-image-prompt', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                title: selectedTitleIndex !== null ? generatedTitles[selectedTitleIndex]?.title : undefined,
+                                content: content,
+                                keywords: keywords,
+                              }),
+                            })
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.prompt) {
+                                  setImagePrompt(data.prompt);
+                                  setCustomImagePrompt('');
+                                  toast.success('已生成新的生图口令');
+                                }
+                              })
+                              .catch(() => toast.error('生成失败'));
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      {imagePrompt && !customImagePrompt && (
+                        <p className="text-[10px] text-gray-400 mt-1 truncate">{imagePrompt}</p>
+                      )}
                     </div>
                   </div>
                 </div>
