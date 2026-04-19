@@ -1076,9 +1076,22 @@ export default function Home() {
                     <CardTitle className="text-sm font-bold text-gray-800">
                       选择标题
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setStep('input')}>
-                      <X className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => {
+                          handleGenerateTitles();
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        换一批
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setStep('input')}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
