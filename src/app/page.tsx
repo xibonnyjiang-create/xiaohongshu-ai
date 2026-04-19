@@ -242,6 +242,8 @@ export default function Home() {
                       setContent(data.data.fixedContent);
                     }
                     setCurrentStep('');
+                    setViewMode('integrated');
+                    toast.success('内容生成完成！');
                     break;
                 }
               } catch (e) {}
