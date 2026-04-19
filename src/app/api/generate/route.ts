@@ -589,6 +589,19 @@ async function generateTags(
 
 // 生成生图口令
 async function generateImagePrompt(title: string, content: string, keywords?: string): Promise<string> {
+  // 随机选择不同的风格视角，增加变化性
+  const styles = [
+    '温暖治愈系插画风格，手绘感强，柔和线条',
+    '现代简约插画风格，几何图形，扁平设计',
+    '杂志封面风格，高级感，大留白',
+    '生活场景插画风格，贴近日常，温馨氛围',
+    '抽象艺术风格，渐变色块，现代感',
+  ];
+  
+  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+  const randomAngle = ['俯视', '平视', '侧光', '逆光', '特写', '远景'][Math.floor(Math.random() * 6)];
+  const randomMood = ['活力', '宁静', '清新', '温暖', '商务'][Math.floor(Math.random() * 5)];
+  
   const prompt = `根据以下小红书内容生成一张高质量配图的AI生图口令：
 
 标题：${title || ''}
@@ -596,13 +609,15 @@ async function generateImagePrompt(title: string, content: string, keywords?: st
 关键词：${keywords || ''}
 
 要求：
-1. 风格：小红书清新插画风格，温暖治愈
-2. 色调：明亮柔和，符合理财/生活主题
-3. 构图：简洁大方，留白充足
-4. 比例：3:4竖版
-5. 不要包含文字和中文
+1. 风格：${randomStyle}，温暖治愈
+2. 色调：明亮柔和，符合理财/生活主题，${randomMood}氛围
+3. 视角：${randomAngle}视角
+4. 构图：简洁大方，留白充足
+5. 比例：3:4竖版
+6. 不要包含文字和中文
+7. 随机变化元素：装饰图案、色块叠加、渐变背景等
 
-直接输出生图口令，不要其他内容，中文描述即可。`;
+直接输出生图口令，中文描述即可，重点突出画面的创意性和独特性。`;
 
   const response = await callLLM(prompt);
   return response.trim();

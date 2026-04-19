@@ -444,80 +444,75 @@ export async function callComplianceCheck(title: string, content: string, tags: 
   fixedTitle?: string;
   fixedContent?: string;
 }> {
-  const checkPrompt = `【合规静默拦截检查】
+  // 关键词替换映射 - 只做简单替换，不改变整体风格
+  const wordReplacements: Record<string, string> = {
+    '保证收益': '有望获得',
+    '稳赚不赔': '长期持有',
+    '稳赚': '有望获得收益',
+    '一定能': '有可能',
+    '一定涨': '有望上涨',
+    '绝对涨': '相对确定上涨',
+    '绝对': '相对',
+    '100%收益': '较高收益',
+    '100%': '大概率',
+    '涨停': '上涨',
+    '跌停': '下跌',
+    '保本': '风险可控',
+    '无风险': '低风险',
+    '最牛': '表现优秀',
+    '必涨': '有望上涨',
+    '必跌': '可能下跌',
+    '保证赚钱': '获得收益',
+    '赚钱': '获得收益',
+    '亏损': '波动',
+    '梭哈': '适量配置',
+    'all in': '适量配置',
+  };
 
-请检查并自动修正以下内容中的违规部分：
+  // 检测违规词
+  const illegalPatterns = [
+    /具体股票代码|股票[0-9]{6}/g,
+    /内幕消息/g,
+    /跟庄|庄家/g,
+    /暴富/g,
+    /翻倍/g,
+    /黑马股/g,
+    /妖股/g,
+    /荐股/g,
+    /代客理财/g,
+  ];
 
-标题：${title}
-正文：${content.substring(0, 1000)}
-标签：${tags}
+  let warnings: string[] = [];
+  let fixedContent = content;
+  let fixedTitle = title;
 
-【违规检测项】
-1. 承诺收益类：稳赚、保证收益、100%赚钱、躺赚
-2. 违规推荐类：具体股票代码、内幕消息、庄家、跟庄
-3. 夸大宣传类：暴富、翻倍、黑马、妖股
-4. 敏感词汇：荐股、代客理财
-
-【处理方式】
-- 发现违规词 → 自动替换为合规表达
-- 发现个股代码 → 泛化为板块/行业
-- 保持原意和风格不变
-
-请以JSON格式输出：
-{
-  "isCompliant": 是否完全合规,
-  "warnings": ["检测到的原始问题"],
-  "suggestions": ["修正建议"],
-  "fixedTitle": "修正后的标题（如有修改）",
-  "fixedContent": "修正后的正文（如有修改）"
-}`;
-
-  try {
-    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: '你是一位专业的金融内容合规审查专家，负责静默拦截违规内容。',
-          },
-          {
-            role: 'user',
-            content: checkPrompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+  // 检测违规词
+  for (const pattern of illegalPatterns) {
+    const matches = content.match(pattern);
+    if (matches) {
+      warnings.push(`检测到违规词: ${matches[0]}`);
     }
-
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content || '';
-    
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        isCompliant: parsed.isCompliant ?? true,
-        warnings: parsed.warnings ?? [],
-        suggestions: parsed.suggestions ?? [],
-        fixedTitle: parsed.fixedTitle,
-        fixedContent: parsed.fixedContent,
-      };
-    }
-  } catch (error) {
-    console.error('Compliance check error:', error);
   }
 
+  // 只做词语替换，不调用LLM
+  for (const [word, replacement] of Object.entries(wordReplacements)) {
+    const regex = new RegExp(word, 'gi');
+    fixedContent = fixedContent.replace(regex, replacement);
+    fixedTitle = fixedTitle.replace(regex, replacement);
+  }
+
+  // 如果有违规词，返回警告和建议
+  if (warnings.length > 0) {
+    return {
+      isCompliant: false,
+      warnings,
+      suggestions: warnings.map(() => '已自动替换为合规表达'),
+      fixedTitle: fixedTitle !== title ? fixedTitle : undefined,
+      fixedContent: fixedContent !== content ? fixedContent : undefined,
+    };
+  }
+
+  // 无违规，直接返回
   return {
     isCompliant: true,
     warnings: [],
@@ -531,63 +526,47 @@ export async function callComplianceFix(title: string, content: string): Promise
   fixedContent: string;
   wasModified: boolean;
 }> {
-  const fixPrompt = buildComplianceCheckPrompt(title, content);
-  
-  try {
-    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: '你是一位金融内容合规专家，负责静默拦截和修正违规内容。发现违规立即修正，无需询问。',
-          },
-          {
-            role: 'user',
-            content: fixPrompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      }),
-    });
+  // 简单词语替换
+  const wordReplacements: Record<string, string> = {
+    '保证收益': '有望获得',
+    '稳赚不赔': '长期持有',
+    '稳赚': '有望获得收益',
+    '一定能': '有可能',
+    '绝对': '相对',
+    '100%': '大概率',
+    '涨停': '上涨',
+    '跌停': '下跌',
+    '保本': '风险可控',
+    '无风险': '低风险',
+    '最牛': '表现优秀',
+    '必涨': '有望上涨',
+    '必跌': '可能下跌',
+    '赚钱': '获得收益',
+    '亏损': '波动',
+    '梭哈': '适量配置',
+    'all in': '适量配置',
+  };
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
+  let fixedContent = content;
+  let fixedTitle = title;
+  let wasModified = false;
 
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content || '';
-    
-    // 解析输出，提取标题和正文
-    const lines = result.split('\n').filter((l: string) => l.trim());
-    let fixedTitle = title;
-    let fixedContent = content;
-    let wasModified = false;
-    
-    // 简单解析：假设第一行是标题，后续是正文
-    if (lines.length > 0) {
-      // 检查是否包含标题标记
-      const titleMatch = result.match(/标题[：:]\s*(.+?)(?:\n|$)/);
-      const contentMatch = result.match(/正文[：:]\s*([\s\S]+)$/);
-      
-      if (titleMatch && contentMatch) {
-        fixedTitle = titleMatch[1].trim();
-        fixedContent = contentMatch[1].trim();
-        wasModified = fixedTitle !== title || fixedContent !== content;
-      }
+  for (const [word, replacement] of Object.entries(wordReplacements)) {
+    const regex = new RegExp(word, 'gi');
+    if (regex.test(fixedContent)) {
+      fixedContent = fixedContent.replace(regex, replacement);
+      wasModified = true;
     }
-    
-    return { fixedTitle, fixedContent, wasModified };
-  } catch (error) {
-    console.error('Compliance fix error:', error);
-    return { fixedTitle: title, fixedContent: content, wasModified: false };
+    if (regex.test(fixedTitle)) {
+      fixedTitle = fixedTitle.replace(regex, replacement);
+    }
   }
+
+  return {
+    fixedTitle,
+    fixedContent,
+    wasModified,
+  };
 }
 
 // 提取热点Top3标签

@@ -954,17 +954,27 @@ export default function Home() {
                 <CardContent className="px-4 pb-4">
                   <div className="space-y-2">
                     {generatedTitles.map((item, index) => (
-                      <button
+                      <div 
                         key={index}
-                        onClick={() => setSelectedTitleIndex(index)}
-                        className={`w-full p-4 rounded-xl text-left transition-all ${
+                        className={`relative p-4 rounded-xl transition-all cursor-pointer group ${
                           selectedTitleIndex === index
                             ? 'bg-white border-2 border-rose-500 shadow-md'
                             : 'bg-white/50 hover:bg-white border border-gray-200'
                         }`}
+                        onClick={() => {
+                          // 如果选了不同的标题，清除已有内容
+                          if (selectedTitleIndex !== index && content) {
+                            setContent('');
+                            setEditableContent('');
+                            setVideoScript(null);
+                            setTags([]);
+                            setImagePrompt('');
+                          }
+                          setSelectedTitleIndex(index);
+                        }}
                       >
                         <div className="flex items-start gap-3">
-                          <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
+                          <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
                             selectedTitleIndex === index
                               ? 'bg-rose-500 text-white'
                               : 'bg-gray-200 text-gray-600'
@@ -972,8 +982,21 @@ export default function Home() {
                             {index + 1}
                           </span>
                           <span className="text-sm text-gray-700 flex-1">{item.title}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(item.title).then(() => {
+                                toast.success('标题已复制');
+                              });
+                            }}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
 
@@ -1158,9 +1181,36 @@ export default function Home() {
                         <Copy className="w-3 h-3 mr-1" />
                         复制
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // 调用API重新生成生图口令
+                          fetch('/api/regenerate-image-prompt', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              title: selectedTitleIndex !== null ? generatedTitles[selectedTitleIndex]?.title : undefined,
+                              content: content,
+                              keywords: keywords,
+                            }),
+                          }).then(res => res.json()).then(data => {
+                            if (data.prompt) {
+                              setImagePrompt(data.prompt);
+                              toast.success('已生成新的生图口令');
+                            }
+                          }).catch(() => {
+                            toast.error('生成失败，请重试');
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        换一批
+                      </Button>
                     </div>
                     <p className="text-[10px] text-gray-500 mt-1">
-                      比例3:4，支持Midjourney、DALL-E等AI绘图工具
+                      比例3:4，支持Midjourney、DALL-E、Seedance等AI绘图工具
                     </p>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
@@ -1182,6 +1232,20 @@ export default function Home() {
                       推荐标签
                       <span className="text-[10px] text-gray-400 font-normal">（{tags.length}/10）</span>
                     </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const tagsText = tags.map(t => `#${t}`).join(' ');
+                        navigator.clipboard.writeText(tagsText).then(() => {
+                          toast.success('标签已复制');
+                        });
+                      }}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      复制
+                    </Button>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     <div className="flex flex-wrap gap-2">
