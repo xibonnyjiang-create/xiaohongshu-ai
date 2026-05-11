@@ -115,10 +115,10 @@ export const SCENE_PERSONA_COMPATIBILITY: Record<TopicType, PersonaType[]> = {
 };
 
 // 人设自动匹配的风格配置
-export const PERSONA_STYLE_CONFIG: Record<PersonaType, { tone: string; emojiDensity: string; titleStyle: TitleStyle }> = {
-  'hardcore_uncle': { tone: '严肃专业', emojiDensity: '极简', titleStyle: 'data_driven' },
-  'sweet_girl': { tone: '亲切甜美', emojiDensity: '高频', titleStyle: 'emotional' },
-  'custom': { tone: '自定义', emojiDensity: '适中', titleStyle: 'suspense' },
+export const PERSONA_STYLE_CONFIG: Record<PersonaType, { tone: string; emojiDensity: string }> = {
+  'hardcore_uncle': { tone: '严肃专业，像老朋友聊天一样直说', emojiDensity: '极简（偶尔用1-2个）' },
+  'sweet_girl': { tone: '亲切甜美，像闺蜜分享一样', emojiDensity: '高频（每段都有）' },
+  'custom': { tone: '自然随和', emojiDensity: '适中' },
 };
 
 // 内容子类型选项（简化）
@@ -151,12 +151,24 @@ export const CONTENT_REQUIREMENT_SOLO_OPTIONS: { value: string; label: string; e
   { value: '300_words', label: '控制在300字', emoji: '📄' },
 ];
 
-// 关键词推荐（按场景分类）
-export const KEYWORD_RECOMMENDATIONS: Record<TopicType, string[]> = {
-  'market_hot': ['AI概念', '机器人', '半导体', '新能源', '政策利好'],
-  'beginner_guide': ['ETF基金', '理财认知', '基金定投', '国债', '货币基金'],
-  'life_lifestyle': ['存钱', '副业', '消费观', '极简生活', '财务自由'],
-  'tool_review': ['券商APP', '基金筛选器', '智能投顾', '记账软件'],
+// 关键词推荐（按场景分类，支持分组标签）
+export const KEYWORD_RECOMMENDATIONS: Record<TopicType, { label: string; keywords: string[] }[]> = {
+  'market_hot': [
+    { label: '投资领域', keywords: ['AI概念', '机器人', '半导体', '新能源', '政策利好'] },
+    { label: '创作主题', keywords: ['行情解读', '板块轮动', '资金流向'] },
+  ],
+  'beginner_guide': [
+    { label: '投资领域', keywords: ['ETF基金', '理财认知', '基金定投', '国债', '货币基金'] },
+    { label: '创作主题', keywords: ['入门指南', '工具推荐', '避坑指南'] },
+  ],
+  'life_lifestyle': [
+    { label: '投资领域', keywords: ['存钱', '副业', '消费观', '极简生活', '财务自由'] },
+    { label: '创作主题', keywords: ['入门指南', '工具推荐'] },
+  ],
+  'tool_review': [
+    { label: '投资领域', keywords: ['券商APP', '基金筛选器', '智能投顾', '记账软件'] },
+    { label: '创作主题', keywords: ['工具推荐', '使用教程', '对比评测'] },
+  ],
 };
 
 // ==================== 生活化种草专属词库（PRD要求）====================

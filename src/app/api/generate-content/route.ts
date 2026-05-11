@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 【创作场景】${topicLabel}
 【分析深度】${analysisLevel}
 【创作人设】${personaType}
-【人设风格】语气：${styleConfig.tone}，表情密度：${styleConfig.emojiDensity}，标题风格：${styleConfig.titleStyle}
+【人设风格】语气：${styleConfig.tone}，表情密度：${styleConfig.emojiDensity}
 
 【关键词】${keywords || '未指定'}`;
 
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 5. 种草力评分必须≥7分
 
 请生成完整的小红书内容，包括：
-1. 吸引眼球的标题（${styleConfig.titleStyle}风格）
+1. 吸引眼球的标题
 2. 引人入胜的开头
 3. 干货满满的主体
 4. 总结升华

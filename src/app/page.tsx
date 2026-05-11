@@ -22,8 +22,8 @@ import {
 } from '@/lib/types';
 import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
-  KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
-  OUTPUT_FORMAT_OPTIONS, VIDEO_DURATION_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING,
+  KEYWORD_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
+  OUTPUT_FORMAT_OPTIONS, VIDEO_DURATION_OPTIONS, LIFE_STYLE_KEYWORDS,
   CONTENT_REQUIREMENT_GROUPS, CONTENT_REQUIREMENT_SOLO_OPTIONS
 } from '@/lib/constants';
 
@@ -89,9 +89,7 @@ export default function Home() {
   // ==================== 计算属性 ====================
   const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
   const keywordsByScene = KEYWORD_RECOMMENDATIONS[topicType];
-  const topicRecommendations = TOPIC_RECOMMENDATIONS[topicType];
   const personaStyleConfig = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
-  const weixinMapping = WEIXIN_SECURITY_MAPPING[topicType] || [];
 
   // ==================== 加载热搜 ====================
   const loadHotTopics = useCallback(async () => {
@@ -534,7 +532,7 @@ export default function Home() {
                             setTopicType(option.value);
                             setSelectedHotTopic(null);
                           }}
-                          className={`p-4 rounded-xl text-left transition-all ${
+                          className={`p-4 rounded-xl text-left transition-all select-none ${
                             topicType === option.value
                               ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-lg ring-2 ring-rose-300'
                               : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
@@ -745,7 +743,7 @@ export default function Home() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="px-5 pb-5">
+                    <CardContent className="px-5 pb-5 min-h-[280px]">
                       {/* TOP3主题标签 */}
                       {hotTop3Tags.length > 0 && (
                         <div className="mb-3 p-2.5 bg-gradient-to-r from-rose-50 to-orange-50 rounded-xl">
@@ -819,40 +817,6 @@ export default function Home() {
                   </Card>
                 )}
 
-                {/* 小白科普 - 推荐主题 */}
-                {topicType === 'beginner_guide' && (
-                  <Card className="mb-4 border-0 shadow-lg bg-white/90">
-                    <CardHeader className="pb-3 pt-4 px-5">
-                      <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                        <WandSparkles className="w-5 h-5 text-green-500" />
-                        推荐主题
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 pb-5 space-y-4">
-                      {topicRecommendations.map((rec, index) => (
-                        <div key={index} className="space-y-2">
-                          <p className="text-sm font-medium text-gray-700">{rec.label}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {rec.keywords.map((kw, i) => (
-                              <button
-                                key={i}
-                                onClick={() => setKeywords(kw)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                  keywords === kw
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {kw}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-
                 {/* 生活化种草 - 专属词库 */}
                 {topicType === 'life_lifestyle' && (
                   <Card className="mb-4 border-0 shadow-lg bg-gradient-to-br from-green-50 to-teal-50">
@@ -902,19 +866,26 @@ export default function Home() {
                     </div>
 
                     {/* 推荐关键词 */}
-                    <div className="flex flex-wrap gap-2">
-                      {keywordsByScene.map((kw, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setKeywords(kw)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                            keywords === kw
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {kw}
-                        </button>
+                    <div className="space-y-3">
+                      {keywordsByScene.map((group, gi) => (
+                        <div key={gi}>
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">{group.label}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {group.keywords.map((kw, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setKeywords(kw)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                  keywords === kw
+                                    ? 'bg-rose-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {kw}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </CardContent>
@@ -961,9 +932,7 @@ export default function Home() {
                         <Badge variant="outline" className="bg-white">
                           表情：{personaStyleConfig.emojiDensity}
                         </Badge>
-                        <Badge variant="outline" className="bg-white">
-                          标题：{personaStyleConfig.titleStyle}
-                        </Badge>
+
                       </div>
                     </div>
                   </CardContent>
