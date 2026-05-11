@@ -87,9 +87,6 @@ export const TITLE_STYLE_OPTIONS: { value: TitleStyle; label: string; descriptio
 export const PERSONA_OPTIONS: { value: PersonaType; label: string; description: string; emoji: string }[] = [
   { value: 'hardcore_uncle', label: '硬核财经大叔', description: '沉稳老练，数据说话', emoji: '👨‍💼' },
   { value: 'sweet_girl', label: '甜妹理财科普', description: '甜美亲切，易懂易学', emoji: '👩‍💕' },
-  { value: 'veteran_trader', label: '实战派老股民', description: '经验丰富，干货满满', emoji: '📈' },
-  { value: 'finance_scholar', label: '金融学霸人设', description: '专业严谨，逻辑清晰', emoji: '🎓' },
-  { value: 'roaster', label: '吐槽型财经博主', description: '幽默犀利，反差吸睛', emoji: '😏' },
   { value: 'custom', label: '自定义人设', description: '自定义你的专属人设', emoji: '✏️' },
 ];
 
@@ -111,19 +108,16 @@ export const VIDEO_STYLE_OPTIONS: { value: VideoStyle; label: string }[] = [
 
 // 场景与人设的自动匹配规则
 export const SCENE_PERSONA_COMPATIBILITY: Record<TopicType, PersonaType[]> = {
-  'market_hot': ['hardcore_uncle', 'veteran_trader', 'finance_scholar', 'roaster'],
-  'beginner_guide': ['sweet_girl', 'veteran_trader', 'hardcore_uncle'],
-  'life_lifestyle': ['sweet_girl', 'roaster', 'veteran_trader'],
-  'tool_review': ['hardcore_uncle', 'finance_scholar', 'veteran_trader'],
+  'market_hot': ['hardcore_uncle', 'sweet_girl'],
+  'beginner_guide': ['hardcore_uncle', 'sweet_girl'],
+  'life_lifestyle': ['sweet_girl', 'hardcore_uncle'],
+  'tool_review': ['hardcore_uncle', 'sweet_girl'],
 };
 
 // 人设自动匹配的风格配置
 export const PERSONA_STYLE_CONFIG: Record<PersonaType, { tone: string; emojiDensity: string; titleStyle: TitleStyle }> = {
   'hardcore_uncle': { tone: '严肃专业', emojiDensity: '极简', titleStyle: 'data_driven' },
   'sweet_girl': { tone: '亲切甜美', emojiDensity: '高频', titleStyle: 'emotional' },
-  'veteran_trader': { tone: '实战经验', emojiDensity: '适中', titleStyle: 'practical' },
-  'finance_scholar': { tone: '学术严谨', emojiDensity: '极简', titleStyle: 'data_driven' },
-  'roaster': { tone: '幽默犀利', emojiDensity: '高频', titleStyle: 'contrast' },
   'custom': { tone: '自定义', emojiDensity: '适中', titleStyle: 'suspense' },
 };
 
@@ -134,13 +128,27 @@ export const CONTENT_SUBTYPE_OPTIONS = [
   { value: 'platform_compare', label: '平台对比', keywords: ['券商', '对比', '差异'] },
 ];
 
-// 补充要求预设选项
-export const CONTENT_REQUIREMENT_OPTIONS: { value: string; label: string; emoji: string; description: string }[] = [
-  { value: '300_words', label: '控制在300字', emoji: '📄', description: '字数限制' },
-  { value: 'short_term', label: '侧重短期分析', emoji: '⚡', description: '分析方向' },
-  { value: 'long_term', label: '侧重长期价值', emoji: '🏆', description: '分析方向' },
-  { value: 'examples', label: '举例说明', emoji: '📓', description: '呈现形式' },
-  { value: 'story_style', label: '故事化表达', emoji: '📚', description: '呈现形式' },
+// 补充要求预设选项（互斥组）
+export const CONTENT_REQUIREMENT_GROUPS: { groupKey: string; options: { value: string; label: string; emoji: string }[] }[] = [
+  {
+    groupKey: 'analysis_direction',
+    options: [
+      { value: 'short_term', label: '侧重短期分析', emoji: '⚡' },
+      { value: 'long_term', label: '侧重长期价值', emoji: '🏆' },
+    ],
+  },
+  {
+    groupKey: 'expression_style',
+    options: [
+      { value: 'examples', label: '举例说明', emoji: '📓' },
+      { value: 'story_style', label: '故事化表达', emoji: '📚' },
+    ],
+  },
+];
+
+// 独立选项（非互斥）
+export const CONTENT_REQUIREMENT_SOLO_OPTIONS: { value: string; label: string; emoji: string }[] = [
+  { value: '300_words', label: '控制在300字', emoji: '📄' },
 ];
 
 // 关键词推荐（按场景分类）

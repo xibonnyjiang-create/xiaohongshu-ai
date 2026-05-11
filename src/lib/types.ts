@@ -17,10 +17,10 @@ export type TitleStyle = 'suspense' | 'data_driven' | 'emotional' | 'practical' 
 export type HotTopicTimeRange = '24h' | '7d' | '30d';
 
 // 补充要求
-export type AdditionalRequirement = 'short_300' | 'short_term' | 'long_term' | 'examples' | 'risk_warning' | 'recommend_wzq' | 'story_telling' | 'custom';
+export type AdditionalRequirement = 'short_300' | 'short_term' | 'long_term' | 'examples' | 'story_telling' | 'custom';
 
 // 博主人设类型
-export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'veteran_trader' | 'finance_scholar' | 'roaster' | 'custom';
+export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'custom';
 
 // 分析对象
 export type AnalysisTarget = 'asset' | 'industry' | 'company' | 'macro_policy' | 'market_event' | 'custom';

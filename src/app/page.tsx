@@ -24,14 +24,14 @@ import {
   SCENE_OPTIONS, PERSONA_OPTIONS, PERSONA_STYLE_CONFIG,
   KEYWORD_RECOMMENDATIONS, TOPIC_RECOMMENDATIONS, SHOW_HOT_TOPICS_TOPIC,
   OUTPUT_FORMAT_OPTIONS, VIDEO_DURATION_OPTIONS, LIFE_STYLE_KEYWORDS, WEIXIN_SECURITY_MAPPING,
-  CONTENT_REQUIREMENT_OPTIONS
+  CONTENT_REQUIREMENT_GROUPS, CONTENT_REQUIREMENT_SOLO_OPTIONS
 } from '@/lib/constants';
 
 export default function Home() {
   // ==================== 场景选择 ====================
   const [topicType, setTopicType] = useState<TopicType>('market_hot');
   const [keywords, setKeywords] = useState('');
-  const [deepAnalysis, setDeepAnalysis] = useState(false);
+  const [deepAnalysis, setDeepAnalysis] = useState(false); // 市场热点时自动开启
 
   // ==================== 输出形式选择 ====================
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('image_text');
@@ -118,6 +118,11 @@ export default function Home() {
       loadHotTopics();
     }
   }, [showHotTopics, topicType, hotCategory, filterSensitive, loadHotTopics]);
+
+  // 市场热点自动开启深度分析
+  useEffect(() => {
+    setDeepAnalysis(topicType === 'market_hot');
+  }, [topicType]);
 
   // ==================== 标题生成 ====================
   const handleGenerateTitles = useCallback(async () => {
@@ -507,7 +512,7 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-4 py-6">
         <div className={viewMode === 'split' ? 'grid grid-cols-2 gap-6' : ''}>
           {/* 左侧：输入区域 */}
-          <div className={viewMode === 'split' ? '' : 'max-w-2xl mx-auto'}>
+          <div className={step === 'input' ? 'max-w-3xl mx-auto' : viewMode === 'split' ? '' : 'max-w-2xl mx-auto'}>
             
             {/* Step 1: 场景选择 */}
             {step === 'input' && (
@@ -609,8 +614,40 @@ export default function Home() {
                           自定义
                         </Button>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {CONTENT_REQUIREMENT_OPTIONS.map(option => {
+                      {/* 独立选项 */}
+                      <div className="flex flex-wrap gap-3 items-center">
+                        {/* 互斥组按钮 - 合并在一起 */}
+                        {CONTENT_REQUIREMENT_GROUPS.map(group => (
+                          <div key={group.groupKey} className="inline-flex rounded-full overflow-hidden border border-rose-200">
+                            {group.options.map(option => {
+                              const isSelected = contentRequirements.includes(option.value);
+                              return (
+                                <button
+                                  key={option.value}
+                                  onClick={() => {
+                                    const groupValues = group.options.map(o => o.value);
+                                    const otherReqs = contentRequirements.filter(r => !groupValues.includes(r));
+                                    if (isSelected) {
+                                      setContentRequirements(otherReqs);
+                                    } else {
+                                      setContentRequirements([...otherReqs, option.value]);
+                                    }
+                                  }}
+                                  className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-all ${
+                                    isSelected
+                                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                                      : 'bg-rose-50 hover:bg-rose-100 text-rose-600'
+                                  }`}
+                                >
+                                  <span>{option.emoji}</span>
+                                  <span>{option.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                        {/* 独立选项 */}
+                        {CONTENT_REQUIREMENT_SOLO_OPTIONS.map(option => {
                           const isSelected = contentRequirements.includes(option.value);
                           return (
                             <button
@@ -630,59 +667,24 @@ export default function Home() {
                             >
                               <span>{option.emoji}</span>
                               <span>{option.label}</span>
-                              {isSelected && (
-                                <X 
-                                  className="w-3 h-3 ml-1 cursor-pointer hover:opacity-80" 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setContentRequirements(contentRequirements.filter(r => r !== option.value));
-                                  }}
-                                />
-                              )}
                             </button>
                           );
                         })}
-                      </div>
-                      {/* 自定义要求标签 */}
-                      {customRequirement && (
-                        <div className="flex flex-wrap gap-2 mt-2">
+                        {/* 自定义要求标签 */}
+                        {customRequirement && (
                           <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm">
                             <span>✏️</span>
                             <span>{customRequirement}</span>
-                            <X 
-                              className="w-3 h-3 ml-1 cursor-pointer hover:opacity-80" 
+                            <X
+                              className="w-3 h-3 ml-1 cursor-pointer hover:opacity-80"
                               onClick={() => setCustomRequirement('')}
                             />
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
-                    {/* 深度分析开关 */}
-                    <div className="flex items-center justify-between p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-                      <div className="flex items-center gap-2">
-                        <Rocket className={`w-4 h-4 ${deepAnalysis ? 'text-amber-500' : 'text-gray-400'}`} />
-                        <div>
-                          <span className="text-sm font-medium text-gray-700">深度分析</span>
-                          <p className="text-[10px] text-gray-400">专业数据支撑、机构观点引用</p>
-                        </div>
-                      </div>
-                      <Switch checked={deepAnalysis} onCheckedChange={setDeepAnalysis} />
-                    </div>
 
-                    {/* 微证券功能映射提示 */}
-                    {weixinMapping.length > 0 && (
-                      <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-                        <p className="text-xs font-medium text-gray-700 mb-2">微证券功能植入点</p>
-                        <div className="flex flex-wrap gap-2">
-                          {weixinMapping.map((item, i) => (
-                            <Badge key={i} variant="outline" className="bg-white text-xs">
-                              {item.feature}：{item.highlight}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
 
@@ -927,7 +929,7 @@ export default function Home() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-5 pb-5 space-y-4">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex gap-3">
                       {PERSONA_OPTIONS.map(option => (
                         <button
                           key={option.value}
@@ -938,7 +940,7 @@ export default function Home() {
                               setPersonaType(option.value);
                             }
                           }}
-                          className={`p-3 rounded-xl text-center transition-all ${
+                          className={`flex-1 p-3 rounded-xl text-center transition-all ${
                             personaType === option.value
                               ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md'
                               : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
@@ -1416,22 +1418,42 @@ export default function Home() {
                   <Sparkles className="w-5 h-5 text-rose-500" />
                   {outputFormat === 'video' ? '视频脚本发布稿' : '图文发布稿'}
                 </CardTitle>
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  onClick={() => {
-                    const textToCopy = outputFormat === 'video' 
-                      ? generateVideoCopyText() 
-                      : generateImageTextCopyText();
-                    navigator.clipboard.writeText(textToCopy).then(() => {
-                      toast.success('已复制到剪贴板，可直接发布！');
-                    });
-                  }}
-                  className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
-                >
-                  <Copy className="w-4 h-4 mr-1" />
-                  一键复制发布
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => {
+                      const textToCopy = outputFormat === 'video' 
+                        ? generateVideoCopyText() 
+                        : generateImageTextCopyText();
+                      navigator.clipboard.writeText(textToCopy).then(() => {
+                        toast.success('已复制到剪贴板，可直接发布！');
+                      });
+                    }}
+                    className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    一键复制发布
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setStep('input');
+                      setContent('');
+                      setTags([]);
+                      setImagePrompt('');
+                      setCustomImagePrompt('');
+                      setVideoScript(null);
+                      setCompliance({ isCompliant: true, warnings: [] });
+                      setIsEditing(false);
+                      setUserEdited(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
               <p className="text-xs text-gray-400 mt-1">
                 {outputFormat === 'video' 
