@@ -1,54 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 动态导入 SDK - 避免预渲染问题
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let ImageGenerationClient: any;
-let Config: any;
-let HeaderUtils: any;
-
-// 延迟加载 SDK
-async function loadSDK() {
-  if (!ImageGenerationClient) {
-    const sdk: Record<string, any> = await import('coze-coding-dev-sdk');
-    ImageGenerationClient = sdk.ImageGenerationClient;
-    Config = sdk.Config;
-    HeaderUtils = sdk.HeaderUtils;
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, size = '2K' } = await request.json();
+    const { prompt, size = '1024x1024' } = await request.json();
     
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    await loadSDK();
+    const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://hk.testvideo.site/v1';
+    const apiKey = process.env.DEEPSEEK_API_KEY || '';
 
-    // 提取请求头用于追踪
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const config = new Config();
-    const client = new ImageGenerationClient(config, customHeaders);
-
-    const response = await client.generate({
-      prompt,
-      size,
-      model: 'doubao-seedream-5-0-260128',
-      responseFormat: 'url',
+    // 使用 OpenAI 兼容的图片生成接口
+    const response = await fetch(`${baseUrl}/images/generations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        prompt,
+        n: 1,
+        size: '1024x1792', // 3:4 竖版比例，适合小红书
+      }),
     });
 
-    const helper = client.getResponseHelper(response);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Image generation API error:', response.status, errorText);
+      return NextResponse.json({
+        success: false,
+        error: `Image generation API error: ${response.status}`,
+      }, { status: 500 });
+    }
 
-    if (helper.success) {
+    const data = await response.json();
+
+    if (data.data && data.data.length > 0) {
+      const imageUrls = data.data.map((item: { url?: string; b64_json?: string }) => 
+        item.url || (item.b64_json ? `data:image/png;base64,${item.b64_json}` : '')
+      ).filter((url: string) => url);
+      
       return NextResponse.json({
         success: true,
-        imageUrls: helper.imageUrls,
+        imageUrls,
       });
     } else {
       return NextResponse.json({
         success: false,
-        errors: helper.errorMessages,
+        error: 'No image generated',
       }, { status: 500 });
     }
   } catch (error) {

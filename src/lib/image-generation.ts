@@ -1,126 +1,74 @@
 /**
  * 通用图片生成服务
- * 支持多种图片生成后端
+ * 使用 OpenAI 兼容接口（gpt-image-1）
  */
 
-// 图片生成配置
-const IMAGE_CONFIG = {
-  // 腾讯混元配置
-  tencent: {
-    apiUrl: process.env.TENCENT_HUNYUAN_API_URL || 'https://hunyuan.tencentcloudapi.com',
-    secretId: process.env.TENCENT_SECRET_ID || '',
-    secretKey: process.env.TENCENT_SECRET_KEY || '',
-  },
-  // 备用：使用其他图片生成API
-  fallback: {
-    apiUrl: process.env.IMAGE_API_URL || '',
-    apiKey: process.env.IMAGE_API_KEY || '',
-  }
+const IMAGE_API_CONFIG = {
+  baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://hk.testvideo.site/v1',
+  apiKey: process.env.DEEPSEEK_API_KEY || '',
 };
 
 /**
- * 生成图片 - 使用腾讯混元API
+ * 生成图片 - 使用 OpenAI 兼容接口
  */
 export async function generateImages(options: {
   prompt: string;
   count?: number;
   size?: string;
 }): Promise<string[]> {
-  const { prompt, count = 4, size = '1024x1024' } = options;
+  const { prompt, count = 4 } = options;
   
-  // 添加无文字约束
-  const finalPrompt = `${prompt}, NO TEXT, NO WORDS, NO CHARACTERS, clean illustration without any text elements`;
-  
-  // 优先使用腾讯混元
-  if (IMAGE_CONFIG.tencent.secretId && IMAGE_CONFIG.tencent.secretKey) {
-    return generateWithTencentHunyuan(finalPrompt, count);
+  if (!IMAGE_API_CONFIG.apiKey) {
+    throw new Error('未配置图片生成API密钥');
   }
-  
-  // 备用方案：使用其他API
-  if (IMAGE_CONFIG.fallback.apiUrl && IMAGE_CONFIG.fallback.apiKey) {
-    return generateWithFallback(finalPrompt, count);
-  }
-  
-  throw new Error('未配置图片生成API，请设置环境变量 TENCENT_SECRET_ID 和 TENCENT_SECRET_KEY');
-}
 
-/**
- * 腾讯混元图片生成
- */
-async function generateWithTencentHunyuan(prompt: string, count: number): Promise<string[]> {
-  const { secretId, secretKey } = IMAGE_CONFIG.tencent;
+  const imageUrls: string[] = [];
   
-  // 腾讯云API签名（简化版）
-  const timestamp = Math.floor(Date.now() / 1000);
-  const nonce = Math.floor(Math.random() * 100000);
-  
-  try {
-    const response = await fetch('https://hunyuan.tencentcloudapi.com/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${secretId}`, // 实际需要签名
-        'X-TC-Action': 'TextToImage',
-        'X-TC-Version': '2023-09-01',
-        'X-TC-Timestamp': timestamp.toString(),
-        'X-TC-Nonce': nonce.toString(),
-      },
-      body: JSON.stringify({
-        Prompt: prompt,
-        NegativePrompt: 'text, words, characters, letters, watermark',
-        BatchSize: count,
-        ResultConfig: {
-          Resolution: '1024:1024',
+  // 逐张生成（部分API不支持批量）
+  for (let i = 0; i < count; i++) {
+    try {
+      const response = await fetch(`${IMAGE_API_CONFIG.baseUrl}/images/generations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${IMAGE_API_CONFIG.apiKey}`,
         },
-      }),
-    });
-    
-    const data = await response.json();
-    
-    if (data.Response?.Results) {
-      return data.Response.Results.map((r: any) => r.ResultUrl);
+        body: JSON.stringify({
+          model: 'gpt-image-1',
+          prompt,
+          n: 1,
+          size: '1024x1792', // 3:4 竖版比例
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn(`图片生成第${i + 1}张失败:`, response.status);
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (data.data && data.data.length > 0) {
+        const url = data.data[0].url || (data.data[0].b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : '');
+        if (url) imageUrls.push(url);
+      }
+    } catch (err) {
+      console.warn(`图片生成第${i + 1}张异常:`, err);
     }
-    
-    throw new Error(data.Response?.Error?.Message || '图片生成失败');
-  } catch (error) {
-    console.error('腾讯混元图片生成错误:', error);
-    throw error;
   }
+
+  if (imageUrls.length === 0) {
+    throw new Error('所有图片均生成失败');
+  }
+
+  return imageUrls;
 }
 
 /**
- * 备用图片生成API
- */
-async function generateWithFallback(prompt: string, count: number): Promise<string[]> {
-  const { apiUrl, apiKey } = IMAGE_CONFIG.fallback;
-  
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      prompt,
-      n: count,
-      size: '1024x1024',
-    }),
-  });
-  
-  const data = await response.json();
-  
-  if (data.data) {
-    return data.data.map((img: any) => img.url || img.b64_json);
-  }
-  
-  throw new Error('备用图片生成失败');
-}
-
-/**
- * 使用占位图（开发测试用）
+ * 获取占位图
  */
 export function getPlaceholderImages(count: number = 4): string[] {
   return Array.from({ length: count }, (_, i) => 
-    `https://picsum.photos/seed/${Date.now() + i}/1024/1024`
+    `https://picsum.photos/seed/xhs${Date.now()}${i}/768/1024`
   );
 }
