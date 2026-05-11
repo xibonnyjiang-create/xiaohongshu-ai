@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['*.dev.coze.site'],
+  serverExternalPackages: ['coze-coding-dev-sdk'],
   images: {
     remotePatterns: [
       {
@@ -11,11 +12,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Turbopack 配置 - 忽略 SDK 中非 JS 文件
   turbopack: {
-    resolveAlias: {
-      // 忽略 LICENSE.txt 导入问题
-    },
+    resolveAlias: {},
   },
 };
 

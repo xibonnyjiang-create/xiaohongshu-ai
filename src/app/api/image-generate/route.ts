@@ -2,54 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, size = '1024x1024' } = await request.json();
+    const { prompt } = await request.json();
     
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://hk.testvideo.site/v1';
-    const apiKey = process.env.DEEPSEEK_API_KEY || '';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ImageGenerationClient, Config, HeaderUtils } = require('coze-coding-dev-sdk');
 
-    // 使用 OpenAI 兼容的图片生成接口
-    const response = await fetch(`${baseUrl}/images/generations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-image-1',
-        prompt,
-        n: 1,
-        size: '1024x1792', // 3:4 竖版比例，适合小红书
-      }),
+    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    const config = new Config();
+    const client = new ImageGenerationClient(config, customHeaders);
+
+    const response = await client.generate({
+      prompt,
+      model: 'doubao-seedream-5-0-260128',
+      size: '2K',
+      watermark: false,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Image generation API error:', response.status, errorText);
-      return NextResponse.json({
-        success: false,
-        error: `Image generation API error: ${response.status}`,
-      }, { status: 500 });
-    }
+    const helper = client.getResponseHelper(response);
 
-    const data = await response.json();
-
-    if (data.data && data.data.length > 0) {
-      const imageUrls = data.data.map((item: { url?: string; b64_json?: string }) => 
-        item.url || (item.b64_json ? `data:image/png;base64,${item.b64_json}` : '')
-      ).filter((url: string) => url);
-      
+    if (helper.success && helper.imageUrls.length > 0) {
       return NextResponse.json({
         success: true,
-        imageUrls,
+        imageUrls: helper.imageUrls,
       });
     } else {
+      console.error('Image generation failed:', helper.errorMessages);
       return NextResponse.json({
         success: false,
-        error: 'No image generated',
+        error: helper.errorMessages.join('; ') || 'Image generation failed',
       }, { status: 500 });
     }
   } catch (error) {
