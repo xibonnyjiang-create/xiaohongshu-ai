@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
           // 1. 生成标题
           safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成标题...' })}\n\n`);
           const titles = await generateTitles(
-            topicType, keywords, hotTop3Tags, hotTopicInfo, personaType
+            topicType, keywords, hotTop3Tags, hotTopicInfo, personaType, styleConfig
           );
           safeEnqueue(`data: ${JSON.stringify({ type: 'titles', data: titles })}\n\n`);
 
@@ -96,12 +96,13 @@ export async function POST(request: NextRequest) {
 
           // 2. 根据输出形式生成内容
           const usedTitle = selectedTitle || titles[0]?.title || '';
+          const weixinMapping = WEIXIN_SECURITY_MAPPING[topicType] || [];
 
           if (isVideo) {
             // 视频脚本模式
             safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成视频脚本...' })}\n\n`);
             const videoScript = await generateVideoScript(
-              topicType, keywords, usedTitle, personaType, durationConfig
+              topicType, keywords, usedTitle, personaType, styleConfig, weixinMapping, durationConfig
             );
             safeEnqueue(`data: ${JSON.stringify({ type: 'video_script', data: videoScript })}\n\n`);
 
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
             const MAX_CONTENT_LENGTH = 1000; // 最大字数限制（1000字以内）
 
             const contentStream = await generateContentStream(
-              topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType
+              topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig, weixinMapping
             );
 
             for await (const chunk of contentStream) {
@@ -240,10 +241,11 @@ async function generateTitles(
   hotTop3Tags?: string[],
   hotTopicInfo?: string,
   personaType?: string,
+  styleConfig?: { titleStyle: string; tone: string; emojiDensity: string }
 ): Promise<TitleCandidate[]> {
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const persona = personaType || 'custom';
-  const config = PERSONA_STYLE_CONFIG[persona as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
+  const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const isMarketHot = topicType === 'market_hot';
 
   // 市场热点场景添加敏感词过滤说明
@@ -260,6 +262,7 @@ async function generateTitles(
 
 【场景信息】
 - 选题类型：${topicLabel}
+- 人设：${persona}
 - 关键词：${keywords || '未指定'}
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
 ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
@@ -268,9 +271,10 @@ ${sensitiveWordWarning}
 【标题要求】严格遵守！
 1. 总长度：≤20字（emoji+符号+汉字全部算在内）
 2. 必须包含：1-2个Emoji
-3. 标题必须紧扣关键词和选题类型，不要偏离主题
-4. 不要使用任何Markdown格式
-${isMarketHot ? '5. 严禁包含任何敏感词汇！' : ''}
+3. 标题风格：${config.titleStyle}
+4. 语气：${config.tone}
+5. 不要使用任何Markdown格式
+${isMarketHot ? '6. 严禁包含任何敏感词汇！' : ''}
 
 【输出格式】
 直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号，不要加引号：
@@ -294,7 +298,7 @@ ${isMarketHot ? '5. 严禁包含任何敏感词汇！' : ''}
       }
       titles.push({
         title: cleaned,
-        style: 'engaging' as TitleCandidate['style'],
+        style: config.titleStyle as TitleCandidate['style'],
       });
     }
     if (titles.length >= 3) break;
@@ -309,12 +313,12 @@ ${isMarketHot ? '5. 严禁包含任何敏感词汇！' : ''}
     if (!isMarketHot || !containsSensitiveWords(fallbackTitle).hasSensitive) {
       titles.push({
         title: fallbackTitle,
-        style: 'neutral' as TitleCandidate['style'],
+        style: config.titleStyle as TitleCandidate['style'],
       });
     } else {
       titles.push({
         title: `📊 ${keywords || '财经解读'}`,
-        style: 'neutral' as TitleCandidate['style'],
+        style: config.titleStyle as TitleCandidate['style'],
       });
     }
   }
@@ -330,12 +334,13 @@ async function generateContentStream(
   hotTopicInfo?: string,
   hotTop3Tags?: string[],
   selectedTitle?: string,
-  personaType?: string
+  personaType?: string,
+  styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
+  weixinMapping?: { feature: string; highlight: string }[]
 ): Promise<AsyncGenerator<string>> {
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const analysisLevel = deepAnalysis ? '深度分析：专业数据支撑、机构观点引用' : '标准分析：简洁易懂';
-  const config = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
-  const weixinMapping = WEIXIN_SECURITY_MAPPING[topicType] || [];
+  const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
   const isMarketHot = topicType === 'market_hot';
 
@@ -384,10 +389,11 @@ async function generateVideoScript(
   keywords?: string,
   selectedTitle?: string,
   personaType?: string,
+  styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
+  weixinMapping?: { feature: string; highlight: string }[],
   durationConfig?: { totalSeconds: number; segmentCount: number; description: string }
 ): Promise<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } }> {
-  const config = PERSONA_STYLE_CONFIG[personaType as keyof typeof PERSONA_STYLE_CONFIG] || PERSONA_STYLE_CONFIG.custom;
-  const weixinMapping = WEIXIN_SECURITY_MAPPING[topicType] || [];
+  const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
   const duration = durationConfig || VIDEO_DURATION_CONFIG['60s'];
   const avgSegmentDuration = Math.floor(duration.totalSeconds / duration.segmentCount);

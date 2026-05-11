@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
 
 【场景信息】
 - 选题类型：${topicLabel}
-- 人设语气：${styleConfig.tone}，${styleConfig.emojiDensity}表情
+- 人设：${personaType || '通用'}
+- 风格配置：${styleConfig.tone}，${styleConfig.emojiDensity}表情
+- 标题风格：${styleConfig.titleStyle}
 - 关键词：${keywords || '未指定'}
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
 ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
@@ -49,6 +51,7 @@ ${previousTitle ? `- 避免重复：${previousTitle}` : ''}
 1. 长度：≤20字（不含emoji）
 2. 必须包含：1-3个emoji
 3. 语气风格：${styleConfig.tone}
+4. 风格类型：${styleConfig.titleStyle}
 
 【输出格式】
 直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号：
@@ -62,14 +65,14 @@ ${previousTitle ? `- 避免重复：${previousTitle}` : ''}
 
     const titles: TitleCandidate[] = lines.slice(0, 3).map(title => ({
       title,
-      style: 'data_driven' as TitleCandidate['style'],
+      style: styleConfig.titleStyle as TitleCandidate['style'],
     }));
 
     // 如果没有生成足够标题，提供默认
     while (titles.length < 3) {
       titles.push({
         title: `📈 ${keywords || '内容推荐'}`,
-        style: 'data_driven' as TitleCandidate['style'],
+        style: styleConfig.titleStyle as TitleCandidate['style'],
       });
     }
 
