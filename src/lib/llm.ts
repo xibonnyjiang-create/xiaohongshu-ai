@@ -2,10 +2,10 @@
 // 微证券小红书爆款内容 Agent - 结构化指令流 v2.0
 // ========================================
 
-// DeepSeek API配置
+// LLM API配置 (OpenAI兼容接口)
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || process.env.CONTENT_API_KEY || '';
-const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || process.env.CONTENT_API_BASE_URL || 'https://api.deepseek.com';
-const DEEPSEEK_MODEL = 'deepseek-chat';
+const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || process.env.CONTENT_API_BASE_URL || 'https://hk.testvideo.site/v1';
+const DEEPSEEK_MODEL = process.env.LLM_MODEL || 'gpt5.5plus';
 
 // ========================================
 // 第一部分：角色与能力定义 (System Role)
