@@ -589,64 +589,65 @@ async function generateTags(
 
 // 生成生图口令
 async function generateImagePrompt(title: string, content: string, keywords?: string): Promise<string> {
-  // 随机选择不同的风格视角，增加变化性
-  const styles = [
-    '温暖治愈系插画风格，手绘感强，柔和线条',
-    '现代简约插画风格，几何图形，扁平设计',
-    '杂志封面风格，高级感，大留白',
-    '生活场景插画风格，贴近日常，温馨氛围',
-    '抽象艺术风格，渐变色块，现代感',
-  ];
-  
-  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-  const randomAngle = ['俯视', '平视', '侧光', '逆光', '特写', '远景'][Math.floor(Math.random() * 6)];
-  const randomMood = ['活力', '宁静', '清新', '温暖', '商务'][Math.floor(Math.random() * 5)];
-  
-  const prompt = `根据以下小红书内容生成一张高质量配图的AI生图口令：
+  const prompt = `根据以下小红书内容生成一张高质量封面配图的AI生图口令：
 
 标题：${title || ''}
-内容：${content?.substring(0, 300) || ''}
+内容摘要：${content?.substring(0, 300) || ''}
 关键词：${keywords || ''}
 
 要求：
-1. 风格：${randomStyle}，温暖治愈
-2. 色调：明亮柔和，符合理财/生活主题，${randomMood}氛围
-3. 视角：${randomAngle}视角
-4. 构图：简洁大方，留白充足
-5. 比例：3:4竖版
-6. 不要包含文字和中文
-7. 随机变化元素：装饰图案、色块叠加、渐变背景等
+1. 图片中必须包含文章标题"${title || ''}"，标题文字要醒目且居中显示，字体大而清晰
+2. 风格：小红书爆款封面风格，设计感强，吸引眼球
+3. 色调：明亮高级，配色和谐，符合内容主题
+4. 排版：标题居中大字排版，搭配装饰元素（如色块、几何图形、渐变背景等）
+5. 比例：3:4竖版，适合手机浏览
+6. 设计细节：标题文字需要有设计感（如加粗、描边、阴影、渐变填充等效果），背景要有层次感
+7. 整体效果：一眼就能被吸引，有强烈的信息传达感
 
-直接输出生图口令，中文描述即可，重点突出画面的创意性和独特性。`;
+直接输出生图口令，中文描述即可，重点突出画面的设计感和标题的视觉冲击力。`;
 
-  const response = await callLLM(prompt);
-  return response.trim();
+  try {
+    const response = await callLLM(prompt);
+    return response.trim();
+  } catch (error) {
+    console.error('Generate image prompt error:', error);
+    return `小红书风格封面，标题"${title}"醒目居中大字，高级设计感，3:4竖版，明亮配色，装饰元素丰富，吸引眼球`;
+  }
 }
 
-// 生成配图建议（支持不同比例）
+// 生成配图（使用AI生图模型）
 async function generateImages(title: string, content: string, ratio: string = '3:4'): Promise<string[]> {
-  // 根据比例计算尺寸
-  let width = 400;
-  let height = 533;
-  if (ratio === '3:4') {
-    width = 450;
-    height = 600;
-  } else if (ratio === '1:1') {
-    width = 500;
-    height = 500;
-  } else if (ratio === '16:9') {
-    width = 600;
-    height = 338;
+  try {
+    // 生成小红书风格的封面图prompt
+    const imagePrompt = `小红书爆款封面风格，标题"${title}"醒目居中大字显示，设计感强，3:4竖版，明亮高级配色，装饰元素丰富（色块、几何图形、渐变背景），标题文字有视觉冲击力（加粗描边阴影效果），背景有层次感，吸引眼球`;
+    
+    // 动态导入SDK
+    const sdk: Record<string, any> = await import('coze-coding-dev-sdk');
+    const ImageGenerationClient = sdk.ImageGenerationClient;
+    const Config = sdk.Config;
+    const HeaderUtils = sdk.HeaderUtils;
+    
+    const config = new Config();
+    const client = new ImageGenerationClient(config, {});
+    
+    const response = await client.generate({
+      prompt: imagePrompt,
+      size: '2K',
+      model: 'doubao-seedream-5-0-260128',
+      responseFormat: 'url',
+    });
+    
+    const helper = client.getResponseHelper(response);
+    if (helper.success && helper.imageUrls?.length > 0) {
+      return helper.imageUrls;
+    }
+    
+    console.error('Image generation helper failed:', helper.errorMessages);
+    return [];
+  } catch (error) {
+    console.error('AI image generation error:', error);
+    return [];
   }
-  
-  // 生成与内容相关的种子
-  const seed1 = encodeURIComponent(title.substring(0, 20) + '理财');
-  const seed2 = encodeURIComponent(title.substring(0, 20) + '生活');
-  
-  return [
-    `https://picsum.photos/seed/${seed1}/${width}/${height}`,
-    `https://picsum.photos/seed/${seed2}/${width}/${height}`,
-  ];
 }
 
 // 种草力评分
