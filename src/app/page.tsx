@@ -690,8 +690,8 @@ export default function Home() {
 
                 {/* 市场热点 - 热搜榜 */}
                 {showHotTopics && topicType === 'market_hot' && (
-                  <Card className="mb-4 border-0 shadow-lg bg-white/90">
-                    <CardHeader className="pb-2 pt-4 px-5">
+                  <Card className="mb-4 border-0 shadow-lg bg-white/90 w-full h-[440px] flex flex-col overflow-hidden">
+                    <CardHeader className="pb-2 pt-4 px-5 flex-shrink-0">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                           <Flame className="w-5 h-5 text-orange-500" />
@@ -745,7 +745,7 @@ export default function Home() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="px-5 pb-5 h-[320px] overflow-hidden">
+                    <CardContent className="px-5 pb-5 flex-1 flex flex-col overflow-hidden min-h-0">
                       {/* TOP3主题标签 */}
                       {hotTop3Tags.length > 0 && (
                         <div className="mb-3 p-2.5 bg-gradient-to-r from-rose-50 to-orange-50 rounded-xl">
@@ -771,11 +771,11 @@ export default function Home() {
 
                       {/* 热搜列表 */}
                       {hotTopicsLoading ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center flex-1">
                           <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
                         </div>
                       ) : hotTopics.length > 0 ? (
-                        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                        <div className="space-y-1.5 flex-1 overflow-y-auto min-h-0">
                           {hotTopics.slice(0, 8).map((topic, index) => (
                             <div
                               key={topic.id}
