@@ -510,14 +510,13 @@ export default function Home() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className={viewMode === 'split' ? 'grid grid-cols-2 gap-6' : ''}>
-          {/* 左侧：输入区域 */}
-          <div className={step === 'input' ? 'max-w-3xl mx-auto' : viewMode === 'split' ? '' : 'max-w-2xl mx-auto'}>
+        <div className={step === 'input' ? 'max-w-3xl mx-auto' : viewMode === 'split' ? 'grid grid-cols-2 gap-6' : 'max-w-3xl mx-auto'}>
+          <div>
             
             {/* Step 1: 场景选择 */}
             {step === 'input' && (
               <>
-                <Card className="mb-4 border-0 shadow-lg bg-white/90">
+                <Card className="mb-3 border-0 shadow-md bg-white/90">
                   <CardHeader className="pb-3 pt-4 px-5">
                     <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">1</span>
@@ -692,7 +691,7 @@ export default function Home() {
 
                 {/* 小白科普 - 推荐主题 */}
                 {topicType === 'beginner_guide' && (
-                  <Card className="mb-4 border-0 shadow-lg bg-white/90">
+                  <Card className="mb-3 border-0 shadow-md bg-white/90">
                     <CardHeader className="pb-3 pt-4 px-5">
                       <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                         <WandSparkles className="w-5 h-5 text-green-500" />
@@ -726,7 +725,7 @@ export default function Home() {
 
                 {/* 生活化种草 - 专属词库 */}
                 {topicType === 'life_lifestyle' && (
-                  <Card className="mb-4 border-0 shadow-lg bg-gradient-to-br from-green-50 to-teal-50">
+                  <Card className="mb-3 border-0 shadow-md bg-gradient-to-br from-green-50 to-teal-50">
                     <CardHeader className="pb-3 pt-4 px-5">
                       <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-green-500" />
@@ -754,7 +753,7 @@ export default function Home() {
                 )}
 
                 {/* 关键词输入 */}
-                <Card className="mb-4 border-0 shadow-lg bg-white/90">
+                <Card className="mb-3 border-0 shadow-md bg-white/90">
                   <CardHeader className="pb-3 pt-4 px-5">
                     <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">2</span>
@@ -792,7 +791,7 @@ export default function Home() {
                 </Card>
 
                 {/* 人设选择 */}
-                <Card className="mb-4 border-0 shadow-lg bg-white/90">
+                <Card className="mb-3 border-0 shadow-md bg-white/90">
                   <CardHeader className="pb-3 pt-4 px-5">
                     <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
