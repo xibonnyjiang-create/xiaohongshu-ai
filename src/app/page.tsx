@@ -14,7 +14,7 @@ import {
   Sparkles, Loader2, Copy, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
   X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video,
-  ChevronLeft, Flame, Hash, Filter
+  ChevronLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -514,136 +514,6 @@ export default function Home() {
           {/* 左侧：输入区域 */}
           <div className={step === 'input' ? 'max-w-3xl mx-auto' : viewMode === 'split' ? '' : 'max-w-2xl mx-auto'}>
             
-            {/* 实时热搜 */}
-            {step === 'input' && (
-              <Card className="mb-4 border-0 shadow-lg bg-white/90">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                      <Flame className="w-5 h-5 text-orange-500" />
-                      实时热搜
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      {hotUpdateTime && (
-                        <span className="text-xs text-gray-400">{hotUpdateTime}</span>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-gray-500 hover:text-rose-500"
-                        onClick={() => {
-                          setHotTopicsLoading(true);
-                          fetch('/api/hot-topics')
-                            .then(res => res.json())
-                            .then(data => {
-                              setHotTopics(data.topics || []);
-                              setHotUpdateTime(data.updateTime || '');
-                            })
-                            .catch(() => toast.error('热搜获取失败'))
-                            .finally(() => setHotTopicsLoading(false));
-                        }}
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                        刷新
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-5 pb-4 space-y-3">
-                  {/* 分类切换 */}
-                  <div className="flex gap-2">
-                    {HOT_CATEGORIES.map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setHotCategory(cat.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                          hotCategory === cat.id
-                            ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {cat.icon} {cat.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* 敏感过滤开关 */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">过滤敏感内容</span>
-                    <button
-                      onClick={() => setFilterSensitive(!filterSensitive)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                        filterSensitive ? 'bg-rose-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                        filterSensitive ? 'translate-x-4.5' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-
-                  {/* 热搜列表 */}
-                  {hotTopicsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-5 h-5 animate-spin text-rose-500" />
-                      <span className="ml-2 text-sm text-gray-400">加载中...</span>
-                    </div>
-                  ) : hotTopics.length > 0 ? (
-                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-                      {hotTopics
-                        .slice(0, 8)
-                        .map((topic, index) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              setSelectedHotTopic(selectedHotTopic?.title === topic.title ? null : topic);
-                              if (selectedHotTopic?.title !== topic.title) {
-                                setKeywords(topic.title);
-                              }
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-lg transition-all text-sm ${
-                              selectedHotTopic?.title === topic.title
-                                ? 'bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-300 shadow-sm'
-                                : 'hover:bg-gray-50 border border-transparent'
-                            }`}
-                          >
-                            <div className="flex items-start gap-2">
-                              <span className={`flex-shrink-0 w-5 h-5 rounded text-xs font-bold flex items-center justify-center ${
-                                index < 3 ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white' : 'bg-gray-200 text-gray-500'
-                              }`}>
-                                {index + 1}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium text-gray-800 truncate">{topic.title}</div>
-                                {topic.snippet && (
-                                  <div className="text-xs text-gray-400 truncate mt-0.5">{topic.snippet}</div>
-                                )}
-                              </div>
-                              {selectedHotTopic?.title === topic.title && (
-                                <Check className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-sm text-gray-400">暂无热搜数据</div>
-                  )}
-
-                  {/* 选中热搜的TOP3标签 */}
-                  {selectedHotTopic && hotTop3Tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {hotTop3Tags.map((tag, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full text-xs bg-rose-100 text-rose-600 font-medium">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
             {/* Step 1: 场景选择 */}
             {step === 'input' && (
               <>
