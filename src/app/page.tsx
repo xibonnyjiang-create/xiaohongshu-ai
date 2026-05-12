@@ -13,7 +13,7 @@ import {
 import {
   Sparkles, Loader2, Copy, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
-  Flame, X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video,
+  X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video,
   ChevronLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -688,136 +688,7 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
-                {/* 市场热点 - 热搜榜 */}
-                {showHotTopics && topicType === 'market_hot' && (
-                  <Card className="mb-4 border-0 shadow-lg bg-white/90 w-full h-[440px] flex flex-col overflow-hidden">
-                    <CardHeader className="pb-2 pt-4 px-5 flex-shrink-0">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                          <Flame className="w-5 h-5 text-orange-500" />
-                          实时热搜
-                          {hotUpdateTime && (
-                            <span className="text-[10px] text-gray-400 font-normal">{hotUpdateTime}</span>
-                          )}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          {/* 过滤敏感开关 */}
-                          <span className="text-xs text-gray-500">过滤敏感</span>
-                          <button
-                            onClick={() => setFilterSensitive(!filterSensitive)}
-                            className={`relative w-9 h-5 rounded-full transition-colors ${
-                              filterSensitive ? 'bg-orange-500' : 'bg-gray-300'
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                                filterSensitive ? 'translate-x-4' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={loadHotTopics}
-                            disabled={hotTopicsLoading}
-                            className="h-8 w-8 p-0"
-                          >
-                            <RefreshCw className={`w-4 h-4 ${hotTopicsLoading ? 'animate-spin' : ''}`} />
-                          </Button>
-                        </div>
-                      </div>
 
-                      {/* 分类切换 */}
-                      <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-                        {HOT_CATEGORIES.map(cat => (
-                          <button
-                            key={cat.id}
-                            onClick={() => setHotCategory(cat.id)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-                              hotCategory === cat.id
-                                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            {cat.icon} {cat.name}
-                          </button>
-                        ))}
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="px-5 pb-5 flex-1 flex flex-col overflow-hidden min-h-0">
-                      {/* TOP3主题标签 */}
-                      {hotTop3Tags.length > 0 && (
-                        <div className="mb-3 p-2.5 bg-gradient-to-r from-rose-50 to-orange-50 rounded-xl">
-                          <p className="text-[10px] text-gray-500 mb-2 flex items-center gap-1">
-                            <Flame className="w-3 h-3 text-orange-500" />
-                            热点Top3标签
-                          </p>
-                          <div className="flex gap-2">
-                            {hotTop3Tags.slice(0, 3).map((tag, i) => (
-                              <Badge
-                                key={i}
-                                variant="outline"
-                                className="bg-white border-orange-200 text-orange-700 text-[10px] px-2.5 py-1 cursor-pointer hover:bg-orange-50"
-                                onClick={() => setKeywords(tag.replace('#', ''))}
-                              >
-                                <Flame className="w-2.5 h-2.5 mr-1 text-orange-500" />
-                                {tag.replace('#', '')}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 热搜列表 */}
-                      {hotTopicsLoading ? (
-                        <div className="flex items-center justify-center flex-1">
-                          <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
-                        </div>
-                      ) : hotTopics.length > 0 ? (
-                        <div className="space-y-1.5 flex-1 overflow-y-auto min-h-0">
-                          {hotTopics.slice(0, 8).map((topic, index) => (
-                            <div
-                              key={topic.id}
-                              onClick={() => {
-                                setSelectedHotTopic(topic);
-                                setKeywords(topic.title);
-                              }}
-                              className={`flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer transition-all ${
-                                selectedHotTopic?.id === topic.id
-                                  ? 'bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-400'
-                                  : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                              }`}
-                            >
-                              {/* 序号 */}
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                index < 3 ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'
-                              }`}>
-                                {index + 1}
-                              </div>
-                              {/* 内容 */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-gray-800 font-medium truncate">{topic.title}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[10px] text-gray-400">{topic.source}</span>
-                                  <span className="flex items-center text-[10px] text-orange-500">
-                                    <Flame className="w-3 h-3 mr-0.5" />
-                                    {topic.hot}
-                                  </span>
-                                </div>
-                              </div>
-                              {selectedHotTopic?.id === topic.id && (
-                                <Check className="w-4 h-4 text-orange-500 flex-shrink-0" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400 text-center py-4">暂无热搜数据</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* 小白科普 - 推荐主题 */}
                 {topicType === 'beginner_guide' && (
