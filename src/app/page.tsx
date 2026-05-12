@@ -745,7 +745,7 @@ export default function Home() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="px-5 pb-5 min-h-[320px]">
+                    <CardContent className="px-5 pb-5 h-[320px] overflow-hidden">
                       {/* TOP3主题标签 */}
                       {hotTop3Tags.length > 0 && (
                         <div className="mb-3 p-2.5 bg-gradient-to-r from-rose-50 to-orange-50 rounded-xl">
@@ -771,7 +771,7 @@ export default function Home() {
 
                       {/* 热搜列表 */}
                       {hotTopicsLoading ? (
-                        <div className="flex items-center justify-center h-64">
+                        <div className="flex items-center justify-center h-full">
                           <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
                         </div>
                       ) : hotTopics.length > 0 ? (
