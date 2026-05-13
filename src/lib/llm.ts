@@ -96,8 +96,24 @@ export function buildStructuredPrompt(params: {
   hotTopicInfo?: string;
   contentType: string;
   personaType?: string;
+  selectedRequirements?: string[];
 }): string {
-  const { topicType, userTag, title, keywords, hotTopicInfo, contentType, personaType } = params;
+  const { topicType, userTag, title, keywords, hotTopicInfo, contentType, personaType, selectedRequirements } = params;
+
+  // 根据补充要求调整字数
+  const isShortText = selectedRequirements?.some(r => r.includes('300'));
+  const isLongText = selectedRequirements?.some(r => r.includes('800'));
+  const wordLimit = isShortText ? 300 : isLongText ? 800 : 450;
+  const maxWordLimit = isShortText ? 350 : isLongText ? 900 : 500;
+
+  // 补充要求处理
+  const extraRequirements: string[] = [];
+  if (selectedRequirements) {
+    if (selectedRequirements.some(r => r.includes('短期分析'))) extraRequirements.push('侧重短期分析与即时影响');
+    else if (selectedRequirements.some(r => r.includes('长期价值'))) extraRequirements.push('侧重长期价值与趋势判断');
+    if (selectedRequirements.some(r => r.includes('举例说明'))) extraRequirements.push('需要举例说明，用具体案例帮助理解');
+    else if (selectedRequirements.some(r => r.includes('故事化表达'))) extraRequirements.push('使用故事化表达，用叙事方式增强可读性');
+  }
 
   // 用户层级对应的具体要求
   const userLevelRequirements = {
@@ -198,8 +214,9 @@ ${personaReq}
 3. 输出纯文本，无Markdown格式
 4. 标题+正文一次性输出
 5. 标题必须 ≤20字，必须有Emoji
-6. 正文必须 ≤1000字
-7. 业务植入必须自然，不能硬广`;
+6. 正文目标字数约${wordLimit}字，绝对不可以超过${maxWordLimit}字（含表情、标点符号）
+7. 业务植入必须自然，不能硬广
+${extraRequirements.length > 0 ? `8. 补充要求：${extraRequirements.join('；')}` : ''}`;
 }
 
 // ========================================

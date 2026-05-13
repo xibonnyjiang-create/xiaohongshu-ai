@@ -196,6 +196,7 @@ export default function Home() {
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
           hotTop3Tags,
           selectedTitle,
+          selectedRequirements: contentRequirements.length > 0 ? contentRequirements : undefined,
         }),
       });
 
@@ -296,6 +297,7 @@ export default function Home() {
           hotTopicInfo: selectedHotTopic ? `${selectedHotTopic.title}\n${selectedHotTopic.snippet}` : undefined,
           hotTop3Tags,
           selectedTitle,
+          selectedRequirements: contentRequirements.length > 0 ? contentRequirements : undefined,
         }),
       });
 
