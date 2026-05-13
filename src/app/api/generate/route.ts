@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
       hotTop3Tags,
       selectedTitle,
       generateOnlyTitles,
-      selectedRequirements,
     } = body as {
       topicType: TopicType;
       keywords?: string;
@@ -45,7 +44,6 @@ export async function POST(request: NextRequest) {
       hotTop3Tags?: string[];
       selectedTitle?: string;
       generateOnlyTitles?: boolean;
-      selectedRequirements?: string[];
     };
 
     const isVideo = outputFormat === 'video';
@@ -145,11 +143,10 @@ export async function POST(request: NextRequest) {
             // 图文模式
             safeEnqueue(`data: ${JSON.stringify({ type: 'status', data: '正在生成内容...' })}\n\n`);
 
-            const isLongText = selectedRequirements?.some(r => r.includes('800'));
-            const MAX_CONTENT_LENGTH = isLongText ? 900 : 1000; // 长文本模式最大900字，默认最大1000字
+            const MAX_CONTENT_LENGTH = 1000; // 最大字数限制（1000字以内）
 
             const contentStream = await generateContentStream(
-              topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig, weixinMapping, selectedRequirements
+              topicType, keywords, deepAnalysis, hotTopicInfo, hotTop3Tags, usedTitle, personaType, styleConfig, weixinMapping
             );
 
             for await (const chunk of contentStream) {
@@ -339,8 +336,7 @@ async function generateContentStream(
   selectedTitle?: string,
   personaType?: string,
   styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
-  weixinMapping?: { feature: string; highlight: string }[],
-  selectedRequirements?: string[]
+  weixinMapping?: { feature: string; highlight: string }[]
 ): Promise<AsyncGenerator<string>> {
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const analysisLevel = deepAnalysis ? '深度分析：专业数据支撑、机构观点引用' : '标准分析：简洁易懂';
@@ -358,35 +354,7 @@ async function generateContentStream(
 请确保生成的内容不包含上述任何敏感词汇！`
     : '';
 
-  // 根据补充要求调整字数和内容方向
-  const isShortText = selectedRequirements?.includes('控制在300字');
-  const isLongText = selectedRequirements?.includes('加长到800字');
-  const focusShort = selectedRequirements?.includes('侧重短期分析');
-  const focusLong = selectedRequirements?.includes('侧重长期价值');
-  const useExample = selectedRequirements?.includes('举例说明');
-  const useStory = selectedRequirements?.includes('故事化表达');
-
-  let wordRange: string;
-  let structureWord: string;
-  let extraRequirements: string[] = [];
-
-  if (isShortText) {
-    wordRange = '250-300字';
-    structureWord = '约280字';
-  } else if (isLongText) {
-    wordRange = '750-850字（绝对不能超过900字）';
-    structureWord = '约800字';
-  } else {
-    wordRange = '400-500字';
-    structureWord = '约450字';
-  }
-
-  if (focusShort) extraRequirements.push('侧重短期分析和即时操作建议');
-  if (focusLong) extraRequirements.push('侧重长期价值和趋势展望');
-  if (useExample) extraRequirements.push('用具体案例和数字举例说明');
-  if (useStory) extraRequirements.push('用故事化方式表达，增强代入感');
-
-  let prompt = `【重要】请严格控制字数：${wordRange}（全文含emoji总计）${sensitiveWordWarning}
+  let prompt = `【重要】请严格控制字数：400-500字（全文含emoji总计）${sensitiveWordWarning}
 
 标题：${selectedTitle || '待定'}
 关键词：${keywords || ''}
@@ -394,7 +362,6 @@ ${hotTop3Tags?.length ? `标签：${hotTop3Tags.join('、')}` : ''}
 ${mappingStr}
 
 风格：${config.tone}，${config.emojiDensity}
-${extraRequirements.length ? `\n额外要求：${extraRequirements.join('；')}` : ''}
 
 必须包含：
 - 投资风险提示
@@ -402,16 +369,15 @@ ${extraRequirements.length ? `\n额外要求：${extraRequirements.join('；')}`
 - 纯文本格式，无Markdown
 ${isMarketHot ? '- 严禁提及任何虚拟货币或高风险投资内容' : ''}
 
-结构（${structureWord}）：
+结构（约450字）：
 💰 开头1-2句
 ⭐ 要点1，3-4句
 ⭐ 要点2，3-4句
-${isLongText ? '⭐ 要点3，3-4句\n⭐ 要点4，3-4句' : ''}
 ✨ 总结1句
 ⚠️ 风险提示
 👉 微信搜索微证券
 
-现在生成，正好${wordRange}：`;
+现在生成，正好400-500字：`;
 
   const stream = await callLLMStream(prompt);
   return stream;

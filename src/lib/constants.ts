@@ -128,15 +128,8 @@ export const CONTENT_SUBTYPE_OPTIONS = [
   { value: 'platform_compare', label: '平台对比', keywords: ['券商', '对比', '差异'] },
 ];
 
-// 字数控制互斥组（默认450字，选300字或800字覆盖）
+// 补充要求预设选项（互斥组）
 export const CONTENT_REQUIREMENT_GROUPS: { groupKey: string; options: { value: string; label: string; emoji: string }[] }[] = [
-  {
-    groupKey: 'word_count',
-    options: [
-      { value: '300_words', label: '精简300字', emoji: '📄' },
-      { value: '800_words', label: '加长800字', emoji: '📝' },
-    ],
-  },
   {
     groupKey: 'analysis_direction',
     options: [
@@ -153,8 +146,10 @@ export const CONTENT_REQUIREMENT_GROUPS: { groupKey: string; options: { value: s
   },
 ];
 
-// 独立选项（非互斥）- 已无
-export const CONTENT_REQUIREMENT_SOLO_OPTIONS: { value: string; label: string; emoji: string }[] = [];
+// 独立选项（非互斥）
+export const CONTENT_REQUIREMENT_SOLO_OPTIONS: { value: string; label: string; emoji: string }[] = [
+  { value: '300_words', label: '控制在300字', emoji: '📄' },
+];
 
 // 关键词推荐（按场景分类）
 export const KEYWORD_RECOMMENDATIONS: Record<TopicType, string[]> = {
