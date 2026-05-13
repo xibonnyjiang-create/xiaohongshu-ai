@@ -133,7 +133,6 @@ export default function Home() {
 
     setIsGenerating(true);
     setCurrentStep('正在生成标题...');
-    setStep('titles');
 
     try {
       const response = await fetch('/api/generate-title', {
@@ -154,6 +153,7 @@ export default function Home() {
       if (data.titles && data.titles.length > 0) {
         setGeneratedTitles(data.titles);
         setSelectedTitleIndex(0);
+        setStep('titles');
         toast.success('标题生成完成！请选择标题');
       } else {
         toast.error('未生成标题，请重试');
