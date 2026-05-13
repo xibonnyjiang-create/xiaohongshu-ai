@@ -602,7 +602,10 @@ export default function Home() {
                     {/* 补充要求 */}
                     <div className="mt-4">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-gray-500">补充要求</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500">补充要求</p>
+                          <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">默认450字</span>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -645,30 +648,6 @@ export default function Home() {
                             })}
                           </div>
                         ))}
-                        {/* 独立选项 */}
-                        {CONTENT_REQUIREMENT_SOLO_OPTIONS.map(option => {
-                          const isSelected = contentRequirements.includes(option.value);
-                          return (
-                            <button
-                              key={option.value}
-                              onClick={() => {
-                                if (isSelected) {
-                                  setContentRequirements(contentRequirements.filter(r => r !== option.value));
-                                } else {
-                                  setContentRequirements([...contentRequirements, option.value]);
-                                }
-                              }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
-                                  : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200'
-                              }`}
-                            >
-                              <span>{option.emoji}</span>
-                              <span>{option.label}</span>
-                            </button>
-                          );
-                        })}
                         {/* 自定义要求标签 */}
                         {customRequirement && (
                           <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm">
