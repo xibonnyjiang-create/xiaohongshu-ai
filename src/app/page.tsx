@@ -14,7 +14,7 @@ import {
   Sparkles, Loader2, Copy, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
   X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video,
-  ChevronLeft
+  ChevronLeft, Settings2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -476,7 +476,7 @@ export default function Home() {
 
   // ==================== 渲染 ====================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50">
+    <div className="h-screen bg-gradient-to-br from-rose-50 via-white to-pink-50 flex flex-col">
       {/* 顶部导航 */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-rose-100">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -509,208 +509,259 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className={step === 'input' ? 'max-w-3xl mx-auto' : viewMode === 'split' ? 'grid grid-cols-2 gap-6' : 'max-w-3xl mx-auto'}>
+      <main className={step === 'input' ? 'h-[calc(100vh-3.5rem)] overflow-hidden' : 'min-h-[calc(100vh-3.5rem)] overflow-y-auto'}>
+        <div className={step === 'input' ? 'h-full max-w-5xl mx-auto px-4' : viewMode === 'split' ? 'grid grid-cols-2 gap-6 max-w-5xl mx-auto px-4 py-6' : 'max-w-3xl mx-auto px-4 py-6'}>
           <div>
-            
-            {/* Step 1: 场景选择 */}
-            {step === 'input' && (
-              <>
-                <Card className="mb-3 border-0 shadow-md bg-white/90">
-                  <CardHeader className="pb-3 pt-4 px-5">
-                    <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">1</span>
-                      选择创作场景
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-5 pb-5 space-y-4">
-                    {/* 场景卡片 */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {SCENE_OPTIONS.map(option => (
-                        <button
-                          key={option.value}
-                          onClick={() => {
-                            setTopicType(option.value);
-                            setSelectedHotTopic(null);
-                          }}
-                          className={`p-4 rounded-xl text-left transition-all ${
-                            topicType === option.value
-                              ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-lg ring-2 ring-rose-300'
-                              : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
-                          }`}
-                        >
-                          <span className="text-2xl mb-2 block">{option.emoji}</span>
-                          <span className={`text-sm font-bold block ${topicType === option.value ? 'text-white' : 'text-gray-800'}`}>
-                            {option.label}
-                          </span>
-                          <span className={`text-[11px] block mt-1 ${topicType === option.value ? 'text-rose-100' : 'text-gray-400'}`}>
-                            {option.description}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
 
-                    {/* 输出形式选择 */}
-                    <div className="mt-4">
-                      <p className="text-xs text-gray-500 mb-2">输出形式</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {OUTPUT_FORMAT_OPTIONS.map(option => (
+            {/* Step 1: 场景选择 - 一屏三列布局 */}
+            {step === 'input' && (
+              <div className="h-full flex flex-col py-3">
+                {/* 顶部标题 */}
+                <div className="text-center mb-3 shrink-0">
+                  <h2 className="text-lg font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">小红书爆款内容创作</h2>
+                  <p className="text-[11px] text-gray-400 mt-0.5">AI智能创作，一键生成小红书风格图文</p>
+                </div>
+
+                {/* 三列主体 */}
+                <div className="flex-1 grid grid-cols-3 gap-3 min-h-0">
+                  {/* 左列：创作场景 */}
+                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden">
+                    <CardHeader className="pb-2 pt-3 px-4 shrink-0">
+                      <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-[10px] flex items-center justify-center shrink-0">1</span>
+                        选择创作场景
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 flex-1 overflow-y-auto space-y-2 min-h-0">
+                      {/* 场景列表 */}
+                      <div className="space-y-1">
+                        {SCENE_OPTIONS.map(option => (
                           <button
                             key={option.value}
-                            onClick={() => setOutputFormat(option.value)}
-                            className={`p-3 rounded-xl text-left transition-all ${
-                              outputFormat === option.value
-                                ? 'bg-gradient-to-br from-purple-500 to-indigo-500 text-white shadow-md'
+                            onClick={() => {
+                              setTopicType(option.value);
+                              setSelectedHotTopic(null);
+                            }}
+                            className={`w-full p-2 rounded-lg text-left transition-all text-xs ${
+                              topicType === option.value
+                                ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
                                 : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
                             }`}
                           >
-                            <span className="text-lg mr-2">{option.emoji}</span>
-                            <span className="text-sm font-medium">{option.label}</span>
-                            <p className={`text-[10px] mt-1 ${outputFormat === option.value ? 'text-purple-100' : 'text-gray-400'}`}>
-                              {option.description}
-                            </p>
+                            <span className="font-medium">{option.emoji} {option.label}</span>
+                            {topicType === option.value && (
+                              <p className="text-[10px] mt-0.5 text-rose-100">{option.description}</p>
+                            )}
                           </button>
                         ))}
                       </div>
-                    </div>
 
-                    {/* 视频时长选择 - 仅视频模式显示 */}
-                    {outputFormat === 'video' && (
-                      <div className="mt-4">
-                        <p className="text-xs text-gray-500 mb-2">视频时长</p>
-                        <div className="grid grid-cols-4 gap-2">
-                          {VIDEO_DURATION_OPTIONS.map(option => (
+                      {/* 输出形式 */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-[10px] text-gray-400 mb-1">输出形式</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {OUTPUT_FORMAT_OPTIONS.map(option => (
                             <button
                               key={option.value}
-                              onClick={() => setVideoDuration(option.value)}
-                              className={`p-2 rounded-lg text-center transition-all ${
-                                videoDuration === option.value
-                                  ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-md'
+                              onClick={() => setOutputFormat(option.value)}
+                              className={`p-1.5 rounded-lg text-center transition-all text-[10px] ${
+                                outputFormat === option.value
+                                  ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm'
                                   : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
                               }`}
                             >
-                              <span className="text-sm font-medium">{option.label}</span>
-                              <p className={`text-[9px] mt-0.5 ${videoDuration === option.value ? 'text-orange-100' : 'text-gray-400'}`}>
-                                {option.description}
-                              </p>
+                              <span>{option.emoji} {option.label}</span>
                             </button>
                           ))}
                         </div>
                       </div>
-                    )}
 
-                    {/* 补充要求 */}
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-gray-500">补充要求</p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowRequirementDialog(true)}
-                          className="h-6 px-2 text-xs text-gray-500 hover:text-rose-500"
-                        >
-                          <Edit3 className="w-3 h-3 mr-1" />
-                          自定义
-                        </Button>
-                      </div>
-                      {/* 独立选项 */}
-                      <div className="flex flex-wrap gap-3 items-center">
-                        {/* 互斥组按钮 - 合并在一起 */}
-                        {CONTENT_REQUIREMENT_GROUPS.map(group => (
-                          <div key={group.groupKey} className="inline-flex rounded-full overflow-hidden border border-rose-200">
-                            {group.options.map(option => {
-                              const isSelected = contentRequirements.includes(option.value);
-                              return (
-                                <button
-                                  key={option.value}
-                                  onClick={() => {
-                                    const groupValues = group.options.map(o => o.value);
-                                    const otherReqs = contentRequirements.filter(r => !groupValues.includes(r));
-                                    if (isSelected) {
-                                      setContentRequirements(otherReqs);
-                                    } else {
-                                      setContentRequirements([...otherReqs, option.value]);
-                                    }
-                                  }}
-                                  className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-all ${
-                                    isSelected
-                                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
-                                      : 'bg-rose-50 hover:bg-rose-100 text-rose-600'
-                                  }`}
-                                >
-                                  <span>{option.emoji}</span>
-                                  <span>{option.label}</span>
-                                </button>
-                              );
-                            })}
+                      {/* 视频时长 - 仅视频模式 */}
+                      {outputFormat === 'video' && (
+                        <div className="pt-2 border-t border-gray-100">
+                          <p className="text-[10px] text-gray-400 mb-1">视频时长</p>
+                          <div className="grid grid-cols-2 gap-1">
+                            {VIDEO_DURATION_OPTIONS.map(option => (
+                              <button
+                                key={option.value}
+                                onClick={() => setVideoDuration(option.value)}
+                                className={`p-1.5 rounded-lg text-center transition-all text-[10px] ${
+                                  videoDuration === option.value
+                                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-sm'
+                                    : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                                }`}
+                              >
+                                <span className="font-medium">{option.label}</span>
+                              </button>
+                            ))}
                           </div>
-                        ))}
-                        {/* 独立选项 */}
-                        {CONTENT_REQUIREMENT_SOLO_OPTIONS.map(option => {
-                          const isSelected = contentRequirements.includes(option.value);
-                          return (
-                            <button
-                              key={option.value}
-                              onClick={() => {
-                                if (isSelected) {
-                                  setContentRequirements(contentRequirements.filter(r => r !== option.value));
-                                } else {
-                                  setContentRequirements([...contentRequirements, option.value]);
-                                }
-                              }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
-                                  : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200'
-                              }`}
-                            >
-                              <span>{option.emoji}</span>
-                              <span>{option.label}</span>
-                            </button>
-                          );
-                        })}
-                        {/* 自定义要求标签 */}
-                        {customRequirement && (
-                          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm">
-                            <span>✏️</span>
-                            <span>{customRequirement}</span>
-                            <X
-                              className="w-3 h-3 ml-1 cursor-pointer hover:opacity-80"
-                              onClick={() => setCustomRequirement('')}
-                            />
-                          </span>
-                        )}
+                        </div>
+                      )}
+
+                      {/* 补充要求 */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                            <Settings2 className="w-2.5 h-2.5" /> 补充要求
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowRequirementDialog(true)}
+                            className="h-4 px-1 text-[10px] text-gray-400 hover:text-rose-500"
+                          >
+                            <Edit3 className="w-2.5 h-2.5 mr-0.5" />
+                            自定义
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {CONTENT_REQUIREMENT_GROUPS.map(group => (
+                            <div key={group.groupKey} className="inline-flex rounded-full overflow-hidden border border-rose-200">
+                              {group.options.map(option => {
+                                const isSelected = contentRequirements.includes(option.value);
+                                return (
+                                  <button
+                                    key={option.value}
+                                    onClick={() => {
+                                      const groupValues = group.options.map(o => o.value);
+                                      const otherReqs = contentRequirements.filter(r => !groupValues.includes(r));
+                                      if (isSelected) {
+                                        setContentRequirements(otherReqs);
+                                      } else {
+                                        setContentRequirements([...otherReqs, option.value]);
+                                      }
+                                    }}
+                                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium transition-all ${
+                                      isSelected
+                                        ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
+                                        : 'bg-rose-50 hover:bg-rose-100 text-rose-600'
+                                    }`}
+                                  >
+                                    <span>{option.emoji}</span>
+                                    <span>{option.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ))}
+                          {CONTENT_REQUIREMENT_SOLO_OPTIONS.map(option => {
+                            const isSelected = contentRequirements.includes(option.value);
+                            return (
+                              <button
+                                key={option.value}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setContentRequirements(contentRequirements.filter(r => r !== option.value));
+                                  } else {
+                                    setContentRequirements([...contentRequirements, option.value]);
+                                  }
+                                }}
+                                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all ${
+                                  isSelected
+                                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
+                                    : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200'
+                                }`}
+                              >
+                                <span>{option.emoji}</span>
+                                <span>{option.label}</span>
+                              </button>
+                            );
+                          })}
+                          {customRequirement && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-sm">
+                              <span>✏️</span>
+                              <span>{customRequirement}</span>
+                              <X
+                                className="w-2 h-2 ml-0.5 cursor-pointer hover:opacity-80"
+                                onClick={() => setCustomRequirement('')}
+                              />
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    </CardContent>
+                  </Card>
 
-
-                  </CardContent>
-                </Card>
-
-
-
-                {/* 小白科普 - 推荐主题 */}
-                {topicType === 'beginner_guide' && (
-                  <Card className="mb-3 border-0 shadow-md bg-white/90">
-                    <CardHeader className="pb-3 pt-4 px-5">
-                      <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                        <WandSparkles className="w-5 h-5 text-green-500" />
-                        推荐主题
+                  {/* 中列：创作主题 */}
+                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden">
+                    <CardHeader className="pb-2 pt-3 px-4 shrink-0">
+                      <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-[10px] flex items-center justify-center shrink-0">2</span>
+                        选择创作主题
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="px-5 pb-5 space-y-4">
-                      {topicRecommendations.map((rec, index) => (
-                        <div key={index} className="space-y-2">
-                          <p className="text-sm font-medium text-gray-700">{rec.label}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {rec.keywords.map((kw, i) => (
+                    <CardContent className="px-4 pb-3 flex-1 overflow-y-auto space-y-2 min-h-0">
+                      <div className="relative">
+                        <WandSparkles className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                        <Input
+                          value={keywords}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeywords(e.target.value)}
+                          placeholder="输入内容关键词..."
+                          className="pl-8 text-xs border-rose-200 focus:border-rose-400 h-7"
+                        />
+                      </div>
+
+                      {/* 推荐关键词 */}
+                      <div className="flex flex-wrap gap-1">
+                        {keywordsByScene.map((kw, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setKeywords(kw)}
+                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all ${
+                              keywords === kw
+                                ? 'bg-rose-500 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {kw}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* 小白科普 - 推荐主题 */}
+                      {topicType === 'beginner_guide' && (
+                        <div className="pt-2 border-t border-gray-100">
+                          <p className="text-[10px] font-medium text-green-600 mb-1 flex items-center gap-0.5">
+                            <WandSparkles className="w-2.5 h-2.5" /> 推荐主题
+                          </p>
+                          {topicRecommendations.map((rec, index) => (
+                            <div key={index} className="mb-1">
+                              <p className="text-[10px] text-gray-500 mb-0.5">{rec.label}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {rec.keywords.map((kw, i) => (
+                                  <button
+                                    key={i}
+                                    onClick={() => setKeywords(kw)}
+                                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all ${
+                                      keywords === kw
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {kw}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 生活化种草 - 专属词库 */}
+                      {topicType === 'life_lifestyle' && (
+                        <div className="pt-2 border-t border-gray-100">
+                          <p className="text-[10px] font-medium text-green-600 mb-1 flex items-center gap-0.5">
+                            <Sparkles className="w-2.5 h-2.5" /> 专属词库
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {LIFE_STYLE_KEYWORDS.map((kw, i) => (
                               <button
                                 key={i}
                                 onClick={() => setKeywords(kw)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all ${
                                   keywords === kw
                                     ? 'bg-green-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    : 'bg-white text-gray-600 hover:bg-green-100 border border-green-200'
                                 }`}
                               >
                                 {kw}
@@ -718,126 +769,82 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
-                      ))}
+                      )}
                     </CardContent>
                   </Card>
-                )}
 
-                {/* 生活化种草 - 专属词库 */}
-                {topicType === 'life_lifestyle' && (
-                  <Card className="mb-3 border-0 shadow-md bg-gradient-to-br from-green-50 to-teal-50">
-                    <CardHeader className="pb-3 pt-4 px-5">
-                      <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-green-500" />
-                        生活化种草专属词库
+                  {/* 右列：创作人设 */}
+                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden">
+                    <CardHeader className="pb-2 pt-3 px-4 shrink-0">
+                      <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-[10px] flex items-center justify-center shrink-0">3</span>
+                        选择创作人设
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="px-5 pb-5">
-                      <div className="flex flex-wrap gap-2">
-                        {LIFE_STYLE_KEYWORDS.map((kw, i) => (
+                    <CardContent className="px-4 pb-3 flex-1 overflow-y-auto space-y-2 min-h-0">
+                      <div className="space-y-1">
+                        {PERSONA_OPTIONS.map(option => (
                           <button
-                            key={i}
-                            onClick={() => setKeywords(kw)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                              keywords === kw
-                                ? 'bg-green-500 text-white'
-                                : 'bg-white text-gray-600 hover:bg-green-100 border border-green-200'
+                            key={option.value}
+                            onClick={() => {
+                              if (option.value === 'custom') {
+                                setShowPersonaDialog(true);
+                              } else {
+                                setPersonaType(option.value);
+                              }
+                            }}
+                            className={`w-full p-2 rounded-lg text-left transition-all text-xs ${
+                              personaType === option.value
+                                ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
+                                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
                             }`}
                           >
-                            {kw}
+                            <span className="font-medium">{option.emoji} {option.label}</span>
+                            {personaType === option.value && (
+                              <p className="text-[10px] mt-0.5 text-rose-100">{option.description}</p>
+                            )}
                           </button>
                         ))}
                       </div>
+
+                      {/* 人设风格提示 */}
+                      <div className="p-2 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg border border-rose-100">
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <Badge variant="outline" className="bg-white text-[10px] px-1.5 py-0 h-4">
+                            语气：{personaStyleConfig.tone}
+                          </Badge>
+                          <Badge variant="outline" className="bg-white text-[10px] px-1.5 py-0 h-4">
+                            表达：{personaStyleConfig.emojiDensity}
+                          </Badge>
+                          <Badge variant="outline" className="bg-white text-[10px] px-1.5 py-0 h-4">
+                            标题：{personaStyleConfig.titleStyle}
+                          </Badge>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
-                )}
+                </div>
 
-                {/* 关键词输入 */}
-                <Card className="mb-3 border-0 shadow-md bg-white/90">
-                  <CardHeader className="pb-3 pt-4 px-5">
-                    <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">2</span>
-                      选择创作主题
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-5 pb-5 space-y-4">
-                    <div className="relative">
-                      <WandSparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        value={keywords}
-                        onChange={(e) => setKeywords(e.target.value)}
-                        placeholder={topicType === 'beginner_guide' ? '或输入自定义主题...' : topicType === 'life_lifestyle' ? '选择词库或输入自定义主题...' : '输入内容关键词，如：AI概念、机器人、半导体...'}
-                        className="pl-10 border-rose-200 focus:border-rose-400"
-                      />
-                    </div>
-
-                    {/* 推荐关键词 */}
-                    <div className="flex flex-wrap gap-2">
-                      {keywordsByScene.map((kw, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setKeywords(kw)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                            keywords === kw
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {kw}
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* 人设选择 */}
-                <Card className="mb-3 border-0 shadow-md bg-white/90">
-                  <CardHeader className="pb-3 pt-4 px-5">
-                    <CardTitle className="text-base font-bold text-gray-800 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-sm flex items-center justify-center">3</span>
-                      选择创作人设
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-5 pb-5 space-y-4">
-                    <div className="flex gap-3">
-                      {PERSONA_OPTIONS.map(option => (
-                        <button
-                          key={option.value}
-                          onClick={() => {
-                            if (option.value === 'custom') {
-                              setShowPersonaDialog(true);
-                            } else {
-                              setPersonaType(option.value);
-                            }
-                          }}
-                          className={`flex-1 p-3 rounded-xl text-center transition-all ${
-                            personaType === option.value
-                              ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md'
-                              : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
-                          }`}
-                        >
-                          <span className="text-xl mb-1 block">{option.emoji}</span>
-                          <span className="text-xs font-medium block">{option.label}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* 人设风格提示 */}
-                    <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-100">
-                      <div className="flex items-center gap-3 text-xs">
-                        <Badge variant="outline" className="bg-white">
-                          语气：{personaStyleConfig.tone}
-                        </Badge>
-                        <Badge variant="outline" className="bg-white">
-                          表情：{personaStyleConfig.emojiDensity}
-                        </Badge>
-                        <Badge variant="outline" className="bg-white">
-                          标题：{personaStyleConfig.titleStyle}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* 生成按钮 */}
+                <div className="shrink-0 pt-2 pb-1">
+                  <Button
+                    onClick={handleGenerateTitles}
+                    disabled={isGenerating || (!keywords.trim() && !selectedHotTopic && topicType !== 'beginner_guide')}
+                    className="w-full h-10 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {currentStep || '生成中...'}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        生成标题
+                      </>
+                    )}
+                  </Button>
+                </div>
 
                 {/* 自定义人设弹窗 */}
                 <Dialog open={showPersonaDialog} onOpenChange={setShowPersonaDialog}>
@@ -859,7 +866,7 @@ export default function Home() {
                       </ul>
                       <Textarea
                         value={customPersona}
-                        onChange={(e) => setCustomPersona(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomPersona(e.target.value)}
                         placeholder="例如：我是90后职场女性，说话亲切幽默，喜欢用接地气的例子..."
                         className="min-h-[120px]"
                       />
@@ -868,7 +875,7 @@ export default function Home() {
                       <Button variant="outline" onClick={() => setShowPersonaDialog(false)}>
                         取消
                       </Button>
-                      <Button 
+                      <Button
                         onClick={() => {
                           if (customPersona.trim()) {
                             setPersonaType('custom');
@@ -898,7 +905,7 @@ export default function Home() {
                       </p>
                       <Textarea
                         value={customRequirement}
-                        onChange={(e) => setCustomRequirement(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomRequirement(e.target.value)}
                         placeholder="例如：增加互动性提问、使用网络流行语..."
                         className="min-h-[80px]"
                       />
@@ -907,7 +914,7 @@ export default function Home() {
                       <Button variant="outline" onClick={() => setShowRequirementDialog(false)}>
                         取消
                       </Button>
-                      <Button 
+                      <Button
                         onClick={() => {
                           if (customRequirement.trim()) {
                             setShowRequirementDialog(false);
@@ -920,26 +927,7 @@ export default function Home() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-
-                {/* 生成按钮 */}
-                <Button
-                  onClick={handleGenerateTitles}
-                  disabled={isGenerating || (!keywords.trim() && !selectedHotTopic && topicType !== 'beginner_guide')}
-                  className="w-full h-12 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {currentStep || '生成中...'}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      生成标题
-                    </>
-                  )}
-                </Button>
-              </>
+              </div>
             )}
 
             {/* Step 2: 标题选择 */}
