@@ -14,7 +14,7 @@ import {
   Sparkles, Loader2, Copy, Check, AlertTriangle,
   Edit3, Save, History, Rocket, Tag, WandSparkles,
   X, TrendingUp, Clock, RefreshCw, FileText, ImageIcon, Video,
-  ChevronLeft, Settings2
+  ChevronLeft, Settings2, Flame, Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -718,19 +718,38 @@ export default function Home() {
                         ))}
                       </div>
 
-                      {/* 市场热点 - 热搜榜单 */}
+                      {/* 市场热点 - 热搜榜单（旧版风格） */}
                       {topicType === 'market_hot' && (
                         <div className="pt-2 border-t border-gray-100 flex-1 min-h-0 flex flex-col overflow-hidden">
-                          {/* 板块切换 */}
-                          <div className="flex items-center gap-1 mb-1.5 shrink-0">
+                          {/* 标题行 */}
+                          <div className="flex items-center justify-between mb-1.5 shrink-0">
+                            <span className="text-[10px] font-bold text-gray-700 flex items-center gap-1">
+                              <Flame className="w-3 h-3 text-orange-500" />
+                              实时热搜
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {hotUpdateTime && (
+                                <span className="text-[9px] text-gray-400">{hotUpdateTime}</span>
+                              )}
+                              <button
+                                onClick={() => loadHotTopics()}
+                                className="text-[9px] text-rose-400 hover:text-rose-500 flex items-center gap-0.5"
+                              >
+                                <RefreshCw className="w-2 h-2" /> 刷新
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 分类切换 */}
+                          <div className="flex gap-1 mb-1.5 shrink-0">
                             {HOT_CATEGORIES.map(cat => (
                               <button
                                 key={cat.id}
                                 onClick={() => setHotCategory(cat.id)}
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all ${
                                   hotCategory === cat.id
-                                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
-                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                    ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                               >
                                 {cat.icon} {cat.name}
@@ -738,72 +757,78 @@ export default function Home() {
                             ))}
                           </div>
 
-                          {/* 热搜列表 - 独立滚动区域，默认展示4条 */}
-                          <div className="space-y-0.5 flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: 'calc(4 * 1.75rem)' }}>
-                            {hotTopicsLoading ? (
-                              <div className="flex items-center justify-center py-3">
-                                <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
-                                <span className="text-[10px] text-gray-400 ml-1">加载热搜...</span>
-                              </div>
-                            ) : hotTopics.length > 0 ? (
-                              <>
-                                {hotTopics.slice(0, 4).map((topic, index) => (
-                                  <button
-                                    key={topic.id}
-                                    onClick={() => {
-                                      setSelectedHotTopic(selectedHotTopic?.id === topic.id ? null : topic);
-                                      if (selectedHotTopic?.id !== topic.id) {
-                                        setKeywords(topic.title);
-                                      }
-                                    }}
-                                    className={`w-full px-1.5 py-1 rounded text-left transition-all text-[10px] ${
-                                      selectedHotTopic?.id === topic.id
-                                        ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
-                                        : 'hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-1">
-                                      <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${
-                                        index < 3
-                                          ? selectedHotTopic?.id === topic.id ? 'bg-white/30 text-white' : 'bg-rose-100 text-rose-600'
-                                          : selectedHotTopic?.id === topic.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
-                                      }`}>
-                                        {index + 1}
-                                      </span>
-                                      <span className="truncate font-medium flex-1">{topic.title}</span>
-                                    </div>
-                                  </button>
-                                ))}
-                                {hotTopics.length > 4 && (
-                                  <div className="text-center">
-                                    <button
-                                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                                        const list = (e.currentTarget.parentElement?.parentElement as HTMLElement);
-                                        if (list) list.style.maxHeight = 'none';
-                                        (e.currentTarget as HTMLElement).style.display = 'none';
-                                      }}
-                                      className="text-[10px] text-rose-400 hover:text-rose-500 py-0.5"
-                                    >
-                                      ▼ 查看更多
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-[10px] text-gray-400 text-center py-2">暂无热搜数据</p>
-                            )}
+                          {/* 敏感过滤开关 */}
+                          <div className="flex items-center justify-between mb-1.5 shrink-0">
+                            <span className="text-[9px] text-gray-500 flex items-center gap-0.5">
+                              <Filter className="w-2.5 h-2.5" />
+                              过滤敏感内容
+                            </span>
+                            <button
+                              onClick={() => setFilterSensitive(!filterSensitive)}
+                              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                                filterSensitive ? 'bg-rose-500' : 'bg-gray-300'
+                              }`}
+                            >
+                              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                filterSensitive ? 'translate-x-3.5' : 'translate-x-0.5'
+                              }`} />
+                            </button>
                           </div>
 
-                          {/* 更新时间 & 刷新 */}
-                          {hotUpdateTime && (
-                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 shrink-0">
-                              <span className="text-[9px] text-gray-300">更新于 {hotUpdateTime}</span>
-                              <button
-                                onClick={() => loadHotTopics()}
-                                className="text-[9px] text-rose-400 hover:text-rose-500 flex items-center gap-0.5"
-                              >
-                                <RefreshCw className="w-2 h-2" /> 刷新
-                              </button>
+                          {/* 热搜列表 */}
+                          {hotTopicsLoading ? (
+                            <div className="flex items-center justify-center py-3">
+                              <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
+                              <span className="text-[10px] text-gray-400 ml-1">加载热搜...</span>
+                            </div>
+                          ) : hotTopics.length > 0 ? (
+                            <div className="space-y-1 flex-1 min-h-0 overflow-y-auto">
+                              {hotTopics.map((topic, index) => (
+                                <button
+                                  key={topic.id}
+                                  onClick={() => {
+                                    setSelectedHotTopic(selectedHotTopic?.id === topic.id ? null : topic);
+                                    if (selectedHotTopic?.id !== topic.id) {
+                                      setKeywords(topic.title);
+                                    }
+                                  }}
+                                  className={`w-full text-left px-2 py-1.5 rounded-lg transition-all ${
+                                    selectedHotTopic?.id === topic.id
+                                      ? 'bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-300 shadow-sm'
+                                      : 'hover:bg-gray-50 border border-transparent'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-1.5">
+                                    <span className={`flex-shrink-0 w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center mt-0.5 ${
+                                      index < 3 ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white' : 'bg-gray-200 text-gray-500'
+                                    }`}>
+                                      {index + 1}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-[10px] font-medium text-gray-800 truncate">{topic.title}</div>
+                                      {topic.snippet && (
+                                        <div className="text-[9px] text-gray-400 truncate mt-0.5">{topic.snippet}</div>
+                                      )}
+                                    </div>
+                                    {selectedHotTopic?.id === topic.id && (
+                                      <Check className="w-3 h-3 text-rose-500 flex-shrink-0 mt-0.5" />
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-gray-400 text-center py-2">暂无热搜数据</p>
+                          )}
+
+                          {/* 选中热搜的TOP3标签 */}
+                          {selectedHotTopic && hotTop3Tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1.5 mt-1 border-t border-gray-100 shrink-0">
+                              {hotTop3Tags.map((tag, i) => (
+                                <span key={i} className="px-1.5 py-0.5 rounded-full text-[9px] bg-rose-100 text-rose-600 font-medium">
+                                  #{tag}
+                                </span>
+                              ))}
                             </div>
                           )}
                         </div>
