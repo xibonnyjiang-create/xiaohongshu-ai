@@ -27,6 +27,45 @@ function filterSensitiveTopics(topics: { title: string; snippet?: string; tags?:
   return { filteredTopics, filteredCount: topics.length - filteredTopics.length, filteredReasons };
 }
 
+// 去重函数：基于标题关键词重叠度移除相似新闻
+function deduplicateTopics(topics: { title: string; snippet?: string; [key: string]: any }[]): typeof topics {
+  const result: typeof topics = [];
+  const seen = new Set<string>();
+
+  for (const topic of topics) {
+    // 提取标题中的关键词（去掉标点和常见停用词）
+    const stopWords = new Set(['的', '了', '在', '是', '和', '与', '及', '等', '为', '中', '对', '将', '被', '到', '从', '由', '上', '下', '不', '有', '也', '都', '就', '要', '会', '可', '能', '还', '已', '这', '那', '一', '个']);
+    const keywords = topic.title
+      .replace(/[：:！!？?，,。.、；;""''「」【】《》\s]+/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length >= 2 && !stopWords.has(w));
+
+    // 检查是否与已选主题过于相似
+    let isDuplicate = false;
+    for (const existing of result) {
+      const existingKeywords = existing.title
+        .replace(/[：:！!？?，,。.、；;""''「」【】《》\s]+/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length >= 2 && !stopWords.has(w));
+
+      // 计算关键词重叠度
+      const overlap = keywords.filter(k => existingKeywords.includes(k)).length;
+      const shorterLen = Math.min(keywords.length, existingKeywords.length);
+      // 如果较短标题的关键词有60%以上重叠，视为重复
+      if (shorterLen > 0 && overlap / shorterLen >= 0.6) {
+        isDuplicate = true;
+        break;
+      }
+    }
+
+    if (!isDuplicate) {
+      result.push(topic);
+    }
+  }
+
+  return result;
+}
+
 // 热点板块配置 - 已移除敏感分类
 const HOT_CATEGORIES = [
   { id: 'finance', name: '财经热搜', keywords: 'A股 港股 美股 基金 理财 投资 经济 最新新闻', icon: '📈' },
@@ -72,12 +111,15 @@ export async function GET(request: NextRequest) {
         if (filterResult.filteredCount > 0) {
           console.log(`[敏感词过滤] 屏蔽 ${filterResult.filteredCount} 条热搜:`, filterResult.filteredReasons);
           hotTopics = filterResult.filteredTopics as typeof hotTopics;
-          // 重新编号
-          hotTopics = hotTopics.map((t, i) => ({ ...t, id: i + 1 }));
         }
       } else {
         console.log('[敏感词过滤] 已关闭，保留原始热搜数据');
       }
+
+      // 【去重】移除标题高度相似的新闻
+      hotTopics = deduplicateTopics(hotTopics) as typeof hotTopics;
+      // 重新编号
+      hotTopics = hotTopics.map((t, i) => ({ ...t, id: i + 1 }));
 
       const finalTopics = hotTopics.length > 0 ? hotTopics : getMockTopics(category);
 
@@ -113,9 +155,11 @@ export async function GET(request: NextRequest) {
         if (filterResult.filteredCount > 0) {
           console.log(`[敏感词过滤] 模拟数据屏蔽 ${filterResult.filteredCount} 条热搜`);
           mockTopics = filterResult.filteredTopics as typeof mockTopics;
-          mockTopics = mockTopics.map((t, i) => ({ ...t, id: i + 1 }));
         }
       }
+      // 【去重】模拟数据也去重
+      mockTopics = deduplicateTopics(mockTopics) as typeof mockTopics;
+      mockTopics = mockTopics.map((t, i) => ({ ...t, id: i + 1 }));
       
       // 模拟数据也提取Top3标签
       let top3Tags: string[] = [];

@@ -738,51 +738,57 @@ export default function Home() {
                             ))}
                           </div>
 
-                          {/* 热搜列表 - 独立滚动区域 */}
-                          <div className="space-y-0.5 flex-1 min-h-0 overflow-y-auto">
+                          {/* 热搜列表 - 独立滚动区域，默认展示4条 */}
+                          <div className="space-y-0.5 flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: 'calc(4 * 1.75rem)' }}>
                             {hotTopicsLoading ? (
                               <div className="flex items-center justify-center py-3">
                                 <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
                                 <span className="text-[10px] text-gray-400 ml-1">加载热搜...</span>
                               </div>
                             ) : hotTopics.length > 0 ? (
-                              hotTopics.map((topic, index) => (
-                                <button
-                                  key={topic.id}
-                                  onClick={() => {
-                                    setSelectedHotTopic(selectedHotTopic?.id === topic.id ? null : topic);
-                                    if (selectedHotTopic?.id !== topic.id) {
-                                      setKeywords(topic.title);
-                                    }
-                                  }}
-                                  className={`w-full p-1.5 rounded-lg text-left transition-all text-[10px] ${
-                                    selectedHotTopic?.id === topic.id
-                                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
-                                      : 'hover:bg-gray-50'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${
-                                      index < 3
-                                        ? selectedHotTopic?.id === topic.id ? 'bg-white/30 text-white' : 'bg-rose-100 text-rose-600'
-                                        : selectedHotTopic?.id === topic.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
-                                    }`}>
-                                      {index + 1}
-                                    </span>
-                                    <span className="truncate font-medium">{topic.title}</span>
-                                    {topic.hot && (
-                                      <span className={`ml-auto shrink-0 ${selectedHotTopic?.id === topic.id ? 'text-rose-100' : 'text-gray-300'}`}>
-                                        🔥{topic.hot}
+                              <>
+                                {hotTopics.slice(0, 4).map((topic, index) => (
+                                  <button
+                                    key={topic.id}
+                                    onClick={() => {
+                                      setSelectedHotTopic(selectedHotTopic?.id === topic.id ? null : topic);
+                                      if (selectedHotTopic?.id !== topic.id) {
+                                        setKeywords(topic.title);
+                                      }
+                                    }}
+                                    className={`w-full px-1.5 py-1 rounded text-left transition-all text-[10px] ${
+                                      selectedHotTopic?.id === topic.id
+                                        ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
+                                        : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${
+                                        index < 3
+                                          ? selectedHotTopic?.id === topic.id ? 'bg-white/30 text-white' : 'bg-rose-100 text-rose-600'
+                                          : selectedHotTopic?.id === topic.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
+                                      }`}>
+                                        {index + 1}
                                       </span>
-                                    )}
+                                      <span className="truncate font-medium flex-1">{topic.title}</span>
+                                    </div>
+                                  </button>
+                                ))}
+                                {hotTopics.length > 4 && (
+                                  <div className="text-center">
+                                    <button
+                                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                        const list = (e.currentTarget.parentElement?.parentElement as HTMLElement);
+                                        if (list) list.style.maxHeight = 'none';
+                                        (e.currentTarget as HTMLElement).style.display = 'none';
+                                      }}
+                                      className="text-[10px] text-rose-400 hover:text-rose-500 py-0.5"
+                                    >
+                                      ▼ 查看更多
+                                    </button>
                                   </div>
-                                  {topic.snippet && (
-                                    <p className={`mt-0.5 pl-5 truncate ${selectedHotTopic?.id === topic.id ? 'text-rose-100' : 'text-gray-400'}`}>
-                                      {topic.snippet}
-                                    </p>
-                                  )}
-                                </button>
-                              ))
+                                )}
+                              </>
                             ) : (
                               <p className="text-[10px] text-gray-400 text-center py-2">暂无热搜数据</p>
                             )}
