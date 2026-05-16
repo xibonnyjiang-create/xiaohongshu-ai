@@ -782,7 +782,7 @@ export default function Home() {
                               <span className="text-[10px] text-gray-400 ml-1">加载热搜...</span>
                             </div>
                           ) : hotTopics.length > 0 ? (
-                            <div className="space-y-1 flex-1 min-h-0 overflow-y-auto">
+                            <div className="space-y-1 flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: 'calc(3 * 2.25rem)' }}>
                               {hotTopics.map((topic, index) => (
                                 <button
                                   key={topic.id}
