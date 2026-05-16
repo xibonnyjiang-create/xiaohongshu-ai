@@ -523,9 +523,9 @@ export default function Home() {
                 </div>
 
                 {/* 三列主体 */}
-                <div className="flex-1 grid grid-cols-3 gap-3 min-h-0">
+                <div className="flex-1 grid grid-cols-3 gap-3 min-h-0 overflow-hidden">
                   {/* 左列：创作场景 */}
-                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden">
+                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden min-h-0">
                     <CardHeader className="pb-2 pt-3 px-4 shrink-0">
                       <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
                         <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-[10px] flex items-center justify-center shrink-0">1</span>
@@ -683,15 +683,15 @@ export default function Home() {
                   </Card>
 
                   {/* 中列：创作主题 */}
-                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden">
+                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden min-h-0">
                     <CardHeader className="pb-2 pt-3 px-4 shrink-0">
                       <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
                         <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-[10px] flex items-center justify-center shrink-0">2</span>
                         选择创作主题
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-3 flex-1 overflow-y-auto space-y-2 min-h-0">
-                      <div className="relative">
+                    <CardContent className="px-4 pb-3 flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
+                      <div className="relative shrink-0">
                         <WandSparkles className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
                         <Input
                           value={keywords}
@@ -702,7 +702,7 @@ export default function Home() {
                       </div>
 
                       {/* 推荐关键词 */}
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 shrink-0">
                         {keywordsByScene.map((kw, i) => (
                           <button
                             key={i}
@@ -720,9 +720,9 @@ export default function Home() {
 
                       {/* 市场热点 - 热搜榜单 */}
                       {topicType === 'market_hot' && (
-                        <div className="pt-2 border-t border-gray-100">
+                        <div className="pt-2 border-t border-gray-100 flex-1 min-h-0 flex flex-col overflow-hidden">
                           {/* 板块切换 */}
-                          <div className="flex items-center gap-1 mb-1.5">
+                          <div className="flex items-center gap-1 mb-1.5 shrink-0">
                             {HOT_CATEGORIES.map(cat => (
                               <button
                                 key={cat.id}
@@ -738,8 +738,8 @@ export default function Home() {
                             ))}
                           </div>
 
-                          {/* 热搜列表 */}
-                          <div className="space-y-0.5 max-h-[calc(100vh-22rem)] overflow-y-auto">
+                          {/* 热搜列表 - 独立滚动区域 */}
+                          <div className="space-y-0.5 flex-1 min-h-0 overflow-y-auto">
                             {hotTopicsLoading ? (
                               <div className="flex items-center justify-center py-3">
                                 <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
@@ -790,7 +790,7 @@ export default function Home() {
 
                           {/* 更新时间 & 刷新 */}
                           {hotUpdateTime && (
-                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100">
+                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 shrink-0">
                               <span className="text-[9px] text-gray-300">更新于 {hotUpdateTime}</span>
                               <button
                                 onClick={() => loadHotTopics()}
@@ -805,7 +805,7 @@ export default function Home() {
 
                       {/* 小白科普 - 推荐主题 */}
                       {topicType === 'beginner_guide' && (
-                        <div className="pt-2 border-t border-gray-100">
+                        <div className="pt-2 border-t border-gray-100 shrink-0 overflow-y-auto flex-1 min-h-0">
                           <p className="text-[10px] font-medium text-green-600 mb-1 flex items-center gap-0.5">
                             <WandSparkles className="w-2.5 h-2.5" /> 推荐主题
                           </p>
@@ -834,7 +834,7 @@ export default function Home() {
 
                       {/* 生活化种草 - 专属词库 */}
                       {topicType === 'life_lifestyle' && (
-                        <div className="pt-2 border-t border-gray-100">
+                        <div className="pt-2 border-t border-gray-100 shrink-0">
                           <p className="text-[10px] font-medium text-green-600 mb-1 flex items-center gap-0.5">
                             <Sparkles className="w-2.5 h-2.5" /> 专属词库
                           </p>
@@ -859,7 +859,7 @@ export default function Home() {
                   </Card>
 
                   {/* 右列：创作人设 */}
-                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden">
+                  <Card className="border-0 shadow-md bg-white/90 flex flex-col overflow-hidden min-h-0">
                     <CardHeader className="pb-2 pt-3 px-4 shrink-0">
                       <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
                         <span className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 text-white text-[10px] flex items-center justify-center shrink-0">3</span>
