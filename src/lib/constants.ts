@@ -84,10 +84,12 @@ export const TITLE_STYLE_OPTIONS: { value: TitleStyle; label: string; descriptio
 ];
 
 // 博主人设选项
-export const PERSONA_OPTIONS: { value: PersonaType; label: string; description: string; emoji: string }[] = [
-  { value: 'hardcore_uncle', label: '硬核财经大叔', description: '沉稳老练，数据说话', emoji: '👨‍💼' },
-  { value: 'sweet_girl', label: '甜妹理财科普', description: '甜美亲切，易懂易学', emoji: '👩‍💕' },
-  { value: 'custom', label: '自定义人设', description: '自定义你的专属人设', emoji: '✏️' },
+export const PERSONA_OPTIONS: { value: PersonaType; label: string; description: string; emoji: string; tags: string[] }[] = [
+  { value: 'campus_explorer', label: '校园理财探索生', description: '零花钱、实习工资，第一步理财怎么开始', emoji: '🎓', tags: ['新手友好', '低门槛', '入门科普'] },
+  { value: 'salary_diary', label: '打工人真实日记', description: '第一份工资到手后，开始认真看懂钱', emoji: '💼', tags: ['真实分享', '碎片时间', '工资理财'] },
+  { value: 'family_cfo', label: '家庭 CFO', description: '把家庭账本、教育金和稳健配置安排清楚', emoji: '👩‍👧', tags: ['家庭理财', '稳健关注', '长期规划'] },
+  { value: 'sober_girl', label: '清醒搞钱女孩', description: '不盲从、不焦虑，建立自己的投资判断', emoji: '👩', tags: ['财务独立', '清醒搞钱', '避坑思维'] },
+  { value: 'custom', label: '自定义人设', description: '自己定义角色、语气和内容方向', emoji: '✏️', tags: ['自定义', '灵活适配', '自由生成'] },
 ];
 
 // 视频时长选项
@@ -108,17 +110,44 @@ export const VIDEO_STYLE_OPTIONS: { value: VideoStyle; label: string }[] = [
 
 // 场景与人设的自动匹配规则
 export const SCENE_PERSONA_COMPATIBILITY: Record<TopicType, PersonaType[]> = {
-  'market_hot': ['hardcore_uncle', 'sweet_girl'],
-  'beginner_guide': ['hardcore_uncle', 'sweet_girl'],
-  'life_lifestyle': ['sweet_girl', 'hardcore_uncle'],
-  'tool_review': ['hardcore_uncle', 'sweet_girl'],
+  'market_hot': ['campus_explorer', 'salary_diary', 'family_cfo', 'sober_girl'],
+  'beginner_guide': ['campus_explorer', 'salary_diary', 'sober_girl'],
+  'life_lifestyle': ['campus_explorer', 'salary_diary', 'family_cfo', 'sober_girl'],
+  'tool_review': ['salary_diary', 'family_cfo', 'sober_girl'],
 };
 
 // 人设自动匹配的风格配置
-export const PERSONA_STYLE_CONFIG: Record<PersonaType, { tone: string; emojiDensity: string; titleStyle: TitleStyle }> = {
-  'hardcore_uncle': { tone: '严肃专业', emojiDensity: '极简', titleStyle: 'data_driven' },
-  'sweet_girl': { tone: '亲切甜美', emojiDensity: '高频', titleStyle: 'emotional' },
-  'custom': { tone: '自定义', emojiDensity: '适中', titleStyle: 'suspense' },
+export const PERSONA_STYLE_CONFIG: Record<PersonaType, { tone: string; emojiDensity: string; titleStyle: TitleStyle; personaPrompt: string }> = {
+  'campus_explorer': {
+    tone: '活泼亲切',
+    emojiDensity: '高频',
+    titleStyle: 'emotional',
+    personaPrompt: '你是校园理财探索生，用大学生的视角和语言风格写内容。语气活泼亲切，像同学之间分享理财心得，多用"零花钱"、"实习工资"、"第一步"等词汇，让理财看起来触手可及、没有门槛。用Emoji增加亲和力，内容要通俗易懂，适合理财小白。',
+  },
+  'salary_diary': {
+    tone: '真实接地气',
+    emojiDensity: '适中',
+    titleStyle: 'practical',
+    personaPrompt: '你是打工人真实日记博主，用职场新人的真实视角写内容。语气真实接地气，像朋友之间聊工资和理财，多用"第一份工资"、"工资到账"、"碎片时间"等词汇，分享真实的理财体验和感受。内容要务实不浮夸，让人感觉这是真实的生活记录。',
+  },
+  'family_cfo': {
+    tone: '稳重温暖',
+    emojiDensity: '适中',
+    titleStyle: 'data_driven',
+    personaPrompt: '你是家庭CFO，用理性但温暖的家长视角写内容。语气稳重温暖，关注家庭财务规划，多用"家庭账本"、"教育金"、"稳健配置"、"长期规划"等词汇。内容要有数据支撑，注重风险控制和长期价值，让人感觉安心可靠。',
+  },
+  'sober_girl': {
+    tone: '独立清醒',
+    emojiDensity: '适中偏高',
+    titleStyle: 'contrast',
+    personaPrompt: '你是清醒搞钱女孩，用独立清醒的女性视角写内容。语气不盲从、不焦虑，强调建立自己的投资判断，多用"财务独立"、"清醒搞钱"、"避坑"等词汇。内容要有批判性思维，敢于质疑跟风，帮助读者建立独立判断能力。',
+  },
+  'custom': {
+    tone: '自定义',
+    emojiDensity: '适中',
+    titleStyle: 'suspense',
+    personaPrompt: '',
+  },
 };
 
 // 内容子类型选项（简化）

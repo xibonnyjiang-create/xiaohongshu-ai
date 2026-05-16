@@ -20,7 +20,7 @@ export type HotTopicTimeRange = '24h' | '7d' | '30d';
 export type AdditionalRequirement = 'short_300' | 'short_term' | 'long_term' | 'examples' | 'story_telling' | 'custom';
 
 // 博主人设类型
-export type PersonaType = 'hardcore_uncle' | 'sweet_girl' | 'custom';
+export type PersonaType = 'campus_explorer' | 'salary_diary' | 'family_cfo' | 'sober_girl' | 'custom';
 
 // 分析对象
 export type AnalysisTarget = 'asset' | 'industry' | 'company' | 'macro_policy' | 'market_event' | 'custom';

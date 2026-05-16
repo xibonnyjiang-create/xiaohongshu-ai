@@ -38,7 +38,7 @@ export default function Home() {
   const [videoDuration, setVideoDuration] = useState<VideoDuration>('60s');
 
   // ==================== 人设选择 ====================
-  const [personaType, setPersonaType] = useState<string>('hardcore_uncle');
+  const [personaType, setPersonaType] = useState<string>('campus_explorer');
   const [customPersona, setCustomPersona] = useState('');
   const [showPersonaDialog, setShowPersonaDialog] = useState(false);
 
@@ -897,7 +897,7 @@ export default function Home() {
                         选择创作人设
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-3 flex-1 overflow-y-auto space-y-2 min-h-0">
+                    <CardContent className="px-4 pb-3 flex-1 overflow-y-auto space-y-1.5 min-h-0">
                       <div className="space-y-1">
                         {PERSONA_OPTIONS.map(option => (
                           <button
@@ -916,8 +916,17 @@ export default function Home() {
                             }`}
                           >
                             <span className="font-medium">{option.emoji} {option.label}</span>
-                            {personaType === option.value && (
-                              <p className="text-[10px] mt-0.5 text-rose-100">{option.description}</p>
+                            <p className={`text-[10px] mt-0.5 ${personaType === option.value ? 'text-rose-100' : 'text-gray-400'}`}>
+                              {option.description}
+                            </p>
+                            {personaType === option.value && option.tags && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {option.tags.map(tag => (
+                                  <span key={tag} className="text-[9px] px-1 py-0 rounded-full bg-white/20 text-white">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </button>
                         ))}

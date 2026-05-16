@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { TopicType, PersonaType, TitleCandidate, OutputFormat, VideoDuration } from '@/lib/types';
 import { callLLM, callLLMStream, callComplianceCheck } from '@/lib/llm';
-import { PERSONA_STYLE_CONFIG, WEIXIN_SECURITY_MAPPING, MARKET_HOT_SENSITIVE_WORDS, containsSensitiveWords } from '@/lib/constants';
+import { PERSONA_STYLE_CONFIG, WEIXIN_SECURITY_MAPPING, MARKET_HOT_SENSITIVE_WORDS, containsSensitiveWords, PERSONA_OPTIONS } from '@/lib/constants';
 
 // 选题类型映射
 const TOPIC_TYPE_PROMPTS: Record<TopicType, string> = {
@@ -241,11 +241,13 @@ async function generateTitles(
   hotTop3Tags?: string[],
   hotTopicInfo?: string,
   personaType?: string,
-  styleConfig?: { titleStyle: string; tone: string; emojiDensity: string }
+  styleConfig?: { titleStyle: string; tone: string; emojiDensity: string; personaPrompt?: string }
 ): Promise<TitleCandidate[]> {
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const persona = personaType || 'custom';
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
+  const personaInfo = PERSONA_OPTIONS.find(p => p.value === persona);
+  const personaDesc = config.personaPrompt || (personaInfo ? `${personaInfo.emoji}${personaInfo.label}：${personaInfo.description}` : '');
   const isMarketHot = topicType === 'market_hot';
 
   // 市场热点场景添加敏感词过滤说明
@@ -262,7 +264,7 @@ async function generateTitles(
 
 【场景信息】
 - 选题类型：${topicLabel}
-- 人设：${persona}
+- 人设：${persona}${personaDesc ? `\n- 人设定义：${personaDesc}` : ''}
 - 关键词：${keywords || '未指定'}
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
 ${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
@@ -335,12 +337,14 @@ async function generateContentStream(
   hotTop3Tags?: string[],
   selectedTitle?: string,
   personaType?: string,
-  styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
+  styleConfig?: { tone: string; emojiDensity: string; titleStyle: string; personaPrompt?: string },
   weixinMapping?: { feature: string; highlight: string }[]
 ): Promise<AsyncGenerator<string>> {
   const topicLabel = TOPIC_TYPE_PROMPTS[topicType] || '通用内容';
   const analysisLevel = deepAnalysis ? '深度分析：专业数据支撑、机构观点引用' : '标准分析：简洁易懂';
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
+  const personaInfo = PERSONA_OPTIONS.find(p => p.value === personaType);
+  const personaDesc = config.personaPrompt || (personaInfo ? `${personaInfo.emoji}${personaInfo.label}：${personaInfo.description}` : '');
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
   const isMarketHot = topicType === 'market_hot';
 
@@ -359,6 +363,7 @@ async function generateContentStream(
 标题：${selectedTitle || '待定'}
 关键词：${keywords || ''}
 ${hotTop3Tags?.length ? `标签：${hotTop3Tags.join('、')}` : ''}
+${personaDesc ? `\n【人设定义】${personaDesc}\n请严格按照以上人设的语气、视角和用词风格来撰写内容，让读者感受到这个角色的真实感和代入感。\n` : ''}
 ${mappingStr}
 
 风格：${config.tone}，${config.emojiDensity}
@@ -389,11 +394,13 @@ async function generateVideoScript(
   keywords?: string,
   selectedTitle?: string,
   personaType?: string,
-  styleConfig?: { tone: string; emojiDensity: string; titleStyle: string },
+  styleConfig?: { tone: string; emojiDensity: string; titleStyle: string; personaPrompt?: string },
   weixinMapping?: { feature: string; highlight: string }[],
   durationConfig?: { totalSeconds: number; segmentCount: number; description: string }
 ): Promise<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } }> {
   const config = styleConfig || PERSONA_STYLE_CONFIG.custom;
+  const personaInfo = PERSONA_OPTIONS.find(p => p.value === personaType);
+  const personaDesc = config.personaPrompt || (personaInfo ? `${personaInfo.emoji}${personaInfo.label}：${personaInfo.description}` : '');
   const mappingStr = weixinMapping?.length ? weixinMapping.map(m => `- ${m.feature}：${m.highlight}`).join('\n') : '';
   const duration = durationConfig || VIDEO_DURATION_CONFIG['60s'];
   const avgSegmentDuration = Math.floor(duration.totalSeconds / duration.segmentCount);
@@ -419,6 +426,7 @@ async function generateVideoScript(
 【基本信息】
 - 场景：${TOPIC_TYPE_PROMPTS[topicType]}
 - 人设：${personaType || 'custom'}
+${personaDesc ? `- 人设定义：${personaDesc}\n请严格按照以上人设的语气、视角和用词风格来撰写口播台词，让听众感受到这个角色的真实感和代入感。` : ''}
 - 标题：${selectedTitle || '待定'}
 - 关键词：${keywords || '未指定'}
 ${mappingStr ? `- 微证券功能植入点：${mappingStr}` : ''}
