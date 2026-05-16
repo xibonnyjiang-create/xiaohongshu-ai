@@ -718,6 +718,91 @@ export default function Home() {
                         ))}
                       </div>
 
+                      {/* 市场热点 - 热搜榜单 */}
+                      {topicType === 'market_hot' && (
+                        <div className="pt-2 border-t border-gray-100">
+                          {/* 板块切换 */}
+                          <div className="flex items-center gap-1 mb-1.5">
+                            {HOT_CATEGORIES.map(cat => (
+                              <button
+                                key={cat.id}
+                                onClick={() => setHotCategory(cat.id)}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                  hotCategory === cat.id
+                                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                              >
+                                {cat.icon} {cat.name}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* 热搜列表 */}
+                          <div className="space-y-0.5 max-h-[calc(100vh-22rem)] overflow-y-auto">
+                            {hotTopicsLoading ? (
+                              <div className="flex items-center justify-center py-3">
+                                <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
+                                <span className="text-[10px] text-gray-400 ml-1">加载热搜...</span>
+                              </div>
+                            ) : hotTopics.length > 0 ? (
+                              hotTopics.map((topic, index) => (
+                                <button
+                                  key={topic.id}
+                                  onClick={() => {
+                                    setSelectedHotTopic(selectedHotTopic?.id === topic.id ? null : topic);
+                                    if (selectedHotTopic?.id !== topic.id) {
+                                      setKeywords(topic.title);
+                                    }
+                                  }}
+                                  className={`w-full p-1.5 rounded-lg text-left transition-all text-[10px] ${
+                                    selectedHotTopic?.id === topic.id
+                                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm'
+                                      : 'hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${
+                                      index < 3
+                                        ? selectedHotTopic?.id === topic.id ? 'bg-white/30 text-white' : 'bg-rose-100 text-rose-600'
+                                        : selectedHotTopic?.id === topic.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
+                                    }`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="truncate font-medium">{topic.title}</span>
+                                    {topic.hot && (
+                                      <span className={`ml-auto shrink-0 ${selectedHotTopic?.id === topic.id ? 'text-rose-100' : 'text-gray-300'}`}>
+                                        🔥{topic.hot}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {topic.snippet && (
+                                    <p className={`mt-0.5 pl-5 truncate ${selectedHotTopic?.id === topic.id ? 'text-rose-100' : 'text-gray-400'}`}>
+                                      {topic.snippet}
+                                    </p>
+                                  )}
+                                </button>
+                              ))
+                            ) : (
+                              <p className="text-[10px] text-gray-400 text-center py-2">暂无热搜数据</p>
+                            )}
+                          </div>
+
+                          {/* 更新时间 & 刷新 */}
+                          {hotUpdateTime && (
+                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100">
+                              <span className="text-[9px] text-gray-300">更新于 {hotUpdateTime}</span>
+                              <button
+                                onClick={() => loadHotTopics()}
+                                className="text-[9px] text-rose-400 hover:text-rose-500 flex items-center gap-0.5"
+                              >
+                                <RefreshCw className="w-2 h-2" /> 刷新
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* 小白科普 - 推荐主题 */}
                       {topicType === 'beginner_guide' && (
                         <div className="pt-2 border-t border-gray-100">
