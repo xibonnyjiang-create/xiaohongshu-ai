@@ -3,8 +3,8 @@
 // ========================================
 
 // LLM API配置 (OpenAI兼容接口)
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || process.env.CONTENT_API_KEY || '';
-const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || process.env.CONTENT_API_BASE_URL || 'https://hk.testvideo.site/v1';
+const DEEPSEEK_API_KEY = process.env.GPT_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.CONTENT_API_KEY || '';
+const DEEPSEEK_BASE_URL = process.env.GPT_API_BASE_URL || process.env.DEEPSEEK_BASE_URL || process.env.CONTENT_API_BASE_URL || 'https://hk.testvideo.site/v1';
 const DEEPSEEK_MODEL = process.env.LLM_MODEL || 'gpt5.5plus';
 
 // ========================================
