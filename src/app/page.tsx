@@ -86,6 +86,85 @@ export default function Home() {
   const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } | null>(null);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean; fixedContent?: string }>({ isCompliant: true, warnings: [] });
 
+  // ==================== 历史记录 ====================
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyRecords, setHistoryRecords] = useState<Array<{
+    id: string; title: string; content: string; tags: string[];
+    image_urls: string[]; selected_image_url?: string;
+    scene?: string; persona?: string; keyword?: string;
+    video_script?: { script: string; duration: string } | null;
+    is_favorite: boolean; created_at: string;
+  }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // 加载历史记录
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/history?limit=50');
+      const data = await res.json();
+      if (data.records) setHistoryRecords(data.records);
+    } catch (e) {
+      console.error('加载历史记录失败:', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  // 自动保存到历史记录
+  const saveToHistory = useCallback(async (title: string, contentText: string, tagsList: string[], imgUrls: string[], genImageUrl: string) => {
+    try {
+      await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          content: contentText,
+          tags: tagsList,
+          imageUrls: imgUrls,
+          imageUrl: genImageUrl || null,
+          scene: topicType,
+          persona: personaType,
+          keyword: keywords || selectedHotTopic?.title || '',
+          videoScript: videoScript ? { script: JSON.stringify(videoScript), duration: videoDuration } : null,
+        }),
+      });
+    } catch (e) {
+      console.error('保存历史记录失败:', e);
+    }
+  }, [topicType, personaType, keywords, selectedHotTopic, videoScript, videoDuration]);
+
+  // 删除历史记录
+  const deleteHistory = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/history?id=${id}`, { method: 'DELETE' });
+      setHistoryRecords(prev => prev.filter(r => r.id !== id));
+      toast.success('已删除');
+    } catch (e) {
+      toast.error('删除失败');
+    }
+  }, []);
+
+  // 打开历史记录弹窗
+  const openHistory = useCallback(() => {
+    setShowHistory(true);
+    loadHistory();
+  }, [loadHistory]);
+
+  // 查看历史记录详情
+  const viewHistoryRecord = useCallback((record: typeof historyRecords[0]) => {
+    setShowHistory(false);
+    setGeneratedTitles([{ title: record.title, style: 'emotional' }]);
+    setSelectedTitleIndex(0);
+    setContent(record.content);
+    setEditableContent(record.content);
+    setTags(record.tags || []);
+    setImageUrls(record.image_urls || []);
+    setGeneratedImageUrl(record.selected_image_url || '');
+    setStep('content');
+    setViewMode('integrated');
+  }, []);
+
   // ==================== 计算属性 ====================
   const showHotTopics = SHOW_HOT_TOPICS_TOPIC.includes(topicType);
   const keywordsByScene = KEYWORD_RECOMMENDATIONS[topicType];
@@ -255,7 +334,8 @@ export default function Home() {
             }
           }
         }
-        toast.success('生成完成！');
+        // 自动保存到历史记录
+        saveToHistory(selectedTitle, accumulatedContent, [], [], '');
       }
     } catch (error) {
       console.error('生成错误:', error);
@@ -263,7 +343,7 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedTitleIndex, generatedTitles, topicType, keywords, deepAnalysis, personaType, selectedHotTopic, hotTop3Tags, userEdited]);
+  }, [selectedTitleIndex, generatedTitles, topicType, keywords, deepAnalysis, personaType, selectedHotTopic, hotTop3Tags, userEdited, saveToHistory]);
 
   // ==================== 重新生成内容 ====================
   const handleRegenerateContent = useCallback(async () => {
@@ -487,6 +567,13 @@ export default function Home() {
             <span className="font-bold text-gray-800">小红书爆款生成器</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={openHistory}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>历史</span>
+            </button>
             <div className="flex bg-gray-100 rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode('split')}
@@ -1706,6 +1793,66 @@ export default function Home() {
           </Card>
         )}
       </main>
+
+      {/* 历史记录弹窗 */}
+      <Dialog open={showHistory} onOpenChange={setShowHistory}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <History className="w-4 h-4 text-rose-500" />
+              历史记录
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-2 py-2">
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-10 text-gray-400">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                加载中...
+              </div>
+            ) : historyRecords.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">
+                暂无历史记录
+              </div>
+            ) : (
+              historyRecords.map(record => (
+                <div
+                  key={record.id}
+                  className="group relative border rounded-lg p-3 hover:border-rose-200 hover:bg-rose-50/30 transition-colors cursor-pointer"
+                  onClick={() => viewHistoryRecord(record)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-gray-800 truncate">{record.title}</h4>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{record.content}</p>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {record.scene && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {SCENE_OPTIONS.find(s => s.value === record.scene)?.label || record.scene}
+                          </Badge>
+                        )}
+                        {record.persona && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {PERSONA_OPTIONS.find(p => p.value === record.persona)?.label || record.persona}
+                          </Badge>
+                        )}
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(record.created_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteHistory(record.id); }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

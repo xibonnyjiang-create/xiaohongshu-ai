@@ -70,14 +70,15 @@ except Exception as e:
 function getSupabaseCredentials(): SupabaseCredentials {
   loadEnv();
 
-  const url = process.env.XHS_SB_URL;
-  const anonKey = process.env.XHS_SB_ANON_KEY;
+  // 优先使用系统提供的 Supabase（部署环境），回退到自定义配置
+  const url = process.env.COZE_SUPABASE_URL || process.env.XHS_SB_URL;
+  const anonKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.XHS_SB_ANON_KEY;
 
   if (!url) {
-    throw new Error('XHS_SB_URL is not set');
+    throw new Error('Supabase URL is not set');
   }
   if (!anonKey) {
-    throw new Error('XHS_SB_ANON_KEY is not set');
+    throw new Error('Supabase ANON_KEY is not set');
   }
 
   return { url, anonKey };

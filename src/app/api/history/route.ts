@@ -9,11 +9,10 @@ interface HistoryRecord {
   tags: string[];
   image_urls: string[];
   selected_image_url?: string;
-  engagement_score?: {
-    score: number;
-    reasons: string[];
-    suggestions: string[];
-  };
+  scene?: string;
+  persona?: string;
+  keyword?: string;
+  video_script?: { script: string; duration: string } | null;
   is_favorite: boolean;
   created_at: string;
 }
@@ -21,7 +20,13 @@ interface HistoryRecord {
 // GET: 获取历史记录列表
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    let client;
+    try {
+      client = getSupabaseClient();
+    } catch (clientErr) {
+      console.error('Supabase client init error:', clientErr);
+      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
+    }
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     
@@ -31,7 +36,10 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(limit);
     
-    if (error) throw new Error(`查询失败: ${error.message}`);
+    if (error) {
+      console.error('Supabase query error:', JSON.stringify(error));
+      throw new Error(`查询失败: ${error.message}`);
+    }
     
     return NextResponse.json({ records: data as HistoryRecord[] });
   } catch (error) {
@@ -46,21 +54,29 @@ export async function POST(request: NextRequest) {
     const client = getSupabaseClient();
     const body = await request.json();
     
+    const insertData: Record<string, unknown> = {
+      title: body.title || '',
+      content: body.content || '',
+      tags: body.tags || [],
+      image_urls: body.imageUrls || [],
+      selected_image_url: body.imageUrl || null,
+      scene: body.scene || null,
+      persona: body.persona || null,
+      keyword: body.keyword || null,
+      video_script: body.videoScript || null,
+      is_favorite: false,
+    };
+    
     const { data, error } = await client
       .from('history_records')
-      .insert({
-        title: body.title || '',
-        content: body.content || '',
-        tags: body.tags || [],
-        image_urls: body.imageUrls || [],
-        selected_image_url: body.imageUrl || null,
-        engagement_score: body.engagementScore || null,
-        is_favorite: false,
-      })
+      .insert(insertData)
       .select()
       .single();
     
-    if (error) throw new Error(`保存失败: ${error.message}`);
+    if (error) {
+      console.error('Supabase insert error:', JSON.stringify(error));
+      throw new Error(`保存失败: ${error.message}`);
+    }
     
     return NextResponse.json({ record: data });
   } catch (error) {
