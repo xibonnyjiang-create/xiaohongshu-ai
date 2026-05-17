@@ -9,14 +9,14 @@ interface SupabaseCredentials {
 }
 
 function loadEnv(): void {
-  if (envLoaded || (process.env.SUPABASE_DB_URL && process.env.SUPABASE_DB_ANON_KEY)) {
+  if (envLoaded || (process.env.XHS_SB_URL && process.env.XHS_SB_ANON_KEY)) {
     return;
   }
 
   try {
     try {
       require('dotenv').config();
-      if (process.env.SUPABASE_DB_URL && process.env.SUPABASE_DB_ANON_KEY) {
+      if (process.env.XHS_SB_URL && process.env.XHS_SB_ANON_KEY) {
         envLoaded = true;
         return;
       }
@@ -70,14 +70,14 @@ except Exception as e:
 function getSupabaseCredentials(): SupabaseCredentials {
   loadEnv();
 
-  const url = process.env.SUPABASE_DB_URL;
-  const anonKey = process.env.SUPABASE_DB_ANON_KEY;
+  const url = process.env.XHS_SB_URL;
+  const anonKey = process.env.XHS_SB_ANON_KEY;
 
   if (!url) {
-    throw new Error('SUPABASE_DB_URL is not set');
+    throw new Error('XHS_SB_URL is not set');
   }
   if (!anonKey) {
-    throw new Error('SUPABASE_DB_ANON_KEY is not set');
+    throw new Error('XHS_SB_ANON_KEY is not set');
   }
 
   return { url, anonKey };
