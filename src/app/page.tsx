@@ -83,6 +83,9 @@ export default function Home() {
   const [customImagePrompt, setCustomImagePrompt] = useState<string>(''); // 自定义生图口令
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string>(''); // 直接生成的图片
   const [isGeneratingImage, setIsGeneratingImage] = useState(false); // 生图中
+  const [videoPrompt, setVideoPrompt] = useState<string>(''); // 视频生成prompt
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string>(''); // 生成的视频URL
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false); // 视频生成中
   const [videoScript, setVideoScript] = useState<{ hook: string; segments: { visual: string; voiceover: string; duration: string; action?: string }[]; cta: string; bgm?: { name: string; reason: string } } | null>(null);
   const [compliance, setCompliance] = useState<{ isCompliant: boolean; warnings: string[]; fixed?: boolean; fixedContent?: string }>({ isCompliant: true, warnings: [] });
 
@@ -553,6 +556,34 @@ export default function Home() {
     
     return text;
   }, [videoScript, generatedTitles, selectedTitleIndex, tags]);
+
+  // ==================== 视频生成 ====================
+  const handleGenerateVideo = useCallback(async () => {
+    if (!videoPrompt.trim()) return;
+    setIsGeneratingVideo(true);
+    setGeneratedVideoUrl('');
+    try {
+      const res = await fetch('/api/video-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: videoPrompt,
+          imageUrl: generatedImageUrl || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.videoUrl) {
+        setGeneratedVideoUrl(data.videoUrl);
+      } else {
+        alert(data.error || '视频生成失败');
+      }
+    } catch (err) {
+      console.error('Video generation error:', err);
+      alert('视频生成失败，请重试');
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  }, [videoPrompt, generatedImageUrl]);
 
   // ==================== 渲染 ====================
   return (
@@ -1376,6 +1407,90 @@ export default function Home() {
                 </Card>
               )}
 
+              {/* 视频生成 */}
+              {outputFormat === 'video' && (
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-violet-50 to-fuchsia-50">
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <CardTitle className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      <Video className="w-4 h-4 text-violet-500" />
+                      AI视频生成
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-3">
+                    <p className="text-xs text-gray-500">基于视频脚本自动生成视频Prompt，也可自定义编辑后一键生成视频</p>
+                    {/* Prompt 编辑框 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-600">视频Prompt</span>
+                        {videoScript && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs text-violet-600 hover:text-violet-700"
+                            onClick={() => {
+                              // 基于视频脚本自动生成prompt
+                              const scriptPrompt = `小红书竖屏短视频，财经科普风格。开场：${videoScript.hook}。${videoScript.segments.map((s, i) => `镜头${i + 1}：${s.visual}，配音"${s.voiceover}"`).join('。')}。结尾：${videoScript.cta}。画面流畅，节奏紧凑，信息密度高。`;
+                              setVideoPrompt(scriptPrompt);
+                            }}
+                          >
+                            从脚本生成
+                          </Button>
+                        )}
+                      </div>
+                      <textarea
+                        value={videoPrompt}
+                        onChange={(e) => setVideoPrompt(e.target.value)}
+                        placeholder="描述你想要生成的视频内容，例如：一位年轻女性坐在书桌前，用轻松的语气讲解理财知识，画面干净明亮..."
+                        className="w-full h-24 p-2.5 text-xs rounded-xl border border-violet-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none placeholder:text-gray-300"
+                      />
+                    </div>
+                    {/* 生成按钮 */}
+                    <Button
+                      onClick={handleGenerateVideo}
+                      disabled={isGeneratingVideo || !videoPrompt.trim()}
+                      className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white text-sm font-medium rounded-xl h-9 disabled:opacity-50"
+                    >
+                      {isGeneratingVideo ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          视频生成中，请稍候...
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          <Video className="w-3.5 h-3.5" />
+                          一键生成视频
+                        </span>
+                      )}
+                    </Button>
+                    {isGeneratingVideo && (
+                      <p className="text-[10px] text-gray-400 text-center">视频生成通常需要1-3分钟，请耐心等待</p>
+                    )}
+                    {/* 视频预览 */}
+                    {generatedVideoUrl && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-violet-200">
+                        <video
+                          src={generatedVideoUrl}
+                          controls
+                          autoPlay
+                          loop
+                          className="w-full max-h-[400px] object-contain bg-black"
+                        />
+                        <div className="p-2 bg-white flex items-center justify-between">
+                          <span className="text-xs text-gray-500">视频已生成</span>
+                          <a
+                            href={generatedVideoUrl}
+                            download="xiaohongshu-video.mp4"
+                            className="text-xs text-violet-600 hover:text-violet-700 font-medium"
+                          >
+                            下载视频
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* 生图口令 */}
               {imagePrompt && (
                 <Card className="border-0 shadow-lg bg-gradient-to-r from-indigo-50 to-purple-50">
@@ -1775,6 +1890,52 @@ export default function Home() {
                       <p className="text-xs text-gray-500">{videoScript.bgm.reason}</p>
                     </div>
                   )}
+
+                  {/* 视频生成 */}
+                  <div className="p-4 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-violet-600">🎬 AI视频生成</p>
+                      {videoScript && (
+                        <button
+                          onClick={() => {
+                            const scriptPrompt = `小红书竖屏短视频，财经科普风格。开场：${videoScript.hook}。${videoScript.segments.map((s, i) => `镜头${i + 1}：${s.visual}，配音"${s.voiceover}"`).join('。')}。结尾：${videoScript.cta}。画面流畅，节奏紧凑，信息密度高。`;
+                            setVideoPrompt(scriptPrompt);
+                          }}
+                          className="text-[10px] text-violet-500 hover:text-violet-700 font-medium"
+                        >
+                          从脚本生成Prompt
+                        </button>
+                      )}
+                    </div>
+                    <textarea
+                      value={videoPrompt}
+                      onChange={(e) => setVideoPrompt(e.target.value)}
+                      placeholder="描述你想要生成的视频内容..."
+                      className="w-full h-20 p-2 text-xs rounded-lg border border-violet-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-300 resize-none placeholder:text-gray-300"
+                    />
+                    <button
+                      onClick={handleGenerateVideo}
+                      disabled={isGeneratingVideo || !videoPrompt.trim()}
+                      className="w-full py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors"
+                    >
+                      {isGeneratingVideo ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          视频生成中...
+                        </span>
+                      ) : '一键生成视频'}
+                    </button>
+                    {isGeneratingVideo && <p className="text-[10px] text-gray-400 text-center">视频生成通常需要1-3分钟</p>}
+                    {generatedVideoUrl && (
+                      <div className="rounded-lg overflow-hidden border border-violet-200">
+                        <video src={generatedVideoUrl} controls autoPlay loop className="w-full max-h-[300px] object-contain bg-black" />
+                        <div className="p-1.5 bg-white flex items-center justify-between">
+                          <span className="text-[10px] text-gray-500">视频已生成</span>
+                          <a href={generatedVideoUrl} download="xiaohongshu-video.mp4" className="text-[10px] text-violet-600 hover:text-violet-700 font-medium">下载</a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* 标签 */}
                   <div className="p-4 bg-gray-50 rounded-xl">
