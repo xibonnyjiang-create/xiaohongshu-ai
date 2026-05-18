@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const response = await client.videoGeneration(content, {
       model: 'doubao-seedance-1-5-pro-251215',
-      duration: 5,
+      duration: 10,
       ratio: '9:16',
       resolution: '720p',
       generateAudio: false,

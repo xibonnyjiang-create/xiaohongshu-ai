@@ -1464,7 +1464,7 @@ export default function Home() {
                       )}
                     </Button>
                     {isGeneratingVideo && (
-                      <p className="text-[10px] text-gray-400 text-center">视频生成通常需要1-3分钟，请耐心等待</p>
+                      <p className="text-[10px] text-gray-400 text-center">10秒视频生成通常需要2-5分钟，请耐心等待</p>
                     )}
                     {/* 视频预览 */}
                     {generatedVideoUrl && (
@@ -1927,7 +1927,7 @@ export default function Home() {
                         </span>
                       ) : '一键生成视频'}
                     </button>
-                    {isGeneratingVideo && <p className="text-[10px] text-gray-400 text-center">视频生成通常需要1-3分钟</p>}
+                    {isGeneratingVideo && <p className="text-[10px] text-gray-400 text-center">10秒视频生成通常需要2-5分钟</p>}
                     {generatedVideoUrl && (
                       <div className="rounded-lg overflow-hidden border border-violet-200">
                         <video src={generatedVideoUrl} controls autoPlay loop className="w-full max-h-[300px] object-contain bg-black" />
