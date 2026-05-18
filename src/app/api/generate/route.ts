@@ -259,24 +259,40 @@ async function generateTitles(
 请确保生成的标题不包含上述任何敏感词汇！`
     : '';
 
+  // 主题发散：根据场景提供多样化话题方向
+  const topicDivergenceMap: Record<TopicType, string> = {
+    market_hot: '基金定投、消费趋势、新能源、AI应用、医疗健康、利率变化、人民币汇率、养老规划、房产政策、年轻人理财、通胀应对、港股通、可转债、ETF投资、REITs、分红险、银行理财',
+    beginner_guide: '零花钱理财、第一份工资怎么花、基金入门、保险怎么选、信用卡技巧、存款方式、记账方法、理财APP推荐、定投策略、应急资金、五险一金、公积金使用',
+    life_lifestyle: '下班后理财、周末学投资、省钱妙招、消费降级、副业收入、工资分配、旅行基金、装修预算、养宠花费、奶茶自由、通勤时间理财、早餐经济学',
+    tool_review: '记账APP测评、基金平台对比、券商APP推荐、理财工具箱、AI理财助手、银行APP对比、保险平台评测、港股通工具、可转债工具',
+  };
+  const topicPool = topicDivergenceMap[topicType] || topicDivergenceMap.beginner_guide;
+
   const prompt = `【标题生成】
-请为以下场景生成3个小红书爆款标题。
+请为小红书生成3个爆款标题，主题要多元有趣！
 
 【场景信息】
 - 选题类型：${topicLabel}
 - 人设：${persona}${personaDesc ? `\n- 人设定义：${personaDesc}` : ''}
-- 关键词：${keywords || '未指定'}
+- 用户输入的关键词：${keywords || '未指定'}
 ${hotTop3Tags?.length ? `- 热门标签：${hotTop3Tags.join('、')}` : ''}
-${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 200)}` : ''}
+${hotTopicInfo ? `- 热点背景：\n${hotTopicInfo.substring(0, 300)}` : ''}
+
+【话题参考池】（从以下方向发散，不要只盯着半导体/黄金）
+${topicPool}
+
+【重要】如果用户没有指定关键词或关键词很笼统，请从话题参考池中随机选择3个不同方向的话题来生成标题，确保3个标题的话题各不相同！如果用户指定了具体关键词，则围绕该关键词展开。
+
 ${sensitiveWordWarning}
 
 【标题要求】严格遵守！
 1. 总长度：≤20字（emoji+符号+汉字全部算在内）
 2. 必须包含：1-2个Emoji
 3. 标题风格：${config.titleStyle}
-4. 语气：${config.tone}
+4. 语气：${config.tone}，要有小红书网感（可以用"绝了/救命/离谱/搞钱/必看/打工人"等口语化表达）
 5. 不要使用任何Markdown格式
-${isMarketHot ? '6. 严禁包含任何敏感词汇！' : ''}
+6. 3个标题的话题方向必须各不相同！
+${isMarketHot ? '7. 严禁包含任何敏感词汇！' : ''}
 
 【输出格式】
 直接输出3个标题，每行一个，格式为"emoji 标题内容"，不要编号，不要加引号：
@@ -306,20 +322,16 @@ ${isMarketHot ? '6. 严禁包含任何敏感词汇！' : ''}
     if (titles.length >= 3) break;
   }
 
-  // 如果过滤后标题不足3个，补充默认标题
+  // 如果过滤后标题不足3个，补充默认标题（从话题池随机选方向）
+  const fallbackTopics = isMarketHot
+    ? ['理财入门必看', '年轻人搞钱攻略', '基金定投怎么选', '零基础理财', '月薪3000也能理财']
+    : ['省钱小妙招', '理财小技巧', '搞钱必看攻略', '新手理财入门', '上班族理财法'];
   while (titles.length < 3) {
-    const fallbackTitle = isMarketHot 
-      ? `📈 ${keywords || '市场热点解读'}`
-      : `📈 ${keywords || '内容解读'}`;
-    // 再次检查
+    const randomTopic = fallbackTopics[titles.length % fallbackTopics.length];
+    const fallbackTitle = `💡 ${randomTopic}`;
     if (!isMarketHot || !containsSensitiveWords(fallbackTitle).hasSensitive) {
       titles.push({
         title: fallbackTitle,
-        style: config.titleStyle as TitleCandidate['style'],
-      });
-    } else {
-      titles.push({
-        title: `📊 ${keywords || '财经解读'}`,
         style: config.titleStyle as TitleCandidate['style'],
       });
     }
@@ -358,31 +370,51 @@ async function generateContentStream(
 请确保生成的内容不包含上述任何敏感词汇！`
     : '';
 
-  let prompt = `【重要】请严格控制字数：400-500字（全文含emoji总计）${sensitiveWordWarning}
+  // 话题发散池
+  const topicDivergenceMap: Record<TopicType, string> = {
+    market_hot: '基金定投、消费趋势、新能源、AI应用、医疗健康、利率变化、人民币汇率、养老规划、房产政策、年轻人理财、通胀应对、港股通、可转债、ETF投资、REITs、分红险、银行理财',
+    beginner_guide: '零花钱理财、第一份工资怎么花、基金入门、保险怎么选、信用卡技巧、存款方式、记账方法、理财APP推荐、定投策略、应急资金、五险一金、公积金使用',
+    life_lifestyle: '下班后理财、周末学投资、省钱妙招、消费降级、副业收入、工资分配、旅行基金、装修预算、养宠花费、奶茶自由、通勤时间理财、早餐经济学',
+    tool_review: '记账APP测评、基金平台对比、券商APP推荐、理财工具箱、AI理财助手、银行APP对比、保险平台评测、港股通工具、可转债工具',
+  };
+  const topicPool = topicDivergenceMap[topicType] || topicDivergenceMap.beginner_guide;
 
+  let prompt = `你是一个小红书理财博主，请根据以下信息写一篇小红书笔记。${sensitiveWordWarning}
+
+【创作信息】
 标题：${selectedTitle || '待定'}
 关键词：${keywords || ''}
-${hotTop3Tags?.length ? `标签：${hotTop3Tags.join('、')}` : ''}
-${personaDesc ? `\n【人设定义】${personaDesc}\n请严格按照以上人设的语气、视角和用词风格来撰写内容，让读者感受到这个角色的真实感和代入感。\n` : ''}
+${hotTop3Tags?.length ? `热门标签：${hotTop3Tags.join('、')}` : ''}
+${personaDesc ? `\n【人设定义】${personaDesc}\n请严格用这个人设的口吻写！想象你就是这个角色本人，在跟闺蜜/兄弟聊天，语气要自然真实有代入感。\n` : ''}
 ${mappingStr}
+${hotTopicInfo ? `\n【热点背景】${hotTopicInfo.substring(0, 400)}` : ''}
 
-风格：${config.tone}，${config.emojiDensity}
+【话题参考】${topicPool}
+注意：不要总是写半导体和黄金！请根据标题话题方向来写，覆盖多元化的理财话题。
 
-必须包含：
-- 投资风险提示
+【写作风格】
+- ${config.tone}，${config.emojiDensity}
+- 小红书网感：口语化、接地气、像朋友在分享
+- 适当使用"绝了/救命/真的/姐妹/宝子/搞钱/打工人"等小红书常用词
+- 每段用emoji开头增加视觉节奏感
+- 纯文本格式，不要任何Markdown（不要**加粗**、不要#标题）
+
+【字数】400-500字（含emoji）
+
+【必须包含】
+- 投资风险提示（自然融入，不要太生硬）
 - 微信搜索微证券
-- 纯文本格式，无Markdown
 ${isMarketHot ? '- 严禁提及任何虚拟货币或高风险投资内容' : ''}
 
-结构（约450字）：
-💰 开头1-2句
-⭐ 要点1，3-4句
-⭐ 要点2，3-4句
-✨ 总结1句
+【结构参考】
+💰 开头1-2句：制造共鸣/抛出痛点/分享经历
+⭐ 要点1（3-4句）：核心干货，用具体数字或案例
+⭐ 要点2（3-4句）：实用建议，接地气的操作方法
+✨ 总结1句：鼓励或提醒
 ⚠️ 风险提示
 👉 微信搜索微证券
 
-现在生成，正好400-500字：`;
+现在开始写，像在跟朋友聊天一样自然：`;
 
   const stream = await callLLMStream(prompt);
   return stream;
@@ -420,37 +452,45 @@ async function generateVideoScript(
     ? `\n\n【重要-市场热点专项】严禁提及：虚拟货币/加密货币/比特币/以太坊/NFT/元宇宙/炒币/币圈、期货/杠杆/保证金、原始股/资金盘/ICO等！`
     : '';
 
-  const prompt = `【视频脚本生成 - 严格格式】${sensitiveWordWarning}
-请为以下内容生成小红书视频脚本，必须严格遵守格式要求。
+  // 话题发散池
+  const topicDivergenceMap: Record<TopicType, string> = {
+    market_hot: '基金定投、消费趋势、新能源、AI应用、医疗健康、利率变化、人民币汇率、养老规划、房产政策、年轻人理财、通胀应对、港股通、可转债、ETF投资',
+    beginner_guide: '零花钱理财、第一份工资怎么花、基金入门、保险怎么选、信用卡技巧、存款方式、记账方法、定投策略、应急资金、五险一金',
+    life_lifestyle: '下班后理财、周末学投资、省钱妙招、消费降级、副业收入、工资分配、旅行基金、奶茶自由、通勤时间理财',
+    tool_review: '记账APP测评、基金平台对比、券商APP推荐、理财工具箱、AI理财助手、银行APP对比',
+  };
+  const topicPool = topicDivergenceMap[topicType] || topicDivergenceMap.beginner_guide;
+
+  const prompt = `你是一个小红书视频博主，请根据以下信息生成视频脚本。${sensitiveWordWarning}
 
 【基本信息】
 - 场景：${TOPIC_TYPE_PROMPTS[topicType]}
 - 人设：${personaType || 'custom'}
-${personaDesc ? `- 人设定义：${personaDesc}\n请严格按照以上人设的语气、视角和用词风格来撰写口播台词，让听众感受到这个角色的真实感和代入感。` : ''}
+${personaDesc ? `- 人设定义：${personaDesc}\n请严格用这个人设的口吻写口播台词！想象你就是在镜头前跟粉丝聊天，要自然真实有代入感。` : ''}
 - 标题：${selectedTitle || '待定'}
 - 关键词：${keywords || '未指定'}
 ${mappingStr ? `- 微证券功能植入点：${mappingStr}` : ''}
 
+【话题参考】${topicPool}
+注意：不要总是写半导体和黄金！请根据标题话题方向来写，覆盖多元化的理财话题。
+
 【硬性要求】
-1. 【前置合规】严禁出现以下内容：
-   - 个股推荐（如"买入XX股票"）
-   - 收益承诺（如"稳赚"、"必涨"、"保证盈利"）
-   - 夸大宣传（如"一夜暴富"、"躺赚"）
-   - 绝对化用语（如"一定"、"肯定"、"百分百"）
-2. 黄金3秒钩子：制造悬念/冲突/共鸣，吸引用户停留
+1. 【前置合规】严禁出现：个股推荐、收益承诺、夸大宣传、绝对化用语
+2. 黄金3秒钩子：用痛点/悬念/反差开头，让观众停下来
 3. 分镜数量：${duration.segmentCount}个，每个${avgSegmentDuration}秒左右
 4. 总时长：${duration.totalSeconds}秒
-5. 风险提示必须融入内容，不能只在结尾
+5. 口播台词要像在跟朋友聊天，不要像念稿子
+6. 画面描述要具体可执行（能直接用于视频拍摄指导）
 
-【分镜格式 - 强制使用以下格式，每行一个分镜】
-【镜头1】画面：[具体画面描述] | 口播：[对应的口播台词，3-5句] | 时长：${avgSegmentDuration}秒
+【分镜格式 - 强制使用以下格式】
+【镜头1】画面：[具体画面描述，包括景别/动作/场景细节] | 口播：[对应的口播台词，3-5句，口语化] | 时长：${avgSegmentDuration}秒
 【镜头2】画面：... | 口播：... | 时长：...
 ...（共${duration.segmentCount}个分镜）
 
 【必须包含的元素】
-1. 开头钩子：制造悬念或冲突（如痛点提问、反差数据）
+1. 开头钩子：制造悬念或冲突（痛点提问、反差数据、亲身经历）
 2. 内容主体：2-3个实用要点，每个要点有画面+口播
-3. 风险融入：在中间或结尾自然插入风险提示（如"虽然工具方便，但大家要根据自己风险偏好来定"）
+3. 风险融入：在中间自然插入风险提示
 4. CTA结尾：引导微信搜索微证券
 
 【BGM推荐】

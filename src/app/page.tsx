@@ -1428,8 +1428,9 @@ export default function Home() {
                             size="sm"
                             className="h-6 text-xs text-violet-600 hover:text-violet-700"
                             onClick={() => {
-                              // 基于视频脚本自动生成prompt
-                              const scriptPrompt = `小红书竖屏短视频，财经科普风格。开场：${videoScript.hook}。${videoScript.segments.map((s, i) => `镜头${i + 1}：${s.visual}，配音"${s.voiceover}"`).join('。')}。结尾：${videoScript.cta}。画面流畅，节奏紧凑，信息密度高。`;
+                              // 基于视频脚本自动生成适合视频模型的prompt
+                              const visuals = videoScript.segments.map((s, i) => `场景${i + 1}：${s.visual}`).join('；');
+                              const scriptPrompt = `竖屏短视频，小红书财经博主风格。${videoScript.hook}。${visuals}。画面节奏紧凑，镜头切换流畅，色调明亮温暖，适合手机竖屏观看。`;
                               setVideoPrompt(scriptPrompt);
                             }}
                           >
@@ -1898,7 +1899,8 @@ export default function Home() {
                       {videoScript && (
                         <button
                           onClick={() => {
-                            const scriptPrompt = `小红书竖屏短视频，财经科普风格。开场：${videoScript.hook}。${videoScript.segments.map((s, i) => `镜头${i + 1}：${s.visual}，配音"${s.voiceover}"`).join('。')}。结尾：${videoScript.cta}。画面流畅，节奏紧凑，信息密度高。`;
+                            const visuals = videoScript.segments.map((s, i) => `场景${i + 1}：${s.visual}`).join('；');
+                            const scriptPrompt = `竖屏短视频，小红书财经博主风格。${videoScript.hook}。${visuals}。画面节奏紧凑，镜头切换流畅，色调明亮温暖，适合手机竖屏观看。`;
                             setVideoPrompt(scriptPrompt);
                           }}
                           className="text-[10px] text-violet-500 hover:text-violet-700 font-medium"
